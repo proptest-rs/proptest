@@ -1293,11 +1293,15 @@
 //! perusing the module tree below.
 
 #![deny(missing_docs)]
+#![cfg_attr(feature = "bench", feature(test))]
+
+#[cfg(feature = "bench")] extern crate test;
 
 extern crate bit_set;
 #[macro_use] extern crate quick_error;
 extern crate rand;
 extern crate regex_syntax;
+extern crate smallvec;
 
 #[cfg(test)] extern crate regex;
 

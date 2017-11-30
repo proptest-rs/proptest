@@ -15,6 +15,7 @@ use std::fmt;
 use std::u32;
 
 use regex_syntax as rs;
+use smallvec::SmallVec;
 
 use bool;
 use char;
@@ -23,6 +24,8 @@ use bits;
 use num;
 use strategy::*;
 use test_runner::*;
+
+type Buffer = SmallVec<[u8; 16]>;
 
 quick_error! {
     /// Errors which may occur when preparing a regular expression for use with
@@ -94,34 +97,47 @@ pub fn bytes_regex(regex: &str)
 /// Like `bytes_regex()`, but allows providing a pre-parsed expression.
 pub fn bytes_regex_parsed(expr: &rs::Expr)
                           -> Result<RegexGeneratorStrategy<Vec<u8>>, Error> {
+    return buf_regex_parsed(expr).map(
+        |v| v.prop_map(SmallVec::into_vec).sboxed())
+        .map(RegexGeneratorStrategy);
+}
+
+fn buf_regex_parsed(expr: &rs::Expr)
+                    -> Result<SBoxedStrategy<Buffer>, Error> {
+    fn empty() -> Buffer { SmallVec::new() }
+    fn singleton(b: u8) -> Buffer {
+        let mut v = empty();
+        v.push(b);
+        v
+    }
+
     use self::rs::Expr::*;
 
     match *expr {
-        Empty => Ok(Just(vec![]).sboxed()),
+        Empty => Ok(Just(empty()).sboxed()),
         Literal { ref chars, casei: false } =>
-            Ok(Just(chars.iter().map(|&c| c).collect::<String>()
-                         .into_bytes()).sboxed()),
+            Ok(Just(flatten_bytes(chars.iter().cloned())).sboxed()),
         Literal { ref chars, casei: true } => {
             let chars = chars.to_owned();
             Ok(bits::bitset::between(0, chars.len())
                .prop_map(move |cases|
                          cases.into_bit_vec().iter().zip(chars.iter())
                          .map(|(case, &ch)| flip_case_to_bytes(case, ch))
-                         .fold(vec![], |mut accum, rhs| {
+                         .fold(empty(), |mut accum, rhs| {
                              accum.extend(rhs);
                              accum
                          }))
                .sboxed())
         },
         LiteralBytes { ref bytes, casei: false } =>
-            Ok(Just(bytes.to_owned()).sboxed()),
+            Ok(Just(SmallVec::from_slice(&bytes)).sboxed()),
         LiteralBytes { ref bytes, casei: true } => {
             let bytes = bytes.to_owned();
             Ok(bits::bitset::between(0, bytes.len())
                .prop_map(move |cases|
                          cases.into_bit_vec().iter().zip(bytes.iter())
                          .map(|(case, &byte)| flip_ascii_case(case, byte))
-                         .collect::<Vec<_>>()).sboxed())
+                         .collect::<Buffer>()).sboxed())
         },
 
         AnyChar => Ok(char::ANY.sboxed().prop_map(|c| to_bytes(c)).sboxed()),
@@ -140,10 +156,10 @@ pub fn bytes_regex_parsed(expr: &rs::Expr)
             Ok(char::ranges(Cow::Borrowed(NONL_RANGES))
                .prop_map(|c| to_bytes(c)).sboxed())
         },
-        AnyByte => Ok(num::u8::ANY.prop_map(|b| vec![b]).sboxed()),
+        AnyByte => Ok(num::u8::ANY.prop_map(|b| singleton(b)).sboxed()),
         AnyByteNoNL => Ok((0xBu8..).sboxed()
                           .prop_union((..0xAu8).sboxed())
-                          .prop_map(|b| vec![b]).sboxed()),
+                          .prop_map(|b| singleton(b)).sboxed()),
 
         Class(ref class) => {
             let ranges = (**class).iter().map(
@@ -155,15 +171,16 @@ pub fn bytes_regex_parsed(expr: &rs::Expr)
         ClassBytes(ref class) => {
             let subs = (**class).iter().map(
                 |&rs::ByteRange { start, end }| if 255u8 == end {
-                    (start..).sboxed()
+                    Lazy::new((start..).sboxed())
                 } else {
-                    (start..end).sboxed()
+                    Lazy::new((start..end).sboxed())
                 }).collect::<Vec<_>>();
             Ok(Union::new(subs)
-               .prop_map(|b| vec![b]).sboxed())
+               .prop_map(singleton)
+               .sboxed())
         },
 
-        Group { ref e, .. } => bytes_regex_parsed(e).map(|v| v.0),
+        Group { ref e, .. } => buf_regex_parsed(e),
 
         Repeat { ref e, r, .. } => {
             let range = match r {
@@ -187,14 +204,15 @@ pub fn bytes_regex_parsed(expr: &rs::Expr)
                     (min as usize)..max
                 },
             };
-            Ok(collection::vec(bytes_regex_parsed(e)?, range)
+            Ok(collection::vec(buf_regex_parsed(e)?, range)
                .prop_map(|parts| parts.into_iter().fold(
-                   vec![], |mut accum, child| { accum.extend(child); accum }))
+                   empty(),
+                   |mut accum, child| { accum.extend(child); accum }))
                .sboxed())
         },
 
         Concat(ref subs) => {
-            let subs = subs.iter().map(|e| bytes_regex_parsed(e))
+            let subs = subs.iter().map(|e| buf_regex_parsed(e))
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(subs.into_iter()
                .fold(None, |accum, rhs| match accum {
@@ -205,11 +223,11 @@ pub fn bytes_regex_parsed(expr: &rs::Expr)
                            lhs
                        }).sboxed()),
                }).unwrap_or_else(
-                   || Just(vec![]).sboxed()))
+                   || Just(empty()).sboxed()))
         },
 
         Alternate(ref subs) => {
-            let subs = subs.iter().map(|e| bytes_regex_parsed(e))
+            let subs = subs.iter().map(|e| buf_regex_parsed(e).map(Lazy::new))
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(Union::new(subs).sboxed())
         },
@@ -225,21 +243,36 @@ pub fn bytes_regex_parsed(expr: &rs::Expr)
         WordBoundaryAscii |
         NotWordBoundaryAscii => Err(Error::UnsupportedRegex(
             "word boundary tests not supported for string generation")),
-    }.map(RegexGeneratorStrategy)
+    }
 }
 
-fn flip_case_to_bytes(flip: bool, ch: char) -> Vec<u8> {
+fn flip_case_to_bytes(flip: bool, ch: char) -> Buffer {
     if flip && ch.is_uppercase() {
-        ch.to_lowercase().collect::<String>().into_bytes()
+        flatten_bytes(ch.to_lowercase())
     } else if flip && ch.is_lowercase() {
-        ch.to_uppercase().collect::<String>().into_bytes()
+        flatten_bytes(ch.to_uppercase())
     } else {
         to_bytes(ch)
     }
 }
 
-fn to_bytes(ch: char) -> Vec<u8> {
-    [ch].iter().map(|&c|c).collect::<String>().into_bytes()
+fn to_bytes(ch: char) -> Buffer {
+    let len = ch.len_utf8();
+    let mut buf = SmallVec::with_capacity(len);
+    buf.extend_from_slice(&[0u8, 0u8, 0u8, 0u8][..len]);
+    ch.encode_utf8(&mut buf);
+    buf
+}
+
+fn flatten_bytes<T : Iterator<Item = char>>(it: T) -> Buffer {
+    let mut buf = SmallVec::new();
+    for ch in it {
+        let len = ch.len_utf8();
+        buf.extend_from_slice(&[0u8, 0u8, 0u8, 0u8][..len]);
+        let off = buf.len() - len;
+        ch.encode_utf8(&mut buf[off..]);
+    }
+    buf
 }
 
 fn flip_ascii_case(flip: bool, ch: u8) -> u8 {
@@ -255,6 +288,7 @@ fn flip_ascii_case(flip: bool, ch: u8) -> u8 {
 #[cfg(test)]
 mod test {
     use std::collections::HashSet;
+    #[cfg(feature = "bench")] use test::Bencher;
 
     use regex::Regex;
 
@@ -366,5 +400,13 @@ mod test {
     #[test]
     fn regex_strategy_is_send_and_sync() {
         assert_send_and_sync(string_regex(".").unwrap());
+    }
+
+    #[cfg(feature = "bench")]
+    #[bench]
+    fn bench_regex_generation(b: &mut Bencher) {
+        let strategy = string_regex("[0-9]{4}-[0-9]{2}-[0-9]{2} .*").unwrap();
+        let mut runner = TestRunner::new(Config::default());
+        b.iter(|| strategy.new_value(&mut runner).unwrap().current());
     }
 }
