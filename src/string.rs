@@ -405,7 +405,12 @@ mod test {
     #[cfg(feature = "bench")]
     #[bench]
     fn bench_regex_generation(b: &mut Bencher) {
-        let strategy = string_regex("[0-9]{4}-[0-9]{2}-[0-9]{2} .*").unwrap();
+        const REGEX: &'static str = r#"(?ix)
+(REQ|SPC|TST)-              # the type followed by `-`
+([a-z0-9_]*-)*              # an optional number of `elem-` elements
+[a-z0-9_]*                  # required final element
+"#;
+        let strategy = string_regex(REGEX).unwrap();
         let mut runner = TestRunner::new(Config::default());
         b.iter(|| strategy.new_value(&mut runner).unwrap().current());
     }
