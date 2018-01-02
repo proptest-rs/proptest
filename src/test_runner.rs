@@ -19,7 +19,7 @@ use std::fmt;
 use std::fs;
 use std::io::{self, BufRead, Write};
 use std::panic::{self, AssertUnwindSafe};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
@@ -222,9 +222,27 @@ impl FailurePersistence {
 
             FailurePersistence::SourceParallel(sibling) => match source {
                 Some(source_path) => {
-                    let mut dir = source_path.to_owned();
+                    // If the test is running in a crate which is a member
+                    // of a workspace then the file path is relative to the
+                    // root of the workspace not the root of the crate.
+                    // But the working directory is the crate root.
+                    // So we need to remove the first component of the path.
+                    let mut dir = if !source_path.exists() {
+                        source_path.components()
+                            .skip_while(|&part| match part {
+                                Component::Normal(_) => false,
+                                _ => true,
+                            })
+                            .skip(1)
+                            .map(|part| part.as_ref().to_owned())
+                            .collect()
+                    } else {
+                        source_path.to_owned()
+                    };
+                    let mut prefix = source_path.to_owned();
                     let mut found = false;
                     while dir.pop() {
+                        prefix.pop();
                         if dir.join("lib.rs").is_file() ||
                             dir.join("main.rs").is_file()
                         {
@@ -232,14 +250,14 @@ impl FailurePersistence {
                             break;
                         }
                     }
-
                     if !found {
                         eprintln!(
                             "proptest: FailurePersistence::SourceParallel set, \
-                             but failed to find lib.rs or main.rs");
+                             but failed to find lib.rs or main.rs, \
+                             got source path: {:?}", source_path);
                         FailurePersistence::WithSource(sibling).resolve(source)
                     } else {
-                        let suffix = source_path.strip_prefix(&dir)
+                        let suffix = source_path.strip_prefix(&prefix)
                             .expect("parent of source is not a prefix of it?")
                             .to_owned();
                         let mut result = dir;
