@@ -249,15 +249,6 @@ impl FailurePersistence {
                             found = true;
                             break;
                         }
-//                        if dir.ends_with("src") {
-//                            let src_dir = Path::from("src");
-//                            if src_dir.join("lib.rs").is_file() ||
-//                                src_dir.join("main.rs").is_file()
-//                            {
-//                                found = true;
-//                                break;
-//                            }
-//                        }
                     }
                     if !found {
                         eprintln!(
@@ -269,15 +260,6 @@ impl FailurePersistence {
                         let suffix = source_path.strip_prefix(&prefix)
                             .expect("parent of source is not a prefix of it?")
                             .to_owned();
-//                        // If the test is running in a crate which is member
-//                        // of a workspace the relative path to src as we have
-//                        // found it is relative to the workspace root but we
-//                        // need a relative path to the crate root.
-//                        let mut result = if dir.ends_with("src") {
-//                            Path::new("src").to_path_buf()
-//                        } else {
-//                            dir
-//                        };
                         let mut result = dir;
                         // If we've somehow reached the root, or someone gave
                         // us a relative path that we've exhausted, just accept
