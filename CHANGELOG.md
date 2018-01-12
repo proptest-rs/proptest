@@ -52,7 +52,6 @@ Boxing Day Special
 
 - Fix a case where certain combinations of strategies, like two
   `prop_shuffle()`s in close proximity, could result in low-quality randomness.
->>>>>>> c27ee2487de915a3953d7ee665fce807cb3e8336
 
 ## 0.3.2
 
