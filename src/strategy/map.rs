@@ -10,7 +10,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::XorShiftRng;
 
 use strategy::traits::*;
 use test_runner::*;
@@ -101,7 +101,7 @@ Strategy for Perturb<S, F> {
     type Value = PerturbValueTree<S::Value, F>;
 
     fn new_value(&self, runner: &mut TestRunner) -> NewTree<Self> {
-        let rng = XorShiftRng::from_seed(runner.rng().gen());
+        let rng = runner.new_rng();
 
         self.source.new_value(runner).map(
             |v| PerturbValueTree {
@@ -161,6 +161,8 @@ ValueTree for PerturbValueTree<S, F> {
 #[cfg(test)]
 mod test {
     use std::collections::HashSet;
+
+    use rand::Rng;
 
     use super::*;
 

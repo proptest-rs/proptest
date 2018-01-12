@@ -346,7 +346,7 @@ mod test {
             let result = runner.run_one(case, |&v| if v < 15 {
                 Ok(())
             } else {
-                fail_case("fail")
+                Err(TestCaseError::fail("fail"))
             });
 
             match result {
@@ -413,7 +413,7 @@ mod test {
             let result = runner.run_one(case, |&v| if v < 15 {
                 Ok(())
             } else {
-                fail_case("fail")
+                Err(TestCaseError::fail("fail"))
             });
 
             match result {

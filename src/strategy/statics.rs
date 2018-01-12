@@ -50,7 +50,7 @@ impl<S, F> Filter<S, F> {
     pub fn new(source: S, whence: Rejection, filter: F) -> Self {
         // NOTE: We don't use universal quantification R: Into<Rejection>
         // since the module is not conviniently exposed.
-        Filter { source, whence: whence.for_reuse(), fun: filter }
+        Filter { source, whence: whence.clone(), fun: filter }
     }
 }
 

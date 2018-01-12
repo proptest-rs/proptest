@@ -82,6 +82,7 @@ macro_rules! proptest {
             fn $test_name() {
                 let mut runner = $crate::test_runner::TestRunner::new(
                     $config.clone());
+                runner.set_source_file(::std::path::Path::new(file!()));
                 let names = proptest_helper!(@_WRAPSTR ($($parm),*));
                 match runner.run(
                     &$crate::strategy::Strategy::prop_map(
@@ -129,10 +130,10 @@ macro_rules! prop_assume {
 
     ($expr:expr, $fmt:tt $(, $fmt_arg:expr),*) => {
         if !$expr {
-            return $crate::test_runner::reject_case(
+            return Err($crate::test_runner::TestCaseError::reject(
                 format!(concat!("{}:{}:{}: ", $fmt),
                         file!(), line!(), column!()
-                        $(, $fmt_arg)*));
+                        $(, $fmt_arg)*)));
         }
     };
 }
@@ -517,7 +518,7 @@ macro_rules! prop_assert {
         if !$cond {
             let message = format!($($fmt)*);
             let message = format!("{} at {}:{}", message, file!(), line!());
-            return $crate::test_runner::fail_case(message);
+            return Err($crate::test_runner::TestCaseError::fail(message));
         }
     };
 }

@@ -1,25 +1,58 @@
-## 0.4.0
+## Unreleased
 
 ### Potential Breaking Changes
 
-- Instead of returning `-> Result<Self::Value, String>`, strategies are expected
-  to return `-> Result<Self::Value, Rejection>` instead. `Rejection` reduces
-  the amount of heap allocations, especially for `.prop_filter(..)` where
-  you may now also pass in `&'static str` as well as `Rc<str>`.
+- Instead of returning `-> Result<Self::Value, String>`, strategies are
+  expected to return `-> Result<Self::Value, Rejection>` instead. `Rejection`
+  somewhat reduces the amount of heap allocations, especially for
+  `.prop_filter(..)` where you may now also pass in `&'static str`.
   You will only experience breaks if you've written your own strategy types
   or if you've used `TestCaseError::Reject` or `TestCaseError::Fail` expliclty.
 
 ### New Additions
 
-- Added `proptest::strategy::Rejection` which allows you to avoid heap allocation
-  in some places or share allocation with string-interning.
+- Added `proptest::strategy::Rejection` which is simply a wrapper around
+  `Cow<'static, str>` for now. We are doing this breaking change now so
+  that we have the option to change it later if we need to.
 
 - Added a type alias `proptest::strategy::NewTree<S>` where `S: Strategy`
   defined as: `type NewTree<S> = Result<<S as Strategy>::Value, Rejection>`.
 
-- Added `TestCaseError::reject` and `reject_case` (short-hand).
+## 0.3.4
 
-- Added `TestCaseError::fail` and `fail_case` (short-hand).
+### Bug Fixes
+
+- Cases where `file!()` returns a relative path, such as on Windows, are now
+  handled more reasonably. See
+  [#24](https://github.com/AltSysrq/proptest/issues/24) for more details and
+  instructions on how to migrate any persistence files that had been written to
+  the wrong location.
+
+## 0.3.3
+
+Boxing Day Special
+
+### New Additions
+
+- Added support for `i128` and `u128`. Since this is an unstable feature in
+  Rust, this is hidden behind the feature `unstable` which you have to
+  explicitly opt into in your `Cargo.toml` file.
+
+- Failing case persistence. By default, when a test fails, Proptest will now
+  save the seed for the failing test to a file, and later runs will test the
+  persisted failing cases before generating new ones.
+
+- Added `UniformArrayStrategy` and helper functions to simplify generating
+  homogeneous arrays with non-`Copy` inner strategies.
+
+- Trait `rand::Rng` and struct `rand::XorShiftRng` are now included in
+  `proptest::prelude`.
+
+### Bug Fixes
+
+- Fix a case where certain combinations of strategies, like two
+  `prop_shuffle()`s in close proximity, could result in low-quality randomness.
+>>>>>>> c27ee2487de915a3953d7ee665fce807cb3e8336
 
 ## 0.3.2
 

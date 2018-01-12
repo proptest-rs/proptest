@@ -10,7 +10,7 @@
 use std::cell::Cell;
 use std::collections::VecDeque;
 
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::{Rng, XorShiftRng};
 
 use num;
 use strategy::traits::*;
@@ -92,7 +92,7 @@ where ValueFor<S> : Shuffleable {
     type Value = ShuffleValueTree<S::Value>;
 
     fn new_value(&self, runner: &mut TestRunner) -> NewTree<Self> {
-        let rng = XorShiftRng::from_seed(runner.rng().gen());
+        let rng = runner.new_rng();
 
         self.0.new_value(runner).map(|inner| ShuffleValueTree {
             inner, rng,

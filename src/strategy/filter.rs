@@ -25,10 +25,7 @@ pub struct Filter<S, F> {
 
 impl<S, F> Filter<S, F> {
     pub (super) fn new(source: S, whence: Rejection, fun: F) -> Self {
-        // If whence was of the variant Rejection::BoxOwned we make it
-        // shared since it will be reused by both .clone() and by
-        // new_value() a lot of times.
-        let reusable = whence.for_reuse();
+        let reusable = whence.clone();
         Self { source: source, whence: reusable, fun: Arc::new(fun) }
     }
 }
