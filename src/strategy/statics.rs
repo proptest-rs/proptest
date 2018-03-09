@@ -44,16 +44,16 @@ pub trait FilterFn<T> {
 pub struct Filter<S, F> {
     source: S,
     whence: Reason,
-    fun: F,
+    pred: F,
 }
 
 impl<S, F> Filter<S, F> {
     /// Adapt strategy `source` to reject values which do not pass `filter`,
     /// using `whence` as the reported reason/location.
-    pub fn new(source: S, whence: Reason, filter: F) -> Self {
+    pub fn new(source: S, whence: Reason, pred: F) -> Self {
         // NOTE: We don't use universal quantification R: Into<Reason>
         // since the module is not conviniently exposed.
-        Filter { source, whence, fun: filter }
+        Self { source, whence, pred }
     }
 }
 
@@ -62,7 +62,7 @@ impl<S : fmt::Debug, F> fmt::Debug for Filter<S, F> {
         f.debug_struct("Filter")
             .field("source", &self.source)
             .field("whence", &self.whence)
-            .field("fun", &"<function>")
+            .field("pred", &"<function>")
             .finish()
     }
 }
@@ -70,27 +70,42 @@ impl<S : fmt::Debug, F> fmt::Debug for Filter<S, F> {
 impl<S : Strategy,
      F : FilterFn<ValueFor<S>> + Clone>
 Strategy for Filter<S, F> {
-    type Value = Filter<S::Value, F>;
+    type Value = FilterValueTree<S::Value, F>;
 
     fn new_value(&self, runner: &mut TestRunner) -> NewTree<Self> {
         loop {
             let val = self.source.new_value(runner)?;
-            if !self.fun.apply(&val.current()) {
+            if !self.pred.apply(&val.current()) {
                 runner.reject_local(self.whence.clone())?;
             } else {
-                return Ok(Filter {
+                return Ok(FilterValueTree {
                     source: val,
-                    whence: self.whence.clone(),
-                    fun: self.fun.clone(),
+                    pred: self.pred.clone(),
                 })
             }
         }
     }
 }
 
-impl<S : ValueTree, F : FilterFn<S::Value>> Filter<S, F> {
+/// The `ValueTree` corresponding to `Filter<S, F>`.
+#[derive(Clone)]
+pub struct FilterValueTree<V, F> {
+    source: V,
+    pred: F,
+}
+
+impl<V : fmt::Debug, F> fmt::Debug for FilterValueTree<V, F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("FilterValueTree")
+            .field("source", &self.source)
+            .field("pred", &"<function>")
+            .finish()
+    }
+}
+
+impl<S : ValueTree, F : FilterFn<S::Value>> FilterValueTree<S, F> {
     fn ensure_acceptable(&mut self) {
-        while !self.fun.apply(&self.source.current()) {
+        while !self.pred.apply(&self.source.current()) {
             if !self.source.complicate() {
                 panic!("Unable to complicate filtered strategy \
                         back into acceptable value");
@@ -99,7 +114,8 @@ impl<S : ValueTree, F : FilterFn<S::Value>> Filter<S, F> {
     }
 }
 
-impl<S : ValueTree, F : FilterFn<S::Value>> ValueTree for Filter<S, F> {
+impl<S : ValueTree, F : FilterFn<S::Value>>
+ValueTree for FilterValueTree<S, F> {
     type Value = S::Value;
 
     fn current(&self) -> S::Value {
