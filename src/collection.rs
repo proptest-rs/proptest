@@ -238,6 +238,12 @@ mapfn! {
 #[derive(Debug, Clone, Copy)]
 struct MinSize(usize);
 
+type FilterMinSize<S, Mapper>
+    = statics::Filter<statics::Map<S, Mapper>, MinSize>;
+
+type FilterVTMinSize<VT, Mapper>
+    = statics::FilterValueTree<statics::Map<VT, Mapper>, MinSize>;
+
 impl<T : Eq + Hash> statics::FilterFn<HashSet<T>> for MinSize {
     fn apply(&self, set: &HashSet<T>) -> bool {
         set.len() >= self.0
@@ -250,12 +256,12 @@ opaque_strategy_wrapper! {
     /// Created by the `hash_set()` function in the same module.
     #[derive(Clone, Debug)]
     pub struct HashSetStrategy[<T>][where T : Strategy, ValueFor<T> : Hash + Eq](
-        statics::Filter<statics::Map<VecStrategy<T>, VecToHashSet>, MinSize>)
+        FilterMinSize<VecStrategy<T>, VecToHashSet>)
         -> HashSetValueTree<T::Value>;
     /// `ValueTree` corresponding to `HashSetStrategy`.
     #[derive(Clone, Debug)]
     pub struct HashSetValueTree[<T>][where T : ValueTree, T::Value : Hash + Eq](
-        statics::Filter<statics::Map<VecValueTree<T>, VecToHashSet>, MinSize>)
+        FilterVTMinSize<VecValueTree<T>, VecToHashSet>)
         -> HashSet<T::Value>;
 }
 
@@ -298,12 +304,12 @@ opaque_strategy_wrapper! {
     /// Created by the `btree_set()` function in the same module.
     #[derive(Clone, Debug)]
     pub struct BTreeSetStrategy[<T>][where T : Strategy, ValueFor<T> : Ord](
-        statics::Filter<statics::Map<VecStrategy<T>, VecToBTreeSet>, MinSize>)
+        FilterMinSize<VecStrategy<T>, VecToBTreeSet>)
         -> BTreeSetValueTree<T::Value>;
     /// `ValueTree` corresponding to `BTreeSetStrategy`.
     #[derive(Clone, Debug)]
     pub struct BTreeSetValueTree[<T>][where T : ValueTree, T::Value : Ord](
-        statics::Filter<statics::Map<VecValueTree<T>, VecToBTreeSet>, MinSize>)
+        FilterVTMinSize<VecValueTree<T>, VecToBTreeSet>)
         -> BTreeSet<T::Value>;
 }
 
@@ -349,15 +355,13 @@ opaque_strategy_wrapper! {
     #[derive(Clone, Debug)]
     pub struct HashMapStrategy[<K, V>]
         [where K : Strategy, V : Strategy, ValueFor<K> : Hash + Eq](
-            statics::Filter<statics::Map<VecStrategy<(K,V)>,
-            VecToHashMap>, MinSize>)
+            FilterMinSize<VecStrategy<(K,V)>, VecToHashMap>)
         -> HashMapValueTree<K::Value, V::Value>;
     /// `ValueTree` corresponding to `HashMapStrategy`.
     #[derive(Clone, Debug)]
     pub struct HashMapValueTree[<K, V>]
         [where K : ValueTree, V : ValueTree, K::Value : Hash + Eq](
-            statics::Filter<statics::Map<VecValueTree<TupleValueTree<(K, V)>>,
-            VecToHashMap>, MinSize>)
+            FilterVTMinSize<VecValueTree<TupleValueTree<(K, V)>>, VecToHashMap>)
         -> HashMap<K::Value, V::Value>;
 }
 
@@ -404,15 +408,13 @@ opaque_strategy_wrapper! {
     #[derive(Clone, Debug)]
     pub struct BTreeMapStrategy[<K, V>]
         [where K : Strategy, V : Strategy, ValueFor<K> : Ord](
-            statics::Filter<statics::Map<VecStrategy<(K,V)>,
-            VecToBTreeMap>, MinSize>)
+            FilterMinSize<VecStrategy<(K,V)>, VecToBTreeMap>)
         -> BTreeMapValueTree<K::Value, V::Value>;
     /// `ValueTree` corresponding to `BTreeMapStrategy`.
     #[derive(Clone, Debug)]
     pub struct BTreeMapValueTree[<K, V>]
         [where K : ValueTree, V : ValueTree, K::Value : Ord](
-            statics::Filter<statics::Map<VecValueTree<TupleValueTree<(K, V)>>,
-            VecToBTreeMap>, MinSize>)
+            FilterVTMinSize<VecValueTree<TupleValueTree<(K, V)>>, VecToBTreeMap>)
         -> BTreeMap<K::Value, V::Value>;
 }
 
