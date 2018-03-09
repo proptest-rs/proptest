@@ -1,3 +1,16 @@
+## Unreleased
+
+### Potential Breaking Changes
+
+- `Filter<S, F>` and `statics::Filter<S, F>` no longer implement `ValueTree`.
+  They now delegate this responsibility to the new types `FilterValueTree` and
+  `statics::FilterValueTree`. The risk of breakage is however small.
+
+### Minor changes
+
+- Reduced the amount of cloning that `Filter<S, F>` (and the `static::` cousin)
+  does by introducing `FilterValueTree`s.
+
 ## 0.5.1
 
 ### New Additions
