@@ -8,6 +8,10 @@
   `Fn(BoxedStrategy<T>) -> R`. In addition, the type of recursive strategies
   has changed from `Recursive<BoxedStrategy<T>, F>` to just `Recursive<T, F>`.
 
+- `Filter<S, F>` and `statics::Filter<S, F>` no longer implement `ValueTree`.
+  They now delegate this responsibility to the new types `FilterValueTree` and
+  `statics::FilterValueTree`. The risk of breakage is however small.
+
 ### Minor changes
 
 - Reduced indirections and heap allocations inside `Recursive<T, F>` somewhat.
@@ -16,6 +20,9 @@
   using `Box`. While this has marginal overhead, it also reduces the overhead
   in `Recursive<T, F>`. The upside to this change is also that you can very
   cheaply clone strategies.
+
+- Reduced the amount of cloning that `Filter<S, F>` (and the `static::` cousin)
+  does by introducing `FilterValueTree`s.
 
 ### Bug Fixes
 
