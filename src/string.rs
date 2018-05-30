@@ -14,9 +14,9 @@ use std::fmt;
 use std::u32;
 
 #[cfg(all(feature = "alloc", not(feature="std")))]
-use alloc::borrow::{Cow, ToOwned};
+use alloc::borrow::Cow;
 #[cfg(feature = "std")]
-use std::borrow::{Cow, ToOwned};
+use std::borrow::Cow;
 
 #[cfg(all(feature = "alloc", not(feature="std")))]
 use alloc::boxed::Box;
@@ -24,9 +24,9 @@ use alloc::boxed::Box;
 use std::boxed::Box;
 
 #[cfg(all(feature = "alloc", not(feature="std")))]
-use alloc::string::String;
+use alloc::string::{String, ToString};
 #[cfg(feature = "std")]
-use std::string::String;
+use std::string::{String, ToString};
 
 #[cfg(all(feature = "alloc", not(feature="std")))]
 use alloc::vec::Vec;
@@ -38,8 +38,6 @@ use regex_syntax as rs;
 use bool;
 use char;
 use collection;
-use bits;
-use num;
 use strategy::*;
 use test_runner::*;
 
@@ -110,11 +108,11 @@ impl Strategy for str {
 /// also possible to directly use a `&str` as a strategy with the same effect.
 pub fn string_regex(regex: &str)
                     -> Result<RegexGeneratorStrategy<String>, Error> {
-    string_regex_parsed(&rs::Expr::parse(regex)?)
+    string_regex_parsed(&rs::Parser::new().parse(regex)?)
 }
 
 /// Like `string_regex()`, but allows providing a pre-parsed expression.
-pub fn string_regex_parsed(expr: &rs::Expr)
+pub fn string_regex_parsed(expr: &rs::hir::Hir)
                            -> Result<RegexGeneratorStrategy<String>, Error> {
     bytes_regex_parsed(expr).map(
         |v| v.prop_map(|bytes| String::from_utf8(bytes).expect(
@@ -125,112 +123,89 @@ pub fn string_regex_parsed(expr: &rs::Expr)
 /// expression.
 pub fn bytes_regex(regex: &str)
                    -> Result<RegexGeneratorStrategy<Vec<u8>>, Error> {
-    bytes_regex_parsed(&rs::Expr::parse(regex)?)
+    bytes_regex_parsed(&rs::Parser::new().parse(regex)?)
 }
 
 /// Like `bytes_regex()`, but allows providing a pre-parsed expression.
-pub fn bytes_regex_parsed(expr: &rs::Expr)
+pub fn bytes_regex_parsed(hir: &rs::hir::Hir)
                           -> Result<RegexGeneratorStrategy<Vec<u8>>, Error> {
-    use self::rs::Expr::*;
+    use self::rs::hir::{Class, HirKind};
 
-    match *expr {
-        Empty => Ok(Just(vec![]).sboxed()),
-        Literal { ref chars, casei: false } =>
-            Ok(Just(chars.iter().cloned().collect::<String>()
-                         .into_bytes()).sboxed()),
-        Literal { ref chars, casei: true } => {
-            let chars = chars.to_owned();
-            Ok(bits::bitset::between(0, chars.len())
-               .prop_map(move |cases|
-                         cases.into_bit_vec().iter().zip(chars.iter())
-                         .map(|(case, &ch)| flip_case_to_bytes(case, ch))
-                         .fold(vec![], |mut accum, rhs| {
-                             accum.extend(rhs);
-                             accum
-                         }))
-               .sboxed())
-        },
-        LiteralBytes { ref bytes, casei: false } =>
-            Ok(Just(bytes.to_owned()).sboxed()),
-        LiteralBytes { ref bytes, casei: true } => {
-            let bytes = bytes.to_owned();
-            Ok(bits::bitset::between(0, bytes.len())
-               .prop_map(move |cases|
-                         cases.into_bit_vec().iter().zip(bytes.iter())
-                         .map(|(case, &byte)| flip_ascii_case(case, byte))
-                         .collect::<Vec<_>>()).sboxed())
+    match *hir.kind() {
+        HirKind::Empty => Ok(Just(vec![]).sboxed()),
+        HirKind::Literal(ref l) => {
+            match *l {
+                rs::hir::Literal::Unicode(ref ch) => {
+                    Ok(Just(ch.to_string()
+                        .into_bytes()).sboxed())
+                },
+                rs::hir::Literal::Byte(ref byte) => {
+                    Ok(Just(::core::iter::once(*byte).collect()).sboxed())
+                }
+            }
         },
 
-        AnyChar => Ok(char::any().prop_map(to_bytes).sboxed()),
-        AnyCharNoNL => {
-            static NONL_RANGES: &[(char,char)] = &[
-                ('\x00', '\x09'),
-                // Multiple instances of the latter range to partially make up
-                // for the bias of having such a tiny range in the control
-                // characters.
-                ('\x0B', ::std::char::MAX),
-                ('\x0B', ::std::char::MAX),
-                ('\x0B', ::std::char::MAX),
-                ('\x0B', ::std::char::MAX),
-                ('\x0B', ::std::char::MAX),
-            ];
-            Ok(char::ranges(Cow::Borrowed(NONL_RANGES))
-               .prop_map(to_bytes).sboxed())
-        },
-        AnyByte => Ok(num::u8::ANY.prop_map(|b| vec![b]).sboxed()),
-        AnyByteNoNL => Ok((0xBu8..).sboxed()
-                          .prop_union((..0xAu8).sboxed())
-                          .prop_map(|b| vec![b]).sboxed()),
-
-        Class(ref class) => {
-            let ranges = (**class).iter().map(
-                |&rs::ClassRange { start, end }| (start, end)).collect();
-            Ok(char::ranges(Cow::Owned(ranges))
-               .prop_map(to_bytes).sboxed())
+        HirKind::Class(ref c) => {
+            match c {
+                Class::Unicode(ref class) => {
+                    let ranges = (class).iter().map(
+                        |r: &rs::hir::ClassUnicodeRange | (r.start(), r.end())).collect();
+                    Ok(char::ranges(Cow::Owned(ranges))
+                        .prop_map(to_bytes).sboxed())
+                },
+                Class::Bytes(ref class) => {
+                    let subs = (class).iter().map(
+                        |r: &rs::hir::ClassBytesRange | if 255u8 == r.end() {
+                            (r.start()..).sboxed()
+                        } else {
+                            (r.start()..r.end()).sboxed()
+                        }).collect::<Vec<_>>();
+                    Ok(Union::new(subs)
+                        .prop_map(|b| vec![b]).sboxed())
+                }
+            }
         }
 
-        ClassBytes(ref class) => {
-            let subs = (**class).iter().map(
-                |&rs::ByteRange { start, end }| if 255u8 == end {
-                    (start..).sboxed()
-                } else {
-                    (start..end).sboxed()
-                }).collect::<Vec<_>>();
-            Ok(Union::new(subs)
-               .prop_map(|b| vec![b]).sboxed())
-        },
+        HirKind::Group(rs::hir::Group{ ref hir, .. }) => bytes_regex_parsed(hir).map(|v| v.0),
 
-        Group { ref e, .. } => bytes_regex_parsed(e).map(|v| v.0),
-
-        Repeat { ref e, r, .. } => {
-            let range = match r {
-                rs::Repeater::ZeroOrOne => 0..2,
-                rs::Repeater::ZeroOrMore => 0..33,
-                rs::Repeater::OneOrMore => 1..33,
-                rs::Repeater::Range { min, max } => {
-                    let max = if let Some(max) = max {
-                        if u32::MAX == max {
-                            return Err(Error::UnsupportedRegex(
-                                "Cannot have repetition max of u32::MAX"));
-                        } else {
-                            max as usize + 1
+        HirKind::Repetition(rs::hir::Repetition{ ref kind, ref hir, .. }) => {
+            let range = match kind {
+                rs::hir::RepetitionKind::ZeroOrOne => 0..2,
+                rs::hir::RepetitionKind::ZeroOrMore => 0..33,
+                rs::hir::RepetitionKind::OneOrMore => 1..33,
+                rs::hir::RepetitionKind::Range(r) => {
+                    match r {
+                        rs::hir::RepetitionRange::Exactly(v) => {
+                            if u32::MAX == *v {
+                                return Err(Error::UnsupportedRegex(
+                                    "Cannot have repetition of exactly u32::MAX"));
+                            }
+                            (*v as usize)..(*v as usize +1)
+                        },
+                        rs::hir::RepetitionRange::AtLeast(v) => {
+                            if *v < u32::MAX as u32 / 2 {
+                                (*v as usize)..(*v as usize * 2)
+                            } else {
+                                (*v as usize)..(u32::MAX as usize)
+                            }
+                        },
+                        rs::hir::RepetitionRange::Bounded(min, max) => {
+                            if u32::MAX == *max {
+                                return Err(Error::UnsupportedRegex(
+                                    "Cannot have repetition max of u32::MAX"));
+                            }
+                            (*min as usize)..((*max + 1) as usize)
                         }
-                    } else if min < u32::MAX as u32 / 2 {
-                        min as usize * 2
-                    } else {
-                        u32::MAX as usize
-                    };
-
-                    (min as usize)..max
+                    }
                 },
             };
-            Ok(collection::vec(bytes_regex_parsed(e)?, range)
+            Ok(collection::vec(bytes_regex_parsed(&hir)?, range)
                .prop_map(|parts| parts.into_iter().fold(
                    vec![], |mut accum, child| { accum.extend(child); accum }))
                .sboxed())
         },
 
-        Concat(ref subs) => {
+        HirKind::Concat(ref subs) => {
             let subs = subs.iter().map(|e| bytes_regex_parsed(e))
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(subs.into_iter()
@@ -245,48 +220,21 @@ pub fn bytes_regex_parsed(expr: &rs::Expr)
                    || Just(vec![]).sboxed()))
         },
 
-        Alternate(ref subs) => {
+        HirKind::Alternation(ref subs) => {
             let subs = subs.iter().map(|e| bytes_regex_parsed(e))
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(Union::new(subs).sboxed())
         },
-
-        StartLine |
-        EndLine |
-        StartText |
-        EndText => Err(Error::UnsupportedRegex(
+        HirKind::Anchor(_) => Err(Error::UnsupportedRegex(
             "line/text anchors not supported for string generation")),
 
-        WordBoundary |
-        NotWordBoundary |
-        WordBoundaryAscii |
-        NotWordBoundaryAscii => Err(Error::UnsupportedRegex(
+        HirKind::WordBoundary(_) => Err(Error::UnsupportedRegex(
             "word boundary tests not supported for string generation")),
     }.map(RegexGeneratorStrategy)
 }
 
-fn flip_case_to_bytes(flip: bool, ch: char) -> Vec<u8> {
-    if flip && ch.is_uppercase() {
-        ch.to_lowercase().collect::<String>().into_bytes()
-    } else if flip && ch.is_lowercase() {
-        ch.to_uppercase().collect::<String>().into_bytes()
-    } else {
-        to_bytes(ch)
-    }
-}
-
 fn to_bytes(ch: char) -> Vec<u8> {
     [ch].iter().cloned().collect::<String>().into_bytes()
-}
-
-fn flip_ascii_case(flip: bool, ch: u8) -> u8 {
-    if flip && ch >= b'a' && ch <= b'z' {
-        ch - b'a' + b'A'
-    } else if flip && ch >= b'A' && ch <= b'Z' {
-        ch - b'A' + b'a'
-    } else {
-        ch
-    }
 }
 
 #[cfg(test)]
@@ -299,6 +247,16 @@ mod test {
 
     fn do_test(pattern: &str, min_distinct: usize, max_distinct: usize,
                iterations: usize) {
+        let generated = generate_values_matching_regex(pattern, iterations);
+        assert!(generated.len() >= min_distinct,
+                "Expected to generate at least {} strings, but only \
+                 generated {}", min_distinct, generated.len());
+        assert!(generated.len() <= max_distinct,
+                "Expected to generate at most {} strings, but \
+                 generated {}", max_distinct, generated.len());
+    }
+    
+    fn generate_values_matching_regex(pattern: &str, iterations: usize) -> HashSet<String> {
         let rx = Regex::new(pattern).unwrap();
         let mut generated = HashSet::new();
 
@@ -324,13 +282,7 @@ mod test {
                 if !value.simplify() { break; }
             }
         }
-
-        assert!(generated.len() >= min_distinct,
-                "Expected to generate at least {} strings, but only \
-                 generated {}", min_distinct, generated.len());
-        assert!(generated.len() <= max_distinct,
-                "Expected to generate at most {} strings, but \
-                 generated {}", max_distinct, generated.len());
+        generated
     }
 
     #[test]
@@ -403,5 +355,15 @@ mod test {
     #[test]
     fn regex_strategy_is_send_and_sync() {
         assert_send_and_sync(string_regex(".").unwrap());
+    }
+    
+    #[test]
+    fn test_case_insensitive_produces_all_available_values() {
+        let mut expected: HashSet<String> = HashSet::new();
+        expected.insert("a".into());
+        expected.insert("b".into());
+        expected.insert("A".into());
+        expected.insert("B".into());
+        assert_eq!(generate_values_matching_regex("(?i:a|B)", 64), expected);
     }
 }
