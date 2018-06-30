@@ -70,5 +70,6 @@ pub(crate) use ::std::collections::hash_set;
 
 multiplex_core! {
     core::fmt, ::std::fmt,
-    core::cell::Cell, ::std::cell::Cell
+    core::cell::Cell, ::std::cell::Cell,
+    core::marker::PhantomData, ::std::marker::PhantomData
 }

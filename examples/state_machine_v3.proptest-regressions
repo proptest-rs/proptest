@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+xs 1219390380 2997642416 3974230321 545479279 # shrinks to test_case = StateMachineTestCase { state: TwoHeaps { left: MyHeapState { heap: MyHeap { data: [] }, existing_elements: [] }, right: MyHeapState { heap: MyHeap { data: [] }, existing_elements: [] } }, mutations: [left(()) => push(value = 0), right(()) => push(value = 0), left(()) => push(value = -195361996), right(()) => pop(()), right(()) => push(value = 0), left(()) => pop(()), right(()) => push(value = 0), right(()) => pop(()), merge(()), left(()) => push(value = 0), right(()) => push(value = -1), left(()) => pop(()), right(()) => push(value = 0), right(()) => pop(()), right(()) => push(value = 0), left(()) => push(value = 0), left(()) => push(value = -2), right(()) => pop(()), merge(()), left(()) => pop(()), left(()) => pop(())], machine: "<elided for clarity>" }
