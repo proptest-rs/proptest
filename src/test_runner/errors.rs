@@ -54,11 +54,25 @@ impl TestCaseError {
     pub fn fail(reason: impl Into<Reason>) -> Self {
         TestCaseError::Fail(reason.into())
     }
+
+    /// Helper for printing TestCaseErrors.
+    ///
+    /// This helper is used to return a structure that implements `fmt::Display` to _avoid_ having
+    /// TestCaseError implement `fmt::Display`.
+    ///
+    /// Having TestCaseError directly implement `fmt::Display` would cause an implementation conflict
+    /// with the blanket conversion mechanism for TestCaseError.
+    pub fn display(&self) -> TestCaseErrorDisplay {
+        TestCaseErrorDisplay(self)
+    }
 }
 
-impl fmt::Display for TestCaseError {
+/// `fmt::Display` implementation wrapper for TestCaseError.
+pub struct TestCaseErrorDisplay<'a>(&'a TestCaseError);
+
+impl<'a> fmt::Display for TestCaseErrorDisplay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
+        match self.0 {
             TestCaseError::Reject(ref whence) =>
                 write!(f, "Input rejected at {}", whence),
             TestCaseError::Fail(ref why) =>
@@ -67,8 +81,7 @@ impl fmt::Display for TestCaseError {
     }
 }
 
-#[cfg(feature = "std")]
-impl<E : ::std::error::Error> From<E> for TestCaseError {
+impl<E : ::std::fmt::Display> From<E> for TestCaseError {
     fn from(cause: E) -> Self {
         TestCaseError::fail(cause.to_string())
     }
