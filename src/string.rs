@@ -31,7 +31,7 @@ use test_runner::*;
 /// Wraps the regex that forms the `Strategy` for `String` so that a sensible
 /// `Default` can be given. The default is a string of non-control characters.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StringParam(&'static str);
+pub struct StringParam(pub &'static str);
 
 impl From<StringParam> for &'static str {
     fn from(x: StringParam) -> Self { x.0 }
