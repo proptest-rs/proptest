@@ -106,6 +106,7 @@ impl Impl {
 
                 type Strategy = #strategy;
 
+                #[inline]
                 fn arbitrary_with(#_top: Self::Parameters) -> Self::Strategy {
                     #ctor
                 }
