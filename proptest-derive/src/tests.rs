@@ -87,6 +87,7 @@ test! {
             type Parameters = ();
             type Strategy = fn() -> Self;
 
+            #[inline]
             fn arbitrary_with(_top: Self::Parameters) -> Self::Strategy {
                 || MyUnitStruct {}
             }
@@ -107,6 +108,7 @@ test! {
             type Parameters = ();
             type Strategy = fn() -> Self;
 
+            #[inline]
             fn arbitrary_with(_top: Self::Parameters) -> Self::Strategy {
                 || MyTupleUnitStruct {}
             }
@@ -127,6 +129,7 @@ test! {
             type Parameters = ();
             type Strategy = fn() -> Self;
 
+            #[inline]
             fn arbitrary_with(_top: Self::Parameters) -> Self::Strategy {
                 || MyNamedUnitStruct {}
             }
