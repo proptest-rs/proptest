@@ -1,0 +1,14 @@
+[package]
+name = "proptest-derive-tests-cfg"
+version = "0.1.0"
+description = """
+This crate is internal to proptest-derive and tests that removing on
+proptest_derive has the desired effect.
+"""
+
+[dependencies]
+proptest-derive = { path = "../", default-features = false }
+proptest = { path = "../../proptest/" }
+
+[dev-dependencies]
+compiletest_rs = { version = "0.3.3", features = ["tmp"] }
