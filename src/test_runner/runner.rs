@@ -282,7 +282,7 @@ impl TestRunner {
     /// Create a fresh `TestRunner` with the same config and global counters as
     /// this one, but with local state reset and an independent `Rng` (but
     /// deterministic).
-    pub(crate) fn partial_clone(&mut self) -> Self {
+    pub fn partial_clone(&mut self) -> Self {
         TestRunner {
             config: self.config.clone(),
             successes: 0,
