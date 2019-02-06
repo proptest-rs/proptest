@@ -81,6 +81,9 @@ fn derive_proptest_arbitrary(ctx: Ctx, ast: DeriveInput)
     // Linearise the IR into Rust code:
     let q = the_impl.into_tokens(ctx)?;
 
+    #[cfg(not(feature = "no_cfg"))]
+    let q = quote!(#[cfg(test)] #q);
+
     // We're done!
     Ok(q)
 }
