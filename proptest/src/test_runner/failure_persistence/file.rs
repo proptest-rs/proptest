@@ -7,11 +7,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use core::any::Any;
 use core::fmt::Debug;
 use core::num::ParseIntError;
 use std::borrow::{Cow, ToOwned};
-use std::boxed::Box;
 use std::env;
 use std::fs;
 use std::io::{self, BufRead, Write};
@@ -152,16 +150,6 @@ impl FailurePersistence for FileFailurePersistence {
             }
         }
     }
-
-    fn box_clone(&self) -> Box<dyn FailurePersistence> {
-        Box::new(*self)
-    }
-
-    fn eq(&self, other: &dyn FailurePersistence) -> bool {
-        other.as_any().downcast_ref::<Self>().map_or(false, |x| x == self)
-    }
-
-    fn as_any(&self) -> &dyn Any { self }
 }
 
 /// Ensure that the source file to use for resolving the location of the persisted

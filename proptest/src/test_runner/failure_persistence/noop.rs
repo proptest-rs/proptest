@@ -7,14 +7,13 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use core::any::Any;
-use crate::std_facade::{fmt, Box, Vec};
+use crate::std_facade::{fmt, Vec};
 
 use crate::test_runner::failure_persistence::FailurePersistence;
 use crate::test_runner::Seed;
 
 /// Failure persistence option that loads and saves nothing at all.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 struct NoopFailurePersistence;
 
 impl FailurePersistence for NoopFailurePersistence {
@@ -28,16 +27,6 @@ impl FailurePersistence for NoopFailurePersistence {
         _shrunken_value: &dyn fmt::Debug,
     ) {
     }
-
-    fn box_clone(&self) -> Box<dyn FailurePersistence> {
-        Box::new(NoopFailurePersistence)
-    }
-
-    fn eq(&self, other: &dyn FailurePersistence) -> bool {
-        other.as_any().downcast_ref::<Self>().map_or(false, |x| x == self)
-    }
-
-    fn as_any(&self) -> &dyn Any { self }
 }
 
 #[cfg(test)]

@@ -7,8 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use core::any::Any;
-use crate::std_facade::{fmt, Box, Vec, BTreeMap, BTreeSet};
+use crate::std_facade::{fmt, Vec, BTreeMap, BTreeSet};
 
 use crate::test_runner::failure_persistence::FailurePersistence;
 use crate::test_runner::Seed;
@@ -45,16 +44,6 @@ impl FailurePersistence for MapFailurePersistence {
         let set = self.map.entry(s).or_insert_with(BTreeSet::new);
         set.insert(seed);
     }
-
-    fn box_clone(&self) -> Box<dyn FailurePersistence> {
-        Box::new(self.clone())
-    }
-
-    fn eq(&self, other: &dyn FailurePersistence) -> bool {
-        other.as_any().downcast_ref::<Self>().map_or(false, |x| x == self)
-    }
-
-    fn as_any(&self) -> &dyn Any { self }
 }
 
 #[cfg(test)]
