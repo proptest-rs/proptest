@@ -59,6 +59,10 @@ atomic64bit = []
 # passed (see https://github.com/AltSysrq/proptest/issues/124).
 break-dead-code = []
 
+# Enables support for running without std. Be sure to turn off the default
+# features to use this.
+no_std = ["lazy_static/spin_no_std"]
+
 [dependencies]
 bitflags = "1.0.1"
 
@@ -69,7 +73,6 @@ bitflags = "1.0.1"
 [dependencies.lazy_static]
 version = "1.2"
 default-features = false
-features = ["spin_no_std"]
 
 [dependencies.num-traits]
 version = "0.2.2"
