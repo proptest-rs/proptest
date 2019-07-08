@@ -3,6 +3,9 @@
 [![Build Status](https://travis-ci.org/AltSysrq/proptest.svg?branch=master)](https://travis-ci.org/AltSysrq/proptest)
 [![Build status](https://ci.appveyor.com/api/projects/status/ofe98xfthbx1m608/branch/master?svg=true)](https://ci.appveyor.com/project/AltSysrq/proptest/branch/master)
 [![](http://meritbadge.herokuapp.com/proptest)](https://crates.io/crates/proptest)
+[![](https://img.shields.io/website/https/altsysrq.github.io/proptest-book.svg)][book]
+
+[book]: https://altsysrq.github.io/proptest-book/intro.html
 
 ## Introduction
 
