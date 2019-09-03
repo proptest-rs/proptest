@@ -1,0 +1,5 @@
+error: Expected at maximum one #[strategy] attribute
+ --> $DIR/two_strategies.rs:6:5
+  |
+6 |     #[strategy("[a-z]{1}")]
+  |     ^

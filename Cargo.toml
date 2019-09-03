@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "proptest",
+    "proptest-attributes",
     "proptest-derive",
 ]
 

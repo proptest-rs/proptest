@@ -1,0 +1,5 @@
+error: expected attribute arguments in parentheses: #[strategy(...)]
+ --> $DIR/empty_strategy.rs:4:17
+  |
+4 | fn function_arn(#[strategy] arg: String) {}
+  |                 ^^^^^^^^^^^

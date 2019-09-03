@@ -1,0 +1,5 @@
+error: cannot find attribute `foobar` in this scope
+ --> $DIR/wrong_attribute.rs:4:19
+  |
+4 | fn function_arn(#[foobar] arg: String) {}
+  |                   ^^^^^^
