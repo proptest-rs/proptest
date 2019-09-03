@@ -1,0 +1,16 @@
+[package]
+name = "proptest-attributes"
+version = "0.1.0"
+authors = ["David Barsky <me@davidbarsky.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proptest = { version = "0.9.4", path = "../proptest" }
+syn = { version = "1.0.5", features = ["full"] }
+quote = "1.0.2"
+
+[dev-dependencies]
+trybuild = "1.0"
