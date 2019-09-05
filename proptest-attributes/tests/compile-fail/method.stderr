@@ -1,11 +1,5 @@
-error: The #[proptest] macro cannot be applied to a method.
+error: The `#[proptest]` macro cannot be applied to a method.
   --> $DIR/method.rs:17:21
    |
 17 |     fn function_arn(&self) {
    |                     ^^^^^
-
-error[E0601]: `main` function not found in crate `$CRATE`
-  |
-  = note: consider adding a `main` function to `$DIR/tests/compile-fail/method.rs`
-
-For more information about this error, try `rustc --explain E0601`.

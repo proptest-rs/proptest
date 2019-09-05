@@ -20,3 +20,5 @@ impl SomeStruct {
         prop_assert_eq!(map.get("arn"), Some(&arn));
     }
 }
+
+fn main() {}

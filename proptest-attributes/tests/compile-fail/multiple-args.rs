@@ -8,3 +8,5 @@ fn gen_date() -> impl Strategy<Value = String> {
 
 #[proptest(gen_date())]
 fn parse_date(date: String, _second_arg: String) {}
+
+fn main() {}

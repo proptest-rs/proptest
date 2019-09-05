@@ -20,21 +20,21 @@ pub fn proptest(
 
     match inputs.len() {
         1 => {
-            let arg = match inputs.first().unwrap() {
-                FnArg::Typed(arg) => arg,
+            let param = match inputs.first().unwrap() {
+                FnArg::Typed(param) => param,
                 FnArg::Receiver(recv) => {
                     let tokens = quote_spanned! { recv.span() =>
-                        compile_error!("The #[proptest] macro cannot be applied to a method.");
+                        compile_error!("The `#[proptest]` macro cannot be applied to a method.");
                     };
                     return TokenStream::from(tokens);
                 }
             };
-            let arg_name = &arg.pat;
+            let param_name = &param.pat;
             quote! {
                 #[test]
                 #(#attrs)*
                 fn #name() #ret {
-                    proptest::proptest!(|(#arg_name in #expr)| {
+                    proptest::proptest!(|(#param_name in #expr)| {
                         #body
                     })
                 }
@@ -42,7 +42,7 @@ pub fn proptest(
         }
         _ => {
             let tokens = quote_spanned! { input.sig.span() =>
-                compile_error!("The #[proptest] macro can only be applied to a function with a single argument.");
+                compile_error!("The `#[proptest]` macro can only be applied to a function with a single argument.");
             };
             return TokenStream::from(tokens);
         }

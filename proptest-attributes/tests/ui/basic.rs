@@ -17,3 +17,5 @@ fn function_arn(arn: FunctionArn) {
     map.insert("arn", arn.clone());
     prop_assert_eq!(map.get("arn"), Some(&arn));
 }
+
+fn main() {}
