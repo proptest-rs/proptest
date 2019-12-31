@@ -1,3 +1,10 @@
+## Unreleased
+
+### Deprecations
+
+- `into_iter()` has been deprecated for arrays in 1.41 and replaced with
+  `iter()`. See[Issue #66145](https://github.com/rust-lang/rust/issues/66145) .
+
 ## 0.9.4
 
 ### Bug Fixes
