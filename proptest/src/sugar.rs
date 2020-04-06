@@ -164,6 +164,23 @@ macro_rules! proptest {
             }
         )*
     };
+
+    (#![proptest_config($config:expr)]
+     $(
+        $(#[$meta:meta])*
+       async fn $test_name:ident($($parm:pat in $strategy:expr),+ $(,)?) $body:block
+    )*) => {
+        $(
+            $(#[$meta])*
+            async fn $test_name() {
+                let mut config = $config.clone();
+                config.test_name = Some(
+                    concat!(module_path!(), "::", stringify!($test_name)));
+                $crate::proptest_helper!(@_BODY config ($($parm in $strategy),+) [] $body);
+            }
+        )*
+    };
+
     (#![proptest_config($config:expr)]
      $(
         $(#[$meta:meta])*
@@ -172,6 +189,22 @@ macro_rules! proptest {
         $(
             $(#[$meta])*
             fn $test_name() {
+                let mut config = $config.clone();
+                config.test_name = Some(
+                    concat!(module_path!(), "::", stringify!($test_name)));
+                $crate::proptest_helper!(@_BODY2 config ($($arg)+) [] $body);
+            }
+        )*
+    };
+
+    (#![proptest_config($config:expr)]
+     $(
+        $(#[$meta:meta])*
+        async fn $test_name:ident($($arg:tt)+) $body:block
+    )*) => {
+        $(
+            $(#[$meta])*
+            async fn $test_name() {
                 let mut config = $config.clone();
                 config.test_name = Some(
                     concat!(module_path!(), "::", stringify!($test_name)));
@@ -191,11 +224,29 @@ macro_rules! proptest {
 
     ($(
         $(#[$meta:meta])*
+        async fn $test_name:ident($($parm:pat in $strategy:expr),+ $(,)?) $body:block
+    )*) => { $crate::proptest! {
+        #![proptest_config($crate::test_runner::Config::default())]
+        $($(#[$meta])*
+          async fn $test_name($($parm in $strategy),+) $body)*
+    } };
+
+    ($(
+        $(#[$meta:meta])*
         fn $test_name:ident($($arg:tt)+) $body:block
     )*) => { $crate::proptest! {
         #![proptest_config($crate::test_runner::Config::default())]
         $($(#[$meta])*
           fn $test_name($($arg)+) $body)*
+    } };
+
+    ($(
+        $(#[$meta:meta])*
+        async fn $test_name:ident($($arg:tt)+) $body:block
+    )*) => { $crate::proptest! {
+        #![proptest_config($crate::test_runner::Config::default())]
+        $($(#[$meta])*
+          async fn $test_name($($arg)+) $body)*
     } };
 
     (|($($parm:pat in $strategy:expr),+ $(,)?)| $body:expr) => {
@@ -1201,6 +1252,14 @@ mod test {
     proptest! {
         #[test]
         fn test_something(a in 0u32..42u32, b in 1u32..10u32) {
+            prop_assume!(a != 41 || b != 9);
+            assert!(a + b < 50);
+        }
+    }
+
+    proptest! {
+        #[tokio::test]
+        async fn test_something_async(a in 0u32..42u32, b in 1u32..10u32) {
             prop_assume!(a != 41 || b != 9);
             assert!(a + b < 50);
         }

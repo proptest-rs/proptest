@@ -1,3 +1,11 @@
+## Unreleased
+
+### New Features
+
+- The `proptest!` macro can now be used with `async fn` tests, such as
+  tests that use the `tokio::test` or `async_std::test` attributes from
+  those respective crates.
+
 ## 0.10.1
 
 ### New Features
