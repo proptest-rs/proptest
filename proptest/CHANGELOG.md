@@ -1,3 +1,10 @@
+## 0.9.6
+
+### Bug Fixes
+
+- Fixed [#186](https://github.com/AltSysrq/proptest/issues/186),
+  a Rust future-compatibility issue.
+
 ## 0.9.5
 
 ### Bug Fixes
