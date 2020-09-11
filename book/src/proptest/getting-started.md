@@ -68,8 +68,8 @@ moment, we'll get back to that — if you've already figured it out, contain
 your excitement for a bit) and give it to `parse_date()` and then throw the
 output away.
 
-When we run this, we get a bunch of scary-looking output, eventually ending
-with
+When we run this with `cargo test`, we get a bunch of scary-looking output,
+eventually ending with
 
 ```text
 thread 'main' panicked at 'Test failed: byte index 4 is not a char boundary; it is inside 'ௗ' (bytes 2..5) of `aAௗ0㌀0`; minimal failing input: s = "aAௗ0㌀0"
