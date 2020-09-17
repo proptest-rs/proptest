@@ -1,10 +1,18 @@
 environment:
+  TEST_CMD: cargo test -p proptest -p proptest-attributes
+  BUILD_CMD: cargo build -p proptest -p proptest-attributes
   matrix:
   - TARGET: nightly-x86_64-pc-windows-msvc
   - TARGET: nightly-i686-pc-windows-msvc
   - TARGET: nightly-x86_64-pc-windows-gnu
   - TARGET: nightly-i686-pc-windows-gnu
   - TARGET: 1.32.0-x86_64-pc-windows-gnu
+    TEST_CMD: cargo test -p proptest
+    BUILD_CMD: cargo build -p proptest
+    # proptest-attributes has 1.40 MSRV
+  - TARGET: 1.40.0-x86_64-pc-windows-gnu
+    TEST_CMD: cargo test -p proptest-attributes
+    BUILD_CMD: cargo build -p proptest-attributes
 install:
   - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-${env:TARGET}.exe" -FileName "rust-install.exe"
   - ps: .\rust-install.exe /VERYSILENT /NORESTART /DIR="C:\rust" | Out-Null
@@ -12,7 +20,7 @@ install:
   - rustc -vV
   - cargo -vV
 build_script:
-  - cargo build --all
+  - ps: $env.BUILD_CMD
 test_script:
-  - cargo test -p proptest
+  - ps: $env.TEST_CMD
   - cd proptest\test-persistence-location & run-tests.bat
