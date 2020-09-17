@@ -109,6 +109,9 @@ You need to use the latest nightly for the following:
 
 - Testing `proptest-derive`.
 
+The `proptest-attributes` crate requires at least Rust 1.39 to support
+attributes in argument positions.
+
 ### Coding
 
 Within the `proptest` crate, you cannot refer to `std` outside of test code or
