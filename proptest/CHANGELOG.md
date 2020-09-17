@@ -1,3 +1,11 @@
+## Unreleased
+
+### New Features
+
+- Introduce the `proptest-attributes` crate. It exposes a proc-macro
+`#[proptest]` for declaring proptests. The proptest-attributes crate
+has a MSRV of 1.39.
+
 ## 0.10.1
 
 ### New Features
