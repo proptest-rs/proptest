@@ -29,3 +29,5 @@ pub use self::reason::*;
 pub use self::result_cache::*;
 pub use self::rng::*;
 pub use self::runner::*;
+
+pub mod state_machine;

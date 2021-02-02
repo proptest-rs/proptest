@@ -34,4 +34,5 @@ pub use self::shuffle::*;
 pub use self::traits::*;
 pub use self::unions::*;
 
+pub mod state_machine;
 pub mod statics;
