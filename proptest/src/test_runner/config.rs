@@ -419,6 +419,32 @@ impl Config {
         result
     }
 
+    /// Constructs a `Config` only differing from the `default()` in the
+    /// failure_persistence member.
+    ///
+    /// This is simply a more concise alternative to using field-record update
+    /// syntax:
+    ///
+    /// ```
+    /// # use proptest::test_runner::{Config, FileFailurePersistence};
+    /// assert_eq!(
+    ///     Config::with_failure_persistence(FileFailurePersistence::WithSource("regressions")),
+    ///     Config {
+    ///         failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
+    ///         .. Config::default()
+    ///     }
+    /// );
+    /// ```
+    pub fn with_failure_persistence<T>(failure_persistence: T) -> Self
+    where
+        T: FailurePersistence + 'static,
+    {
+        Self {
+            failure_persistence: Some(Box::new(failure_persistence)),
+            ..Default::default()
+        }
+    }
+
     /// Return whether this configuration implies forking.
     ///
     /// This method exists even if the "fork" feature is disabled, in which
