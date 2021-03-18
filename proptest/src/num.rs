@@ -32,8 +32,27 @@ pub(crate) fn sample_uniform_incl<X: SampleUniform>(
     Uniform::new_inclusive(start, end).sample(run.rng())
 }
 
+macro_rules! numeric_api {
+    (BigInt, $epsilon:expr) => {
+        range_numeric_api!(BigInt, $epsilon);
+    };
+    (BigUint, $epsilon:expr) => {
+        range_numeric_api!(BigUint, $epsilon);
+        range_to_numeric_api!(BigUint, $epsilon, BigUint::zero());
+    };
+    ($typ:ident, $epsilon:expr) => {
+        range_numeric_api!($typ, $epsilon);
+        range_from_numeric_api!($typ, $epsilon);
+        range_to_numeric_api!($typ, $epsilon, <$typ as ::num_traits::Bounded>::min_value());
+    };
+}
+
 macro_rules! int_any {
-    ($typ: ident) => {
+    (BigInt) => {};
+    (BigUint) => {};
+    ($typ:ident) => {
+        use rand::Rng;
+
         /// Type of the `ANY` constant.
         #[derive(Clone, Copy, Debug)]
         #[must_use = "strategies do nothing unless used"]
@@ -53,7 +72,7 @@ macro_rules! int_any {
     };
 }
 
-macro_rules! numeric_api {
+macro_rules! range_numeric_api {
     ($typ:ident, $epsilon:expr) => {
         impl Strategy for ::core::ops::Range<$typ> {
             type Tree = BinarySearch;
@@ -61,9 +80,9 @@ macro_rules! numeric_api {
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
-                    self.start,
+                    self.start.clone(),
                     $crate::num::sample_uniform(runner, self.clone()),
-                    self.end - $epsilon,
+                    self.end.clone() - $epsilon,
                 ))
             }
         }
@@ -74,17 +93,21 @@ macro_rules! numeric_api {
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
-                    *self.start(),
+                    self.start().clone(),
                     $crate::num::sample_uniform_incl(
                         runner,
-                        *self.start(),
-                        *self.end(),
+                        self.start().clone(),
+                        self.end().clone(),
                     ),
-                    *self.end(),
+                    self.end().clone(),
                 ))
             }
         }
+    }
+}
 
+macro_rules! range_from_numeric_api {
+    ($typ:ident, $epsilon:expr) => {
         impl Strategy for ::core::ops::RangeFrom<$typ> {
             type Tree = BinarySearch;
             type Value = $typ;
@@ -95,25 +118,29 @@ macro_rules! numeric_api {
                     $crate::num::sample_uniform_incl(
                         runner,
                         self.start,
-                        ::core::$typ::MAX,
+                        <$typ as num_traits::Bounded>::max_value(),
                     ),
-                    ::core::$typ::MAX,
+                    <$typ as num_traits::Bounded>::max_value(),
                 ))
             }
         }
+    }
+}
 
+macro_rules! range_to_numeric_api {
+    ($typ:ident, $epsilon:expr, $min:expr) => {
         impl Strategy for ::core::ops::RangeTo<$typ> {
             type Tree = BinarySearch;
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
-                    ::core::$typ::MIN,
+                    $min,
                     $crate::num::sample_uniform(
                         runner,
-                        ::core::$typ::MIN..self.end,
+                        $min..self.end.clone(),
                     ),
-                    self.end,
+                    self.end.clone(),
                 ))
             }
         }
@@ -124,13 +151,13 @@ macro_rules! numeric_api {
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
-                    ::core::$typ::MIN,
+                    $min,
                     $crate::num::sample_uniform_incl(
                         runner,
-                        ::core::$typ::MIN,
-                        self.end,
+                        $min,
+                        self.end.clone(),
                     ),
-                    self.end,
+                    self.end.clone(),
                 ))
             }
         }
@@ -138,19 +165,23 @@ macro_rules! numeric_api {
 }
 
 macro_rules! signed_integer_bin_search {
-    ($typ:ident) => {
+    ($typ:ident $(, $derive:ident)*) => {
         #[allow(missing_docs)]
         pub mod $typ {
-            use rand::Rng;
+            use num_traits::{Zero, Signed, One};
 
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
+
+            #[allow(unused)]
+            #[cfg(feature = "num-bigint")]
+            use num_bigint::{BigInt, BigUint};
 
             int_any!($typ);
 
             /// Shrinks an integer towards 0, using binary search to find
             /// boundary points.
-            #[derive(Clone, Copy, Debug)]
+            #[derive(Clone, $($derive,)* Debug)]
             pub struct BinarySearch {
                 lo: $typ,
                 curr: $typ,
@@ -160,8 +191,8 @@ macro_rules! signed_integer_bin_search {
                 /// Creates a new binary searcher starting at the given value.
                 pub fn new(start: $typ) -> Self {
                     BinarySearch {
-                        lo: 0,
-                        curr: start,
+                        lo: Zero::zero(),
+                        curr: start.clone(),
                         hi: start,
                     }
                 }
@@ -173,12 +204,12 @@ macro_rules! signed_integer_bin_search {
                     use core::cmp::{max, min};
 
                     BinarySearch {
-                        lo: if start < 0 {
-                            min(0, hi - 1)
+                        lo: if Signed::is_negative(&start) {
+                            min($typ::zero(), hi - <$typ as One>::one())
                         } else {
-                            max(0, lo)
+                            max($typ::zero(), lo)
                         },
-                        hi: start,
+                        hi: start.clone(),
                         curr: start,
                     }
                 }
@@ -186,8 +217,8 @@ macro_rules! signed_integer_bin_search {
                 fn reposition(&mut self) -> bool {
                     // Won't ever overflow since lo starts at 0 and advances
                     // towards hi.
-                    let interval = self.hi - self.lo;
-                    let new_mid = self.lo + interval / 2;
+                    let interval = &self.hi - &self.lo;
+                    let new_mid = &self.lo + interval / (<$typ as One>::one() + <$typ as One>::one());
 
                     if new_mid == self.curr {
                         false
@@ -197,10 +228,10 @@ macro_rules! signed_integer_bin_search {
                     }
                 }
 
-                fn magnitude_greater(lhs: $typ, rhs: $typ) -> bool {
-                    if 0 == lhs {
+                fn magnitude_greater(lhs: &$typ, rhs: &$typ) -> bool {
+                    if lhs.is_zero() {
                         false
-                    } else if lhs < 0 {
+                    } else if Signed::is_negative(lhs) {
                         lhs < rhs
                     } else {
                         lhs > rhs
@@ -211,48 +242,56 @@ macro_rules! signed_integer_bin_search {
                 type Value = $typ;
 
                 fn current(&self) -> $typ {
-                    self.curr
+                    self.curr.clone()
                 }
 
                 fn simplify(&mut self) -> bool {
-                    if !BinarySearch::magnitude_greater(self.hi, self.lo) {
+                    if !BinarySearch::magnitude_greater(&self.hi, &self.lo) {
                         return false;
                     }
 
-                    self.hi = self.curr;
+                    self.hi = self.curr.clone();
                     self.reposition()
                 }
 
                 fn complicate(&mut self) -> bool {
-                    if !BinarySearch::magnitude_greater(self.hi, self.lo) {
+                    if !BinarySearch::magnitude_greater(&self.hi, &self.lo) {
                         return false;
                     }
 
-                    self.lo = self.curr + if self.hi < 0 { -1 } else { 1 };
+                    self.lo = &self.curr + if Signed::is_negative(&self.hi) {
+                        -<$typ as One>::one()
+                    } else {
+                        <$typ as One>::one()
+                    };
 
                     self.reposition()
                 }
             }
 
-            numeric_api!($typ, 1);
+            numeric_api!($typ, <$typ as One>::one());
         }
     };
 }
 
 macro_rules! unsigned_integer_bin_search {
-    ($typ:ident) => {
+    ($typ:ident $(, $derive:ident),*) => {
         #[allow(missing_docs)]
         pub mod $typ {
-            use rand::Rng;
+            use num_traits::{Zero, One};
 
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
+
+            #[allow(unused)]
+            #[cfg(feature = "num-bigint")]
+            use num_bigint::{BigInt, BigUint};
 
             int_any!($typ);
 
             /// Shrinks an integer towards 0, using binary search to find
             /// boundary points.
-            #[derive(Clone, Copy, Debug)]
+            #[derive(Clone, $($derive,)* Debug)]
             pub struct BinarySearch {
                 lo: $typ,
                 curr: $typ,
@@ -262,8 +301,8 @@ macro_rules! unsigned_integer_bin_search {
                 /// Creates a new binary searcher starting at the given value.
                 pub fn new(start: $typ) -> Self {
                     BinarySearch {
-                        lo: 0,
-                        curr: start,
+                        lo: $typ::zero(),
+                        curr: start.clone(),
                         hi: start,
                     }
                 }
@@ -273,7 +312,7 @@ macro_rules! unsigned_integer_bin_search {
                 fn new_clamped(lo: $typ, start: $typ, _hi: $typ) -> Self {
                     BinarySearch {
                         lo: lo,
-                        curr: start,
+                        curr: start.clone(),
                         hi: start,
                     }
                 }
@@ -281,12 +320,14 @@ macro_rules! unsigned_integer_bin_search {
                 /// Creates a new binary searcher which will not search below
                 /// the given `lo` value.
                 pub fn new_above(lo: $typ, start: $typ) -> Self {
-                    BinarySearch::new_clamped(lo, start, start)
+                    BinarySearch::new_clamped(lo, start.clone(), start)
                 }
 
                 fn reposition(&mut self) -> bool {
-                    let interval = self.hi - self.lo;
-                    let new_mid = self.lo + interval / 2;
+                    let interval = &self.hi - &self.lo;
+                    let one = <$typ as One>::one();
+                    let two = &one + &one;
+                    let new_mid = &self.lo + interval / two;
 
                     if new_mid == self.curr {
                         false
@@ -300,7 +341,7 @@ macro_rules! unsigned_integer_bin_search {
                 type Value = $typ;
 
                 fn current(&self) -> $typ {
-                    self.curr
+                    self.curr.clone()
                 }
 
                 fn simplify(&mut self) -> bool {
@@ -308,7 +349,7 @@ macro_rules! unsigned_integer_bin_search {
                         return false;
                     }
 
-                    self.hi = self.curr;
+                    self.hi = self.curr.clone();
                     self.reposition()
                 }
 
@@ -317,30 +358,34 @@ macro_rules! unsigned_integer_bin_search {
                         return false;
                     }
 
-                    self.lo = self.curr + 1;
+                    self.lo = &self.curr + <$typ as One>::one();
                     self.reposition()
                 }
             }
 
-            numeric_api!($typ, 1);
+            numeric_api!($typ, <$typ as One>::one());
         }
     };
 }
 
-signed_integer_bin_search!(i8);
-signed_integer_bin_search!(i16);
-signed_integer_bin_search!(i32);
-signed_integer_bin_search!(i64);
+signed_integer_bin_search!(i8, Copy);
+signed_integer_bin_search!(i16, Copy);
+signed_integer_bin_search!(i32, Copy);
+signed_integer_bin_search!(i64, Copy);
 #[cfg(not(target_arch = "wasm32"))]
-signed_integer_bin_search!(i128);
-signed_integer_bin_search!(isize);
-unsigned_integer_bin_search!(u8);
-unsigned_integer_bin_search!(u16);
-unsigned_integer_bin_search!(u32);
-unsigned_integer_bin_search!(u64);
+signed_integer_bin_search!(i128, Copy);
+signed_integer_bin_search!(isize, Copy);
+#[cfg(feature = "num-bigint")]
+signed_integer_bin_search!(BigInt);
+unsigned_integer_bin_search!(u8, Copy);
+unsigned_integer_bin_search!(u16, Copy);
+unsigned_integer_bin_search!(u32, Copy);
+unsigned_integer_bin_search!(u64, Copy);
 #[cfg(not(target_arch = "wasm32"))]
-unsigned_integer_bin_search!(u128);
-unsigned_integer_bin_search!(usize);
+unsigned_integer_bin_search!(u128, Copy);
+unsigned_integer_bin_search!(usize, Copy);
+#[cfg(feature = "num-bigint")]
+unsigned_integer_bin_search!(BigUint);
 
 bitflags! {
     pub(crate) struct FloatTypes: u32 {
@@ -443,7 +488,7 @@ macro_rules! float_any {
         /// - Classes are weighted as follows, in descending order:
         ///   `NORMAL` > `ZERO` > `SUBNORMAL` > `INFINITE` > `QUIET_NAN` =
         ///   `SIGNALING_NAN`.
-        #[derive(Clone, Copy, Debug)]
+        #[derive(Clone, Debug)]
         #[must_use = "strategies do nothing unless used"]
         pub struct Any(FloatTypes);
 
@@ -664,7 +709,7 @@ macro_rules! float_any {
 }
 
 macro_rules! float_bin_search {
-    ($typ:ident) => {
+    ($typ:ident $(, $derive:ident),*) => {
         #[allow(missing_docs)]
         pub mod $typ {
             use core::ops;
@@ -683,7 +728,7 @@ macro_rules! float_bin_search {
             /// points.
             ///
             /// Non-finite values immediately shrink to 0.
-            #[derive(Clone, Copy, Debug)]
+            #[derive(Clone, $($derive,)* Debug)]
             pub struct BinarySearch {
                 lo: $typ,
                 curr: $typ,
@@ -774,10 +819,10 @@ macro_rules! float_bin_search {
                 }
 
                 fn reposition(&mut self) -> bool {
-                    let interval = self.hi - self.lo;
+                    let interval = &self.hi - &self.lo;
                     let interval =
                         if interval.is_finite() { interval } else { 0.0 };
-                    let new_mid = self.lo + interval / 2.0;
+                    let new_mid = &self.lo + interval / 2.0;
 
                     let new_mid = if new_mid == self.curr || 0.0 == interval {
                         new_mid
