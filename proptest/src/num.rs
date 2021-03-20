@@ -38,7 +38,7 @@ macro_rules! numeric_api {
     };
     (BigUint, $epsilon:expr) => {
         range_numeric_api!(BigUint, $epsilon);
-        range_to_numeric_api!(BigUint, $epsilon, BigUint::zero());
+        range_to_numeric_api!(BigUint, $epsilon, <BigUint as ::num_traits::Zero>::zero());
     };
     ($typ:ident, $epsilon:expr) => {
         range_numeric_api!($typ, $epsilon);
@@ -164,11 +164,120 @@ macro_rules! range_to_numeric_api {
     };
 }
 
+mod int {
+    use num_traits::{Signed, Zero, One, NumAssign, NumAssignRef, NumRef};
+    use crate::strategy::ValueTree;
+    use core::fmt::Debug;
+
+    /// Shrinks an integer towards 0, using binary search to find
+    /// boundary points.
+    #[derive(Clone, Copy, Debug)]
+    pub struct BinarySearch<T: Zero + One + Signed + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> {
+        lo: T,
+        curr: T,
+        check: T,
+        hi: T,
+    }
+    impl<T: Zero + One + Signed + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> BinarySearch<T> {
+        /// Creates a new binary searcher starting at the given value.
+        pub fn new(start: T) -> Self {
+            BinarySearch {
+                lo: T::zero(),
+                curr: start.clone(),
+                check: T::zero(),
+                hi: start,
+            }
+        }
+
+        /// Creates a new binary searcher which will not produce values
+        /// on the other side of `lo` or `hi` from `start`. `lo` is
+        /// inclusive, `hi` is exclusive.
+        pub(in super) fn new_clamped(lo: T, start: T, mut hi: T) -> Self {
+            BinarySearch {
+                lo: if (&start).is_negative() {
+                    hi -= T::one();
+                    if hi.is_negative() {
+                        hi
+                    } else {
+                        T::zero()
+                    }
+                } else {
+                    if lo.is_positive() {
+                        lo
+                    } else {
+                        T::zero()
+                    }
+                },
+                hi: start.clone(),
+                curr: start,
+                check: T::zero(),
+            }
+        }
+
+        fn reposition(&mut self) -> bool {
+            // Won't ever overflow since lo starts at 0 and advances
+            // towards hi.
+            self.check.clone_from(&self.hi);
+            self.check -= &self.lo;
+            self.check /= T::one() + T::one();
+            self.check += &self.lo;
+
+            if self.check == self.curr {
+                false
+            } else {
+                self.curr.clone_from(&self.check);
+                true
+            }
+        }
+
+        fn magnitude_greater(lhs: &T, rhs: &T) -> bool {
+            if lhs.is_zero() {
+                false
+            } else if (lhs).is_negative() {
+                lhs < rhs
+            } else {
+                lhs > rhs
+            }
+        }
+    }
+    impl<T: Zero + One + Signed + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> ValueTree for BinarySearch<T> {
+        type Value = T;
+
+        fn current(&self) -> T {
+            self.curr.clone()
+        }
+
+        fn simplify(&mut self) -> bool {
+            if !BinarySearch::magnitude_greater(&self.hi, &self.lo) {
+                return false;
+            }
+
+            self.hi.clone_from(&self.curr);
+            self.reposition()
+        }
+
+        fn complicate(&mut self) -> bool {
+            if !BinarySearch::magnitude_greater(&self.hi, &self.lo) {
+                return false;
+            }
+
+            self.lo.clone_from(&self.curr);
+            self.lo += if self.hi.is_negative() {
+                -T::one()
+            } else {
+                T::one()
+            };
+
+            self.reposition()
+        }
+    }
+}
+
 macro_rules! signed_integer_bin_search {
     ($typ:ident $(, $derive:ident)*) => {
         #[allow(missing_docs)]
         pub mod $typ {
-            use num_traits::{Zero, Signed, One};
+            use num_traits::One;
 
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
@@ -177,108 +286,125 @@ macro_rules! signed_integer_bin_search {
             #[cfg(feature = "num-bigint")]
             use num_bigint::{BigInt, BigUint};
 
-            int_any!($typ);
-
-            /// Shrinks an integer towards 0, using binary search to find
-            /// boundary points.
             #[derive(Clone, $($derive,)* Debug)]
-            pub struct BinarySearch {
-                lo: $typ,
-                curr: $typ,
-                hi: $typ,
-            }
+            pub struct BinarySearch(super::int::BinarySearch<$typ>);
             impl BinarySearch {
-                /// Creates a new binary searcher starting at the given value.
-                pub fn new(start: $typ) -> Self {
-                    BinarySearch {
-                        lo: Zero::zero(),
-                        curr: start.clone(),
-                        hi: start,
-                    }
+                pub fn new(value: $typ) -> Self {
+                    BinarySearch(super::int::BinarySearch::new(value))
                 }
-
-                /// Creates a new binary searcher which will not produce values
-                /// on the other side of `lo` or `hi` from `start`. `lo` is
-                /// inclusive, `hi` is exclusive.
                 fn new_clamped(lo: $typ, start: $typ, hi: $typ) -> Self {
-                    use core::cmp::{max, min};
-
-                    BinarySearch {
-                        lo: if Signed::is_negative(&start) {
-                            min($typ::zero(), hi - <$typ as One>::one())
-                        } else {
-                            max($typ::zero(), lo)
-                        },
-                        hi: start.clone(),
-                        curr: start,
-                    }
-                }
-
-                fn reposition(&mut self) -> bool {
-                    // Won't ever overflow since lo starts at 0 and advances
-                    // towards hi.
-                    let interval = &self.hi - &self.lo;
-                    let new_mid = &self.lo + interval / (<$typ as One>::one() + <$typ as One>::one());
-
-                    if new_mid == self.curr {
-                        false
-                    } else {
-                        self.curr = new_mid;
-                        true
-                    }
-                }
-
-                fn magnitude_greater(lhs: &$typ, rhs: &$typ) -> bool {
-                    if lhs.is_zero() {
-                        false
-                    } else if Signed::is_negative(lhs) {
-                        lhs < rhs
-                    } else {
-                        lhs > rhs
-                    }
+                    BinarySearch(super::int::BinarySearch::new_clamped(lo, start, hi))
                 }
             }
             impl ValueTree for BinarySearch {
                 type Value = $typ;
-
                 fn current(&self) -> $typ {
-                    self.curr.clone()
+                    self.0.current()
                 }
-
                 fn simplify(&mut self) -> bool {
-                    if !BinarySearch::magnitude_greater(&self.hi, &self.lo) {
-                        return false;
-                    }
-
-                    self.hi = self.curr.clone();
-                    self.reposition()
+                    self.0.simplify()
                 }
-
                 fn complicate(&mut self) -> bool {
-                    if !BinarySearch::magnitude_greater(&self.hi, &self.lo) {
-                        return false;
-                    }
-
-                    self.lo = &self.curr + if Signed::is_negative(&self.hi) {
-                        -<$typ as One>::one()
-                    } else {
-                        <$typ as One>::one()
-                    };
-
-                    self.reposition()
+                    self.0.complicate()
                 }
             }
+
+            int_any!($typ);
 
             numeric_api!($typ, <$typ as One>::one());
         }
     };
 }
 
+mod uint {
+    use num_traits::{Unsigned, Zero, One, NumAssign, NumAssignRef, NumRef};
+    use crate::strategy::ValueTree;
+    use core::fmt::Debug;
+
+    /// Shrinks an integer towards 0, using binary search to find
+    /// boundary points.
+    #[derive(Clone, Copy, Debug)]
+    pub struct BinarySearch<T: Zero + One + Unsigned + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> {
+        lo: T,
+        curr: T,
+        check: T,
+        hi: T,
+    }
+    impl<T: Zero + One + Unsigned + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> BinarySearch<T> {
+        /// Creates a new binary searcher starting at the given value.
+        pub fn new(start: T) -> Self {
+            BinarySearch {
+                lo: T::zero(),
+                curr: start.clone(),
+                check: T::zero(),
+                hi: start,
+            }
+        }
+
+        /// Creates a new binary searcher which will not search below
+        /// the given `lo` value.
+        pub(in super) fn new_clamped(lo: T, start: T, _hi: T) -> Self {
+            BinarySearch {
+                lo: lo,
+                curr: start.clone(),
+                check: T::zero(),
+                hi: start,
+            }
+        }
+
+        /// Creates a new binary searcher which will not search below
+        /// the given `lo` value.
+        pub fn new_above(lo: T, start: T) -> Self {
+            BinarySearch::new_clamped(lo, start.clone(), start)
+        }
+
+        fn reposition(&mut self) -> bool {
+            self.check.clone_from(&self.hi);
+            self.check -= &self.lo;
+            self.check /= T::one() + T::one();
+            self.check += &self.lo;
+
+            if self.check == self.curr {
+                false
+            } else {
+                self.curr.clone_from(&self.check);
+                true
+            }
+        }
+    }
+    impl<T: Zero + One + Unsigned + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> ValueTree for BinarySearch<T> {
+        type Value = T;
+
+        fn current(&self) -> T {
+            self.curr.clone()
+        }
+
+        fn simplify(&mut self) -> bool {
+            if self.hi <= self.lo {
+                return false;
+            }
+
+            self.hi.clone_from(&self.curr);
+            self.reposition()
+        }
+
+        fn complicate(&mut self) -> bool {
+            if self.hi <= self.lo {
+                return false;
+            }
+
+            self.lo.clone_from(&self.curr);
+            self.lo += T::one();
+            self.reposition()
+        }
+    }
+}
+
 macro_rules! unsigned_integer_bin_search {
     ($typ:ident $(, $derive:ident),*) => {
         #[allow(missing_docs)]
         pub mod $typ {
-            use num_traits::{Zero, One};
+            use num_traits::{One};
 
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
@@ -286,82 +412,34 @@ macro_rules! unsigned_integer_bin_search {
             #[allow(unused)]
             #[cfg(feature = "num-bigint")]
             use num_bigint::{BigInt, BigUint};
-
-            int_any!($typ);
-
-            /// Shrinks an integer towards 0, using binary search to find
-            /// boundary points.
+ 
             #[derive(Clone, $($derive,)* Debug)]
-            pub struct BinarySearch {
-                lo: $typ,
-                curr: $typ,
-                hi: $typ,
-            }
+            pub struct BinarySearch(super::uint::BinarySearch<$typ>);
             impl BinarySearch {
-                /// Creates a new binary searcher starting at the given value.
-                pub fn new(start: $typ) -> Self {
-                    BinarySearch {
-                        lo: $typ::zero(),
-                        curr: start.clone(),
-                        hi: start,
-                    }
+                pub fn new(value: $typ) -> Self {
+                    BinarySearch(super::uint::BinarySearch::new(value))
                 }
-
-                /// Creates a new binary searcher which will not search below
-                /// the given `lo` value.
-                fn new_clamped(lo: $typ, start: $typ, _hi: $typ) -> Self {
-                    BinarySearch {
-                        lo: lo,
-                        curr: start.clone(),
-                        hi: start,
-                    }
+                fn new_clamped(lo: $typ, start: $typ, hi: $typ) -> Self {
+                    BinarySearch(super::uint::BinarySearch::new_clamped(lo, start, hi))
                 }
-
-                /// Creates a new binary searcher which will not search below
-                /// the given `lo` value.
                 pub fn new_above(lo: $typ, start: $typ) -> Self {
-                    BinarySearch::new_clamped(lo, start.clone(), start)
-                }
-
-                fn reposition(&mut self) -> bool {
-                    let interval = &self.hi - &self.lo;
-                    let one = <$typ as One>::one();
-                    let two = &one + &one;
-                    let new_mid = &self.lo + interval / two;
-
-                    if new_mid == self.curr {
-                        false
-                    } else {
-                        self.curr = new_mid;
-                        true
-                    }
+                    BinarySearch(super::uint::BinarySearch::new_above(lo, start))
                 }
             }
             impl ValueTree for BinarySearch {
                 type Value = $typ;
-
                 fn current(&self) -> $typ {
-                    self.curr.clone()
+                    self.0.current()
                 }
-
                 fn simplify(&mut self) -> bool {
-                    if self.hi <= self.lo {
-                        return false;
-                    }
-
-                    self.hi = self.curr.clone();
-                    self.reposition()
+                    self.0.simplify()
                 }
-
                 fn complicate(&mut self) -> bool {
-                    if self.hi <= self.lo {
-                        return false;
-                    }
-
-                    self.lo = &self.curr + <$typ as One>::one();
-                    self.reposition()
+                    self.0.complicate()
                 }
             }
+
+            int_any!($typ);
 
             numeric_api!($typ, <$typ as One>::one());
         }
@@ -759,7 +837,7 @@ macro_rules! float_bin_search {
                 /// Creates a new binary searcher which will not produce values
                 /// on the other side of `lo` or `hi` from `start`. `lo` is
                 /// inclusive, `hi` is exclusive.
-                fn new_clamped(lo: $typ, start: $typ, hi: $typ) -> Self {
+                pub(in super) fn new_clamped(lo: $typ, start: $typ, hi: $typ) -> Self {
                     BinarySearch {
                         lo: if start.is_sign_negative() {
                             hi.min(0.0)
