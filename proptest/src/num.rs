@@ -165,20 +165,20 @@ macro_rules! range_to_numeric_api {
 }
 
 mod int {
-    use num_traits::{Signed, Zero, One, NumAssign, NumAssignRef, NumRef};
+    use num_traits::{Zero, One, NumAssign, NumAssignRef, NumRef};
     use crate::strategy::ValueTree;
     use core::fmt::Debug;
 
     /// Shrinks an integer towards 0, using binary search to find
     /// boundary points.
     #[derive(Clone, Copy, Debug)]
-    pub struct BinarySearch<T: Zero + One + Signed + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> {
+    pub struct BinarySearch<T: Zero + One + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> {
         lo: T,
         curr: T,
         check: T,
         hi: T,
     }
-    impl<T: Zero + One + Signed + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> BinarySearch<T> {
+    impl<T: Zero + One + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> BinarySearch<T> {
         /// Creates a new binary searcher starting at the given value.
         pub fn new(start: T) -> Self {
             BinarySearch {
@@ -194,15 +194,15 @@ mod int {
         /// inclusive, `hi` is exclusive.
         pub(in super) fn new_clamped(lo: T, start: T, mut hi: T) -> Self {
             BinarySearch {
-                lo: if (&start).is_negative() {
+                lo: if start < T::zero() {
                     hi -= T::one();
-                    if hi.is_negative() {
+                    if hi < T::zero() {
                         hi
                     } else {
                         T::zero()
                     }
                 } else {
-                    if lo.is_positive() {
+                    if lo > T::zero() {
                         lo
                     } else {
                         T::zero()
@@ -212,6 +212,10 @@ mod int {
                 curr: start,
                 check: T::zero(),
             }
+        }
+
+        pub fn new_above(lo: T, start: T) -> Self {
+            BinarySearch::new_clamped(lo, start.clone(), start)
         }
 
         fn reposition(&mut self) -> bool {
@@ -233,14 +237,14 @@ mod int {
         fn magnitude_greater(lhs: &T, rhs: &T) -> bool {
             if lhs.is_zero() {
                 false
-            } else if (lhs).is_negative() {
+            } else if *lhs < T::zero() {
                 lhs < rhs
             } else {
                 lhs > rhs
             }
         }
     }
-    impl<T: Zero + One + Signed + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> ValueTree for BinarySearch<T> {
+    impl<T: Zero + One + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> ValueTree for BinarySearch<T> {
         type Value = T;
 
         fn current(&self) -> T {
@@ -262,10 +266,10 @@ mod int {
             }
 
             self.lo.clone_from(&self.curr);
-            self.lo += if self.hi.is_negative() {
-                -T::one()
+            if self.hi < T::zero()  {
+                self.lo -= T::one()
             } else {
-                T::one()
+                self.lo += T::one();
             };
 
             self.reposition()
@@ -316,90 +320,6 @@ macro_rules! signed_integer_bin_search {
     };
 }
 
-mod uint {
-    use num_traits::{Unsigned, Zero, One, NumAssign, NumAssignRef, NumRef};
-    use crate::strategy::ValueTree;
-    use core::fmt::Debug;
-
-    /// Shrinks an integer towards 0, using binary search to find
-    /// boundary points.
-    #[derive(Clone, Copy, Debug)]
-    pub struct BinarySearch<T: Zero + One + Unsigned + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> {
-        lo: T,
-        curr: T,
-        check: T,
-        hi: T,
-    }
-    impl<T: Zero + One + Unsigned + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> BinarySearch<T> {
-        /// Creates a new binary searcher starting at the given value.
-        pub fn new(start: T) -> Self {
-            BinarySearch {
-                lo: T::zero(),
-                curr: start.clone(),
-                check: T::zero(),
-                hi: start,
-            }
-        }
-
-        /// Creates a new binary searcher which will not search below
-        /// the given `lo` value.
-        pub(in super) fn new_clamped(lo: T, start: T, _hi: T) -> Self {
-            BinarySearch {
-                lo: lo,
-                curr: start.clone(),
-                check: T::zero(),
-                hi: start,
-            }
-        }
-
-        /// Creates a new binary searcher which will not search below
-        /// the given `lo` value.
-        pub fn new_above(lo: T, start: T) -> Self {
-            BinarySearch::new_clamped(lo, start.clone(), start)
-        }
-
-        fn reposition(&mut self) -> bool {
-            self.check.clone_from(&self.hi);
-            self.check -= &self.lo;
-            self.check /= T::one() + T::one();
-            self.check += &self.lo;
-
-            if self.check == self.curr {
-                false
-            } else {
-                self.curr.clone_from(&self.check);
-                true
-            }
-        }
-    }
-    impl<T: Zero + One + Unsigned + NumAssign + NumAssignRef + NumRef + PartialOrd + Clone + Debug> ValueTree for BinarySearch<T> {
-        type Value = T;
-
-        fn current(&self) -> T {
-            self.curr.clone()
-        }
-
-        fn simplify(&mut self) -> bool {
-            if self.hi <= self.lo {
-                return false;
-            }
-
-            self.hi.clone_from(&self.curr);
-            self.reposition()
-        }
-
-        fn complicate(&mut self) -> bool {
-            if self.hi <= self.lo {
-                return false;
-            }
-
-            self.lo.clone_from(&self.curr);
-            self.lo += T::one();
-            self.reposition()
-        }
-    }
-}
-
 macro_rules! unsigned_integer_bin_search {
     ($typ:ident $(, $derive:ident),*) => {
         #[allow(missing_docs)]
@@ -414,16 +334,16 @@ macro_rules! unsigned_integer_bin_search {
             use num_bigint::{BigInt, BigUint};
  
             #[derive(Clone, $($derive,)* Debug)]
-            pub struct BinarySearch(super::uint::BinarySearch<$typ>);
+            pub struct BinarySearch(super::int::BinarySearch<$typ>);
             impl BinarySearch {
                 pub fn new(value: $typ) -> Self {
-                    BinarySearch(super::uint::BinarySearch::new(value))
+                    BinarySearch(super::int::BinarySearch::new(value))
                 }
                 fn new_clamped(lo: $typ, start: $typ, hi: $typ) -> Self {
-                    BinarySearch(super::uint::BinarySearch::new_clamped(lo, start, hi))
+                    BinarySearch(super::int::BinarySearch::new_clamped(lo, start, hi))
                 }
                 pub fn new_above(lo: $typ, start: $typ) -> Self {
-                    BinarySearch(super::uint::BinarySearch::new_above(lo, start))
+                    BinarySearch(super::int::BinarySearch::new_above(lo, start))
                 }
             }
             impl ValueTree for BinarySearch {
