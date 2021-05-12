@@ -8,7 +8,7 @@
 // except according to those terms.
 
 // used for the `AbstractStateMachine` associated types
-#![feature(type_alias_impl_trait)]
+#![feature(min_type_alias_impl_trait)]
 
 #[macro_use]
 extern crate proptest;
@@ -112,17 +112,17 @@ enum Transition {
 
 struct HeapStateMachine;
 impl AbstractStateMachine for HeapStateMachine {
+    // This macro simply defines:
+    // ```
+    // type State = Vec<i32>;
+    // type Transition = Transition;
+    // type StateStrategy = impl Strategy<Value = Self::State>;
+    // type TransitionStrategy = impl Strategy<Value = Self::Transition>;
+    // ```
     state_and_transition_type!(Vec<i32>, Transition);
 
     fn init_state() -> Self::StateStrategy {
         Just(vec![])
-    }
-
-    fn preconditions(
-        _state: &Self::State,
-        _transition: &Self::Transition,
-    ) -> bool {
-        true
     }
 
     fn transitions(_state: &Self::State) -> Self::TransitionStrategy {
@@ -132,7 +132,8 @@ impl AbstractStateMachine for HeapStateMachine {
             2 => (any::<i32>()).prop_map(Transition::Push),
         ]
     }
-    fn next(
+
+    fn apply_abstract(
         mut state: Self::State,
         transition: &Self::Transition,
     ) -> Self::State {
@@ -160,7 +161,7 @@ impl StateMachineTest for MyHeapTest {
         assert_eq!(0 == state.len(), state.is_empty());
     }
 
-    fn apply_transition(
+    fn apply_concrete(
         mut state: Self::ConcreteState,
         transition: &Transition,
     ) -> Self::ConcreteState {
@@ -195,7 +196,7 @@ impl StateMachineTest for MyHeapTest {
     }
 }
 
-// Run the state machine test withput `prop_state_machine` macro
+// Run the state machine test without the [`prop_state_machine`] macro
 proptest! {
     #![proptest_config(Config {
         // Turn failure persistence off for demonstration
@@ -210,7 +211,7 @@ proptest! {
     }
 }
 
-// Run the state machine test using the `prop_state_machine` macro
+// Run the state machine test using the [`prop_state_machine`] macro
 prop_state_machine! {
     #![proptest_config(Config {
         // Turn failure persistence off for demonstration

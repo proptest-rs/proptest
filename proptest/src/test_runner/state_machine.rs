@@ -19,27 +19,27 @@ pub trait StateMachineTest {
     /// TODO
     type Abstract: AbstractStateMachine;
 
-    /// TODO
+    /// Initialize the concrete state
     fn init_test() -> Self::ConcreteState;
-    /// TODO
-    fn invariants(state: &Self::ConcreteState);
-    /// TODO
-    fn apply_transition(
+
+    /// Apply a transition in the concrete state.
+    fn apply_concrete(
         state: Self::ConcreteState,
         transition: &<Self::Abstract as AbstractStateMachine>::Transition,
     ) -> Self::ConcreteState;
 
-    /// TODO
+    /// Check some invariant on the concrete state after every transition.
+    fn invariants(#[allow(unused_variables)] state: &Self::ConcreteState) {}
+
+    /// Run the test sequentially.
     fn test_sequential(
         transitions: Vec<<Self::Abstract as AbstractStateMachine>::Transition>,
     ) {
         let mut state = Self::init_test();
         for transition in transitions.iter() {
+            state = Self::apply_concrete(state, transition);
             Self::invariants(&state);
-            state = Self::apply_transition(state, transition);
         }
-        // also check the invariants after all the transitions are applied
-        Self::invariants(&state);
     }
 }
 
