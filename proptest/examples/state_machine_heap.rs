@@ -7,8 +7,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-// used for the `AbstractStateMachine` associated types
-#![feature(min_type_alias_impl_trait)]
 
 #[macro_use]
 extern crate proptest;
@@ -112,25 +110,19 @@ enum Transition {
 
 struct HeapStateMachine;
 impl AbstractStateMachine for HeapStateMachine {
-    // This macro simply defines:
-    // ```
-    // type State = Vec<i32>;
-    // type Transition = Transition;
-    // type StateStrategy = impl Strategy<Value = Self::State>;
-    // type TransitionStrategy = impl Strategy<Value = Self::Transition>;
-    // ```
-    state_and_transition_type!(Vec<i32>, Transition);
+    type State = Vec<i32>;
+    type Transition = Transition;
 
-    fn init_state() -> Self::StateStrategy {
-        Just(vec![])
+    fn init_state() -> BoxedStrategy<Self::State> {
+        Just(vec![]).boxed()
     }
 
-    fn transitions(_state: &Self::State) -> Self::TransitionStrategy {
+    fn transitions(_state: &Self::State) -> BoxedStrategy<Self::Transition> {
         // The element can be given different weights.
         prop_oneof![
             1 => Just(Transition::Pop),
             2 => (any::<i32>()).prop_map(Transition::Push),
-        ]
+        ].boxed()
     }
 
     fn apply_abstract(
