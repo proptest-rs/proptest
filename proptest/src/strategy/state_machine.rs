@@ -125,7 +125,7 @@ impl<
 {
     type Tree =
         SequentialValueTree<State, Transition, TransitionStrategy::Tree>;
-    type Value = Vec<TransitionStrategy::Value>;
+    type Value = (State, Vec<TransitionStrategy::Value>);
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let state_tree = (self.init_state)().new_tree(runner)?;
@@ -187,7 +187,7 @@ use super::BoxedStrategy;
 
 /// The generated value tree for a sequential state machine.
 pub struct SequentialValueTree<
-    State: Clone,
+    State: Clone + Debug,
     Transition: Clone + Debug,
     TransitionValueTree: ValueTree<Value = Transition>,
 > {
@@ -206,7 +206,7 @@ pub struct SequentialValueTree<
 }
 
 impl<
-        State: Clone,
+        State: Clone + Debug,
         Transition: Clone + Debug,
         TransitionValueTree: ValueTree<Value = Transition>,
     > SequentialValueTree<State, Transition, TransitionValueTree>
@@ -361,17 +361,17 @@ impl<
 }
 
 impl<
-        State: Clone,
+        State: Clone + Debug,
         Transition: Clone + Debug,
         TransitionValueTree: ValueTree<Value = Transition>,
     > ValueTree
     for SequentialValueTree<State, Transition, TransitionValueTree>
 {
-    type Value = Vec<Transition>;
+    type Value = (State, Vec<Transition>);
 
     fn current(&self) -> Self::Value {
         // The current included acceptable transitions
-        self.current_at(None)
+        (self.initial_state.clone(), self.current_at(None))
     }
 
     fn simplify(&mut self) -> bool {

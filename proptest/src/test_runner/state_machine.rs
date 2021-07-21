@@ -20,7 +20,7 @@ pub trait StateMachineTest {
     type Abstract: AbstractStateMachine;
 
     /// Initialize the concrete state
-    fn init_test() -> Self::ConcreteState;
+    fn init_test(initial_state: <Self::Abstract as AbstractStateMachine>::State) -> Self::ConcreteState;
 
     /// Apply a transition in the concrete state.
     fn apply_concrete(
@@ -33,9 +33,10 @@ pub trait StateMachineTest {
 
     /// Run the test sequentially.
     fn test_sequential(
+        initial_state: <Self::Abstract as AbstractStateMachine>::State,
         transitions: Vec<<Self::Abstract as AbstractStateMachine>::Transition>,
     ) {
-        let mut state = Self::init_test();
+        let mut state = Self::init_test(initial_state);
         for transition in transitions.iter() {
             state = Self::apply_concrete(state, transition);
             Self::invariants(&state);

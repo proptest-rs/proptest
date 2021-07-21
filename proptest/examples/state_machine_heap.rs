@@ -145,12 +145,8 @@ impl StateMachineTest for MyHeapTest {
     type ConcreteState = MyHeap<i32>;
     type Abstract = HeapStateMachine;
 
-    fn init_test() -> Self::ConcreteState {
+    fn init_test(_initial_state: <Self::Abstract as AbstractStateMachine>::State) -> Self::ConcreteState {
         MyHeap::new()
-    }
-
-    fn invariants(state: &Self::ConcreteState) {
-        assert_eq!(0 == state.len(), state.is_empty());
     }
 
     fn apply_concrete(
@@ -186,6 +182,10 @@ impl StateMachineTest for MyHeapTest {
         }
         state
     }
+
+    fn invariants(state: &Self::ConcreteState) {
+        assert_eq!(0 == state.len(), state.is_empty());
+    }
 }
 
 // Run the state machine test without the [`prop_state_machine`] macro
@@ -197,9 +197,9 @@ proptest! {
     })]
     // #[test]
     fn run_without_macro(
-        transitions in HeapStateMachine::sequential_strategy(1..20)
+        (initial_state, transitions) in HeapStateMachine::sequential_strategy(1..20)
     ) {
-        MyHeapTest::test_sequential(transitions)
+        MyHeapTest::test_sequential(initial_state, transitions)
     }
 }
 
