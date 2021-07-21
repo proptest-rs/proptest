@@ -47,6 +47,7 @@ pub trait StateMachineTest {
 /// TODO
 #[macro_export]
 macro_rules! prop_state_machine {
+    // With proptest config annotation
     (#![proptest_config($config:expr)]
     $(
         $(#[$meta:meta])*
@@ -55,6 +56,23 @@ macro_rules! prop_state_machine {
         $(
             proptest! {
                 #![proptest_config($config)]
+                $(#[$meta])*
+                fn $test_name(
+                    transitions in <$test as StateMachineTest>::Abstract::sequential_strategy($size)
+                ) {
+                    $test::test_sequential(transitions)
+                }
+            }
+        )*
+    };
+
+    // Without proptest config annotation
+    ($(
+        $(#[$meta:meta])*
+        fn $test_name:ident(sequential $test:ident $size:expr)
+    )*) => {
+        $(
+            proptest! {
                 $(#[$meta])*
                 fn $test_name(
                     transitions in <$test as StateMachineTest>::Abstract::sequential_strategy($size)
