@@ -211,7 +211,7 @@ prop_state_machine! {
         .. Config::default()
     })]
     #[test]
-    fn run_with_macro(sequential MyHeapTest 1..20)
+    fn run_with_macro(sequential 1..20 => MyHeapTest);
 }
 
 fn main() {

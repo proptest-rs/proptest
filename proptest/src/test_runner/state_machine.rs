@@ -51,16 +51,16 @@ macro_rules! prop_state_machine {
     (#![proptest_config($config:expr)]
     $(
         $(#[$meta:meta])*
-        fn $test_name:ident(sequential $test:ident $size:expr)
+        fn $test_name:ident(sequential $size:expr => $test:ident $(< $( $ty_param:tt ),+ >)?);
     )*) => {
         $(
             proptest! {
                 #![proptest_config($config)]
                 $(#[$meta])*
                 fn $test_name(
-                    transitions in <$test as StateMachineTest>::Abstract::sequential_strategy($size)
+                    (initial_state, transitions) in <$test $(< $( $ty_param ),+ >)? as StateMachineTest>::Abstract::sequential_strategy($size)
                 ) {
-                    $test::test_sequential(transitions)
+                    $test $(::< $( $ty_param ),+ >)? ::test_sequential(initial_state, transitions)
                 }
             }
         )*
@@ -69,15 +69,15 @@ macro_rules! prop_state_machine {
     // Without proptest config annotation
     ($(
         $(#[$meta:meta])*
-        fn $test_name:ident(sequential $test:ident $size:expr)
+        fn $test_name:ident(sequential $size:expr => $test:ident $(< $( $ty_param:tt ),+ >)?);
     )*) => {
         $(
             proptest! {
                 $(#[$meta])*
                 fn $test_name(
-                    transitions in <$test as StateMachineTest>::Abstract::sequential_strategy($size)
+                    (initial_state, transitions) in <$test $(< $( $ty_param ),+ >)? as StateMachineTest>::Abstract::sequential_strategy($size)
                 ) {
-                    $test::test_sequential(transitions)
+                    $test $(::< $( $ty_param ),+ >)? ::test_sequential(initial_state, transitions)
                 }
             }
         )*
