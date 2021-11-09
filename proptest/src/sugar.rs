@@ -772,7 +772,7 @@ macro_rules! prop_assert {
 /// ```
 #[macro_export]
 macro_rules! prop_assert_eq {
-    ($left:expr, $right:expr) => {{
+    ($left:expr, $right:expr $(,) ?) => {{
         let left = $left;
         let right = $right;
         $crate::prop_assert!(
@@ -820,7 +820,7 @@ macro_rules! prop_assert_eq {
 /// ```
 #[macro_export]
 macro_rules! prop_assert_ne {
-    ($left:expr, $right:expr) => {{
+    ($left:expr, $right:expr $(,) ?) => {{
         let left = $left;
         let right = $right;
         prop_assert!(
