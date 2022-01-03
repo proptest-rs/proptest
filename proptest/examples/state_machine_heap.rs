@@ -7,7 +7,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-
 #[macro_use]
 extern crate proptest;
 
@@ -122,7 +121,8 @@ impl AbstractStateMachine for HeapStateMachine {
         prop_oneof![
             1 => Just(Transition::Pop),
             2 => (any::<i32>()).prop_map(Transition::Push),
-        ].boxed()
+        ]
+        .boxed()
     }
 
     fn apply_abstract(
@@ -145,7 +145,9 @@ impl StateMachineTest for MyHeapTest {
     type ConcreteState = MyHeap<i32>;
     type Abstract = HeapStateMachine;
 
-    fn init_test(_initial_state: <Self::Abstract as AbstractStateMachine>::State) -> Self::ConcreteState {
+    fn init_test(
+        _initial_state: <Self::Abstract as AbstractStateMachine>::State,
+    ) -> Self::ConcreteState {
         MyHeap::new()
     }
 

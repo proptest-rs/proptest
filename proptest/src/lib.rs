@@ -102,8 +102,8 @@ pub mod tuple;
 pub mod option;
 pub mod result;
 pub mod sample;
+pub mod state_machine;
 #[cfg(feature = "std")]
 pub mod string;
-pub mod state_machine;
 
 pub mod prelude;
