@@ -66,6 +66,23 @@ pub trait StateMachineTest {
 ///     fn run_with_macro(sequential 1..20 => MyTest);
 /// }
 /// ```
+/// 
+/// This example will expand to:
+/// 
+/// ```rust,ignore
+/// struct MyTest;
+/// 
+/// impl StateMachineTest for MyTest {}
+/// 
+/// proptest! {
+///     #[test]
+///     fn run_with_macro(
+///         (initial_state, transitions) in MyTest::sequential_strategy(1..20)
+///     ) {
+///        MyTest::test_sequential(initial_state, transitions)
+///     }
+/// }
+/// ```
 #[macro_export]
 macro_rules! prop_state_machine {
     // With proptest config annotation
