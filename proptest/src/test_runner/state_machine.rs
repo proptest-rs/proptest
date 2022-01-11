@@ -27,7 +27,7 @@ pub trait StateMachineTest {
     /// Apply a transition in the concrete state.
     fn apply_concrete(
         state: Self::ConcreteState,
-        transition: &<Self::Abstract as AbstractStateMachine>::Transition,
+        transition: <Self::Abstract as AbstractStateMachine>::Transition,
     ) -> Self::ConcreteState;
 
     /// Check some invariant on the concrete state after every transition.
@@ -39,7 +39,7 @@ pub trait StateMachineTest {
         transitions: Vec<<Self::Abstract as AbstractStateMachine>::Transition>,
     ) {
         let mut state = Self::init_test(initial_state);
-        for transition in transitions.iter() {
+        for transition in transitions.into_iter() {
             state = Self::apply_concrete(state, transition);
             Self::invariants(&state);
         }

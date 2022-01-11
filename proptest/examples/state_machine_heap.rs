@@ -153,7 +153,7 @@ impl StateMachineTest for MyHeapTest {
 
     fn apply_concrete(
         mut state: Self::ConcreteState,
-        transition: &Transition,
+        transition: Transition,
     ) -> Self::ConcreteState {
         match transition {
             Transition::Pop => {
@@ -180,7 +180,7 @@ impl StateMachineTest for MyHeapTest {
                     None => assert!(was_empty),
                 }
             }
-            Transition::Push(value) => state.push(*value),
+            Transition::Push(value) => state.push(value),
         }
         state
     }
