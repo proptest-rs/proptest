@@ -92,7 +92,7 @@ impl<T: fmt::Debug> fmt::Display for TestError<T> {
             TestError::Abort(ref why) => write!(f, "Test aborted: {}", why),
             TestError::Fail(ref why, ref what) => write!(
                 f,
-                "Test failed: {}; minimal failing input: {:?}",
+                "Test failed: {}; minimal failing input: {:#?}",
                 why, what
             ),
         }
