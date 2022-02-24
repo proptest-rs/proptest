@@ -107,7 +107,7 @@ fn pick_weighted<I: Iterator<Item = u32>>(
     weights2: I,
 ) -> usize {
     let sum = weights1.map(u64::from).sum();
-    let weighted_pick = sample_uniform(runner, 0..sum);
+    let weighted_pick = sample_uniform(runner, 0, sum);
     weights2
         .scan(0u64, |state, w| {
             *state += u64::from(w);

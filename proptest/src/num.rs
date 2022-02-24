@@ -12,16 +12,18 @@
 //!
 //! All strategies in this module shrink by binary searching towards 0.
 
+mod float_samplers;
+
 use crate::test_runner::TestRunner;
-use core::ops::Range;
 use rand::distributions::uniform::{SampleUniform, Uniform};
 use rand::distributions::{Distribution, Standard};
 
 pub(crate) fn sample_uniform<X: SampleUniform>(
     run: &mut TestRunner,
-    range: Range<X>,
+    start: X,
+    end: X,
 ) -> X {
-    Uniform::new(range.start, range.end).sample(run.rng())
+    Uniform::new(start, end).sample(run.rng())
 }
 
 pub(crate) fn sample_uniform_incl<X: SampleUniform>(
@@ -55,6 +57,9 @@ macro_rules! int_any {
 
 macro_rules! numeric_api {
     ($typ:ident, $epsilon:expr) => {
+        numeric_api!($typ, $typ, $epsilon);
+    };
+    ($typ:ident, $sample_typ:ty, $epsilon:expr) => {
         impl Strategy for ::core::ops::Range<$typ> {
             type Tree = BinarySearch;
             type Value = $typ;
@@ -62,7 +67,12 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     self.start,
-                    $crate::num::sample_uniform(runner, self.clone()),
+                    $crate::num::sample_uniform::<$sample_typ>(
+                        runner,
+                        self.start.into(),
+                        self.end.into(),
+                    )
+                    .into(),
                     self.end - $epsilon,
                 ))
             }
@@ -75,11 +85,12 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     *self.start(),
-                    $crate::num::sample_uniform_incl(
+                    $crate::num::sample_uniform_incl::<$sample_typ>(
                         runner,
-                        *self.start(),
-                        *self.end(),
-                    ),
+                        (*self.start()).into(),
+                        (*self.end()).into(),
+                    )
+                    .into(),
                     *self.end(),
                 ))
             }
@@ -92,11 +103,12 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     self.start,
-                    $crate::num::sample_uniform_incl(
+                    $crate::num::sample_uniform_incl::<$sample_typ>(
                         runner,
-                        self.start,
-                        ::core::$typ::MAX,
-                    ),
+                        self.start.into(),
+                        ::core::$typ::MAX.into(),
+                    )
+                    .into(),
                     ::core::$typ::MAX,
                 ))
             }
@@ -109,10 +121,12 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     ::core::$typ::MIN,
-                    $crate::num::sample_uniform(
+                    $crate::num::sample_uniform::<$sample_typ>(
                         runner,
-                        ::core::$typ::MIN..self.end,
-                    ),
+                        ::core::$typ::MIN.into(),
+                        self.end.into(),
+                    )
+                    .into(),
                     self.end,
                 ))
             }
@@ -125,11 +139,12 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     ::core::$typ::MIN,
-                    $crate::num::sample_uniform_incl(
+                    $crate::num::sample_uniform_incl::<$sample_typ>(
                         runner,
-                        ::core::$typ::MIN,
-                        self.end,
-                    ),
+                        ::core::$typ::MIN.into(),
+                        self.end.into(),
+                    )
+                    .into(),
                     self.end,
                 ))
             }
@@ -664,9 +679,11 @@ macro_rules! float_any {
 }
 
 macro_rules! float_bin_search {
-    ($typ:ident) => {
+    ($typ:ident, $sample_typ:ident) => {
         #[allow(missing_docs)]
         pub mod $typ {
+            use super::float_samplers::$sample_typ;
+
             use core::ops;
             #[cfg(not(feature = "std"))]
             use num_traits::float::FloatCore;
@@ -842,13 +859,13 @@ macro_rules! float_bin_search {
                 }
             }
 
-            numeric_api!($typ, 0.0);
+            numeric_api!($typ, $sample_typ, 0.0);
         }
     };
 }
 
-float_bin_search!(f32);
-float_bin_search!(f64);
+float_bin_search!(f32, F32U);
+float_bin_search!(f64, F64U);
 
 #[cfg(test)]
 mod test {
