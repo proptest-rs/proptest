@@ -182,7 +182,8 @@ pub struct Config {
     /// This does not include implicitly-replayed persisted failing cases.
     ///
     /// The default is 256, which can be overridden by setting the
-    /// `PROPTEST_CASES` environment variable.
+    /// `PROPTEST_CASES` environment variable. (This only applies when the `std`
+    /// feature is enabled, which it is by default.)
     pub cases: u32,
 
     /// The maximum number of individual inputs that may be rejected before the
