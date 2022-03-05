@@ -346,8 +346,7 @@ pub struct Config {
     /// since on nostd proptest has no way to produce output.
     ///
     /// The default is `0`, which can be overridden by setting the
-    /// `PROPTEST_VERBOSE` environment variable. (The variable is only
-    /// considered when the `std` feature is enabled, which it is by default.)
+    /// `PROPTEST_VERBOSE` environment variable.
     #[cfg(feature = "std")]
     pub verbose: u32,
 
