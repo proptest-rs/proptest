@@ -151,7 +151,7 @@ impl<
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         // Generate the initial state value tree
         let initial_state = (self.init_state)().new_tree(runner)?;
-            let last_valid_initial_state = initial_state.current();
+        let last_valid_initial_state = initial_state.current();
 
         let (min_size, end) = self.size.start_end_incl();
         // Sample the maximum number of the transitions from the size range
@@ -195,8 +195,9 @@ impl<
             shrinkable_transitions,
             min_size,
             max_ix,
-            // On a failure, we start by shrinking the initial state
-            shrink: Shrink::InitialState,
+            // On a failure, we start by shrinking transitions from the back
+            // which is less likely to invalidate pre-conditions
+            shrink: Shrink::DeleteTransition(max_ix),
             prev_shrink: None,
         })
     }
@@ -292,7 +293,7 @@ impl<
     /// Find if the initial state is still shrinkable and if all the
     /// simplifications and complications of the included transitions have been
     /// rejected.
-    fn is_simplifiable(&mut self) -> bool {
+    fn is_simplifiable(&self) -> bool {
         self.is_initial_state_shrinkable ||
              // If there are some transitions whose shrinking has not yet been 
              // rejected, we can try to shrink them further
@@ -310,23 +311,6 @@ impl<
     /// Try to apply the next `self.shrink`. Returns `true` is a shrink has been
     /// applied.
     fn try_simplify(&mut self) -> bool {
-
-        if let InitialState = self.shrink {
-            if self.initial_state.simplify() {
-                if self.check_acceptable(None) {
-                    // Store the valid initial state
-                    self.last_valid_initial_state = self.initial_state.current();
-                    return true;
-                } else {
-                    // If the shrink is not acceptable, clear it out
-                    self.prev_shrink = None;
-                }
-            }
-            self.is_initial_state_shrinkable = false;
-            // Move on to delete transitions from the back of the list
-            self.shrink = Shrink::DeleteTransition(self.max_ix);
-        }
-
         if let DeleteTransition(ix) = self.shrink {
             if self.included_transitions.count() == self.min_size {
                 // Can't delete any more transitions, move on to shrinking them
@@ -356,8 +340,9 @@ impl<
 
         while let Transition(ix) = self.shrink {
             if self.shrinkable_transitions.count() == 0 {
-                // Nothing more to do
-                return false;
+                // Move on to shrinking the initial state
+                self.shrink = Shrink::InitialState;
+                break;
             }
 
             if !self.included_transitions.test(ix) {
@@ -386,6 +371,23 @@ impl<
             }
         }
 
+        if let InitialState = self.shrink {
+            if self.initial_state.simplify() {
+                if self.check_acceptable(None) {
+                    // Store the valid initial state
+                    self.last_valid_initial_state =
+                        self.initial_state.current();
+                    return true;
+                } else {
+                    // If the shrink is not acceptable, clear it out
+                    self.prev_shrink = None;
+                }
+            }
+            self.is_initial_state_shrinkable = false;
+            // Nothing left to do
+            return false;
+        }
+
         // This statement should never be reached
         panic!("Unexpected shrink state");
     }
@@ -402,8 +404,8 @@ impl<
         }
     }
 
-    /// Check if the sequence of included transitions is acceptable by the 
-    /// pre-conditions. When `ix` is not `None`, the transition at the given 
+    /// Check if the sequence of included transitions is acceptable by the
+    /// pre-conditions. When `ix` is not `None`, the transition at the given
     /// index is taken from its current value.
     fn check_acceptable(&mut self, ix: Option<usize>) -> bool {
         let transitions = self.current_transitions_at(ix);
@@ -465,7 +467,10 @@ impl<
 
     fn current(&self) -> Self::Value {
         // The current included acceptable transitions
-        (self.last_valid_initial_state.clone(), self.current_transitions_at(None))
+        (
+            self.last_valid_initial_state.clone(),
+            self.current_transitions_at(None),
+        )
     }
 
     fn simplify(&mut self) -> bool {
@@ -512,8 +517,11 @@ impl<
             }
             Some(InitialState) => {
                 self.prev_shrink = None;
-                if self.initial_state.complicate() && self.check_acceptable(None) {
-                    self.last_valid_initial_state = self.initial_state.current();
+                if self.initial_state.complicate()
+                    && self.check_acceptable(None)
+                {
+                    self.last_valid_initial_state =
+                        self.initial_state.current();
                     // Don't unset prev_shrink; we may be able to complicate
                     // it again
                     return true;
