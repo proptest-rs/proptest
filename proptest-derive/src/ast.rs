@@ -805,6 +805,6 @@ struct Tuple<I>(I);
 impl<T: ToTokens, I: Clone + IntoIterator<Item = T>> ToTokens for Tuple<I> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let iter = self.0.clone();
-        quote_append!(tokens, ( #(#iter),* ) );
+        tokens.append_all(iter);
     }
 }

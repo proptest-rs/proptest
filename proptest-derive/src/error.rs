@@ -426,9 +426,9 @@ error!(
 error!(
     set_again(meta: &syn::Meta),
     E0017,
-    "The attribute modifier `{}` inside `#[proptest(..)]` has already been \
+    "The attribute modifier `{:?}` inside `#[proptest(..)]` has already been \
      set. To fix the error, please remove at least one such modifier.",
-    meta.name()
+    meta.path()
 );
 
 // Happens when `<modifier>` in `#[proptest(<modifier>)]` is unknown to
@@ -472,11 +472,11 @@ error!(
 error!(
     weight_malformed(meta: &syn::Meta),
     E0021,
-    "The attribute modifier `{0}` inside `#[proptest(..)]` must have the \
-    format `#[proptest({0} = <integer>)]` where `<integer>` is an integer that \
-    fits within a `u32`. An example: `#[proptest({0} = 2)]` to set a relative \
+    "The attribute modifier `{0:?}` inside `#[proptest(..)]` must have the \
+    format `#[proptest({0:?} = <integer>)]` where `<integer>` is an integer that \
+    fits within a `u32`. An example: `#[proptest({0:?} = 2)]` to set a relative \
     weight of 2.",
-    meta.name()
+    meta.path()
 );
 
 // Happens when both `#[proptest(params = "<type>")]` and
@@ -526,10 +526,10 @@ fatal!(
 error!(
     strategy_malformed(meta: &syn::Meta),
     E0026,
-    "The attribute modifier `{0}` inside `#[proptest(..)]` must have the \
-     format `#[proptest({0} = \"<expr>\")]` where `<expr>` is a valid Rust \
+    "The attribute modifier `{0:?}` inside `#[proptest(..)]` must have the \
+     format `#[proptest({0:?} = \"<expr>\")]` where `<expr>` is a valid Rust \
      expression.",
-    meta.name()
+    meta.path()
 );
 
 // Happens when `#[proptest(filter..)]` is malformed.
@@ -538,10 +538,10 @@ error!(
 error!(
     filter_malformed(meta: &syn::Meta),
     E0027,
-    "The attribute modifier `{0}` inside `#[proptest(..)]` must have the \
-     format `#[proptest({0} = \"<expr>\")]` where `<expr>` is a valid Rust \
+    "The attribute modifier `{0:?}` inside `#[proptest(..)]` must have the \
+     format `#[proptest({0:?} = \"<expr>\")]` where `<expr>` is a valid Rust \
      expression.",
-    meta.name()
+    meta.path()
 );
 
 // Any attributes on a skipped variant has no effect - so we emit this error

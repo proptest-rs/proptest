@@ -8,7 +8,7 @@
 
 //! Provides a parser from syn attributes to our logical model.
 
-use syn::{self, Attribute, Expr, Ident, Lit, Meta, NestedMeta, Type};
+use syn::{self, Attribute, Expr, Lit, Meta, NestedMeta, Type, Path};
 
 use crate::error::{self, Ctx, DeriveResult};
 use crate::interp;
@@ -221,7 +221,7 @@ fn extract_modifiers(ctx: Ctx, attr: &Attribute) -> Vec<Meta> {
         error::inner_attr(ctx);
     }
 
-    match attr.interpret_meta() {
+    match attr.parse_meta().ok() {
         Some(Meta::List(list)) => {
             return list
                 .nested
@@ -229,7 +229,7 @@ fn extract_modifiers(ctx: Ctx, attr: &Attribute) -> Vec<Meta> {
                 .filter_map(|nm| extract_metas(ctx, nm))
                 .collect()
         }
-        Some(Meta::Word(_)) => error::bare_proptest_attr(ctx),
+        Some(Meta::Path(_)) => error::bare_proptest_attr(ctx),
         Some(Meta::NameValue(_)) => error::literal_set_proptest(ctx),
         None => error::no_interp_meta(ctx),
     }
@@ -239,7 +239,7 @@ fn extract_modifiers(ctx: Ctx, attr: &Attribute) -> Vec<Meta> {
 
 fn extract_metas(ctx: Ctx, nested: NestedMeta) -> Option<Meta> {
     match nested {
-        NestedMeta::Literal(_) => {
+        NestedMeta::Lit(_) => {
             error::immediate_literals(ctx);
             None
         }
@@ -263,21 +263,21 @@ fn is_outer_attr(attr: &Attribute) -> bool {
 /// let's them add stuff into our accumulartor.
 fn dispatch_attribute(ctx: Ctx, mut acc: ParseAcc, meta: Meta) -> ParseAcc {
     // Dispatch table for attributes:
-    let name = meta.name().to_string();
-    let name = name.as_ref();
-    match name {
+    let name = meta.path().get_ident().map(|id| id.to_string());
+    match name.as_deref() {
         // Valid modifiers:
-        "skip" => parse_skip(ctx, &mut acc, meta),
-        "w" | "weight" => parse_weight(ctx, &mut acc, &meta),
-        "no_params" => parse_no_params(ctx, &mut acc, meta),
-        "params" => parse_params(ctx, &mut acc, meta),
-        "strategy" => parse_strategy(ctx, &mut acc, &meta),
-        "value" => parse_value(ctx, &mut acc, &meta),
-        "regex" => parse_regex(ctx, &mut acc, &meta),
-        "filter" => parse_filter(ctx, &mut acc, &meta),
-        "no_bound" => parse_no_bound(ctx, &mut acc, meta),
+        Some("skip") => parse_skip(ctx, &mut acc, meta),
+        Some("w") | Some("weight") => parse_weight(ctx, &mut acc, &meta),
+        Some("no_params") => parse_no_params(ctx, &mut acc, meta),
+        Some("params") => parse_params(ctx, &mut acc, meta),
+        Some("strategy") => parse_strategy(ctx, &mut acc, &meta),
+        Some("value") => parse_value(ctx, &mut acc, &meta),
+        Some("regex") => parse_regex(ctx, &mut acc, &meta),
+        Some("filter") => parse_filter(ctx, &mut acc, &meta),
+        Some("no_bound") => parse_no_bound(ctx, &mut acc, meta),
         // Invalid modifiers:
-        name => dispatch_unknown_mod(ctx, name),
+        Some(name) => dispatch_unknown_mod(ctx, name),
+        None => error::unkown_modifier(ctx, &format!("{:?}", meta.path())),
     }
     acc
 }
@@ -368,7 +368,7 @@ fn parse_weight(ctx: Ctx, acc: &mut ParseAcc, meta: &Meta) {
 fn parse_filter(ctx: Ctx, acc: &mut ParseAcc, meta: &Meta) {
     if let Some(filter) = match normalize_meta(meta.clone()) {
         Some(NormMeta::Lit(Lit::Str(lit))) => lit.parse().ok(),
-        Some(NormMeta::Word(ident)) => Some(parse_quote!( #ident )),
+        Some(NormMeta::Path(path)) => Some(parse_quote!( #path )),
         _ => None,
     } {
         acc.filter.push(filter);
@@ -390,7 +390,7 @@ fn parse_regex(ctx: Ctx, acc: &mut ParseAcc, meta: &Meta) {
     error_if_set(ctx, &acc.regex, &meta);
 
     if let expr @ Some(_) = match normalize_meta(meta.clone()) {
-        Some(NormMeta::Word(fun)) => Some(function_call(fun)),
+        Some(NormMeta::Path(fun)) => Some(function_call(fun)),
         Some(NormMeta::Lit(lit @ Lit::Str(_))) => Some(lit_to_expr(lit)),
         _ => None,
     } {
@@ -433,7 +433,7 @@ fn parse_strategy_base(ctx: Ctx, loc: &mut Option<Expr>, meta: &Meta) {
     error_if_set(ctx, &loc, &meta);
 
     if let expr @ Some(_) = match normalize_meta(meta.clone()) {
-        Some(NormMeta::Word(fun)) => Some(function_call(fun)),
+        Some(NormMeta::Path(fun)) => Some(function_call(fun)),
         Some(NormMeta::Lit(lit)) => extract_expr(lit),
         _ => None,
     } {
@@ -493,7 +493,7 @@ fn parse_params(ctx: Ctx, acc: &mut ParseAcc, meta: Meta) {
 
     let typ = match normalize_meta(meta) {
         // Form is: `#[proptest(params(<type>)]`.
-        Some(NormMeta::Word(ident)) => Some(ident_to_type(ident)),
+        Some(NormMeta::Path(path)) => Some(path_to_type(path)),
         // Form is: `#[proptest(params = "<type>"]` or,
         // Form is: `#[proptest(params("<type>")]`..
         Some(NormMeta::Lit(Lit::Str(lit))) => lit.parse().ok(),
@@ -546,11 +546,11 @@ fn error_if_set<T>(ctx: Ctx, loc: &Option<T>, meta: &Meta) {
     }
 }
 
-/// Constructs a type out of an identifier.
-fn ident_to_type(ident: Ident) -> Type {
+/// Constructs a type out of a path.
+fn path_to_type(path: Path) -> Type {
     Type::Path(syn::TypePath {
         qself: None,
-        path: ident.into(),
+        path,
     })
 }
 
@@ -579,7 +579,7 @@ fn lit_to_expr(lit: Lit) -> Expr {
 }
 
 /// Construct a function call expression for an identifier.
-fn function_call(fun: Ident) -> Expr {
+fn function_call(fun: Path) -> Expr {
     parse_quote!( #fun() )
 }
 
@@ -591,19 +591,19 @@ enum NormMeta {
     /// Accepts: `#[proptest(<word> = <lit>)]` and `#[proptest(<word>(<lit>))]`
     Lit(Lit),
     /// Accepts: `#[proptest(<word>(<word>))`.
-    Word(Ident),
+    Path(Path),
 }
 
 /// Normalize a `meta: Meta` into the forms accepted in `#[proptest(<meta>)]`.
 fn normalize_meta(meta: Meta) -> Option<NormMeta> {
     Some(match meta {
-        Meta::Word(_) => NormMeta::Plain,
+        Meta::Path(_) => NormMeta::Plain,
         Meta::NameValue(nv) => NormMeta::Lit(nv.lit),
         Meta::List(ml) => {
             if let Some(nm) = util::match_singleton(ml.nested) {
                 match nm {
-                    NestedMeta::Literal(lit) => NormMeta::Lit(lit),
-                    NestedMeta::Meta(Meta::Word(word)) => NormMeta::Word(word),
+                    NestedMeta::Lit(lit) => NormMeta::Lit(lit),
+                    NestedMeta::Meta(Meta::Path(path)) => NormMeta::Path(path),
                     _ => return None,
                 }
             } else {

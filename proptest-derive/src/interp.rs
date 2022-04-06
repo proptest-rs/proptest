@@ -6,134 +6,13 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use syn::{self, BinOp as B, Expr as E, IntSuffix as IS, Lit as L, UnOp as U};
-
-/// Adapted from https://docs.rs/syn/0.14.2/src/syn/lit.rs.html#943 to accept
-/// u128.
-fn parse_lit_int(mut s: &str) -> Option<u128> {
-    /// Get the byte at offset idx, or a default of `b'\0'` if we're looking
-    /// past the end of the input buffer.
-    pub fn byte<S: AsRef<[u8]> + ?Sized>(s: &S, idx: usize) -> u8 {
-        let s = s.as_ref();
-        if idx < s.len() {
-            s[idx]
-        } else {
-            0
-        }
-    }
-
-    let base = match (byte(s, 0), byte(s, 1)) {
-        (b'0', b'x') => {
-            s = &s[2..];
-            16
-        }
-        (b'0', b'o') => {
-            s = &s[2..];
-            8
-        }
-        (b'0', b'b') => {
-            s = &s[2..];
-            2
-        }
-        (b'0'..=b'9', _) => 10,
-        _ => unreachable!(),
-    };
-
-    let mut value = 0u128;
-    loop {
-        let b = byte(s, 0);
-        let digit = match b {
-            b'0'..=b'9' => u128::from(b - b'0'),
-            b'a'..=b'f' if base > 10 => 10 + u128::from(b - b'a'),
-            b'A'..=b'F' if base > 10 => 10 + u128::from(b - b'A'),
-            b'_' => {
-                s = &s[1..];
-                continue;
-            }
-            // NOTE: Looking at a floating point literal, we don't want to
-            // consider these integers.
-            b'.' if base == 10 => return None,
-            b'e' | b'E' if base == 10 => return None,
-            _ => break,
-        };
-
-        if digit >= base {
-            panic!("Unexpected digit {:x} out of base range", digit);
-        }
-
-        value = value.checked_mul(base)?.checked_add(digit)?;
-        s = &s[1..];
-    }
-
-    Some(value)
-}
-
-/// Parse a suffix of an integer literal.
-fn parse_suffix(lit: &str) -> IS {
-    [
-        ("i8", IS::I8),
-        ("i16", IS::I16),
-        ("i32", IS::I32),
-        ("i64", IS::I64),
-        ("i128", IS::I128),
-        ("isize", IS::Isize),
-        ("u8", IS::U8),
-        ("u16", IS::U16),
-        ("u32", IS::U32),
-        ("u64", IS::U64),
-        ("u128", IS::U128),
-        ("usize", IS::Usize),
-    ]
-    .iter()
-    .find(|&(s, _)| lit.ends_with(s))
-    .map(|(_, suffix)| suffix.clone())
-    .unwrap_or(IS::None)
-}
-
-/// Interprets an integer literal in a string.
-fn eval_str_int(lit: &str) -> Option<u128> {
-    use std::{i128, i16, i32, i64, i8, u16, u32, u64, u8};
-    use syn::IntSuffix::*;
-
-    let val = parse_lit_int(lit)?;
-    Some(match parse_suffix(lit) {
-        None => val,
-        I8 if val <= i8::MAX as u128 => val,
-        I16 if val <= i16::MAX as u128 => val,
-        I32 if val <= i32::MAX as u128 => val,
-        I64 if val <= i64::MAX as u128 => val,
-        U8 if val <= u128::from(u8::MAX) => val,
-        U16 if val <= u128::from(u16::MAX) => val,
-        U32 if val <= u128::from(u32::MAX) => val,
-        U64 if val <= u128::from(u64::MAX) => val,
-        Usize if val <= u128::max_value() => val,
-        Isize if val <= i128::max_value() as u128 => val,
-        U128 => val,
-        I128 if val <= i128::MAX as u128 => val,
-
-        // Does not fit in suffix:
-        _ => return Option::None,
-    })
-}
-
-/// Interprets an integer literal.
-fn eval_lit_int(lit: &syn::LitInt) -> Option<u128> {
-    use quote::ToTokens;
-    eval_str_int(&lit.into_token_stream().to_string())
-}
-
-/// Interprets a verbatim literal.
-fn eval_lit_verbatim(lit: &syn::LitVerbatim) -> Option<u128> {
-    let lit = lit.token.to_string();
-    eval_str_int(&lit)
-}
+use syn::{self, BinOp as B, Expr as E, Lit as L, UnOp as U};
 
 /// Interprets a literal.
 fn eval_lit(lit: &syn::ExprLit) -> Option<u128> {
     match &lit.lit {
-        L::Int(lit) => eval_lit_int(lit),
+        L::Int(lit) => lit.base10_parse().ok(),
         L::Byte(lit) => Some(u128::from(lit.value())),
-        L::Verbatim(lit) => eval_lit_verbatim(lit),
         _ => None,
     }
 }
