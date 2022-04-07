@@ -112,7 +112,7 @@ fn contextualize_config(mut result: Config) -> Config {
             MAX_SHRINK_ITERS => parse_or_warn(
                 &value,
                 &mut result.max_shrink_iters,
-                "u32",
+                "u64",
                 MAX_SHRINK_ITERS,
             ),
             VERBOSE => {
@@ -156,7 +156,7 @@ fn default_default_config() -> Config {
         timeout: 0,
         #[cfg(feature = "std")]
         max_shrink_time: 0,
-        max_shrink_iters: u32::MAX,
+        max_shrink_iters: u64::MAX,
         result_cache: noop_result_cache,
         #[cfg(feature = "std")]
         verbose: 0,
@@ -299,9 +299,9 @@ pub struct Config {
     /// Note that the type of this field will change in a future version of
     /// proptest to better accommodate its special values.
     ///
-    /// The default is `std::u32::MAX`, which can be overridden by setting the
+    /// The default is `std::u64::MAX`, which can be overridden by setting the
     /// `PROPTEST_MAX_SHRINK_ITERS` environment variable.
-    pub max_shrink_iters: u32,
+    pub max_shrink_iters: u64,
 
     /// A function to create new result caches.
     ///
@@ -458,9 +458,9 @@ impl Config {
     /// Returns the configured limit on shrinking iterations.
     ///
     /// This takes into account the special "automatic" behaviour.
-    pub fn max_shrink_iters(&self) -> u32 {
-        if u32::MAX == self.max_shrink_iters {
-            self.cases.saturating_mul(4)
+    pub fn max_shrink_iters(&self) -> u64 {
+        if u64::MAX == self.max_shrink_iters {
+            (self.cases as u64).saturating_mul(4)
         } else {
             self.max_shrink_iters
         }
