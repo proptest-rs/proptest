@@ -1,4 +1,4 @@
-# Configuring the number of tests cases requried
+# Configuring the number of tests cases required
 
 The default number of successful test cases that must execute for a test
 as a whole to pass is currently 256. If you are not satisfied with this
