@@ -10,43 +10,31 @@
 use crate::std_facade::Box;
 use core::u32;
 
-#[cfg(feature = "std")]
-use std::env;
-#[cfg(feature = "std")]
-use std::ffi::OsString;
-#[cfg(feature = "std")]
-use std::fmt;
-#[cfg(feature = "std")]
-use std::str::FromStr;
-
 use crate::test_runner::result_cache::{noop_result_cache, ResultCache};
 use crate::test_runner::rng::RngAlgorithm;
 use crate::test_runner::FailurePersistence;
-#[cfg(feature = "std")]
-use crate::test_runner::FileFailurePersistence;
 
-#[cfg(feature = "std")]
-const CASES: &str = "PROPTEST_CASES";
-#[cfg(feature = "std")]
-const MAX_LOCAL_REJECTS: &str = "PROPTEST_MAX_LOCAL_REJECTS";
-#[cfg(feature = "std")]
-const MAX_GLOBAL_REJECTS: &str = "PROPTEST_MAX_GLOBAL_REJECTS";
-#[cfg(feature = "std")]
-const MAX_FLAT_MAP_REGENS: &str = "PROPTEST_MAX_FLAT_MAP_REGENS";
-#[cfg(feature = "std")]
-const MAX_SHRINK_TIME: &str = "PROPTEST_MAX_SHRINK_TIME";
-#[cfg(feature = "std")]
-const MAX_SHRINK_ITERS: &str = "PROPTEST_MAX_SHRINK_ITERS";
-#[cfg(feature = "fork")]
-const FORK: &str = "PROPTEST_FORK";
-#[cfg(feature = "timeout")]
-const TIMEOUT: &str = "PROPTEST_TIMEOUT";
-#[cfg(feature = "std")]
-const VERBOSE: &str = "PROPTEST_VERBOSE";
-const RNG_ALGORITHM: &str = "PROPTEST_RNG_ALGORITHM";
-
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", not(target_arch = "wasm32")))]
 fn contextualize_config(mut result: Config) -> Config {
+    use crate::test_runner::FileFailurePersistence;
+    use std::env;
+    use std::ffi::OsString;
+    use std::fmt;
+    use std::str::FromStr;
+
+    const CASES: &str = "PROPTEST_CASES";
+    const MAX_LOCAL_REJECTS: &str = "PROPTEST_MAX_LOCAL_REJECTS";
+    const MAX_GLOBAL_REJECTS: &str = "PROPTEST_MAX_GLOBAL_REJECTS";
+    const MAX_FLAT_MAP_REGENS: &str = "PROPTEST_MAX_FLAT_MAP_REGENS";
+    const MAX_SHRINK_TIME: &str = "PROPTEST_MAX_SHRINK_TIME";
+    const MAX_SHRINK_ITERS: &str = "PROPTEST_MAX_SHRINK_ITERS";
+    #[cfg(feature = "fork")]
+    const FORK: &str = "PROPTEST_FORK";
+    #[cfg(feature = "timeout")]
+    const TIMEOUT: &str = "PROPTEST_TIMEOUT";
+    const VERBOSE: &str = "PROPTEST_VERBOSE";
+    const RNG_ALGORITHM: &str = "PROPTEST_RNG_ALGORITHM";
+
     fn parse_or_warn<T: FromStr + fmt::Display>(
         src: &OsString,
         dst: &mut T,
@@ -136,7 +124,7 @@ fn contextualize_config(mut result: Config) -> Config {
     result
 }
 
-#[cfg(not(feature = "std"))]
+#[cfg(not(all(feature = "std", not(target_arch = "wasm32"))))]
 fn contextualize_config(result: Config) -> Config {
     result
 }
