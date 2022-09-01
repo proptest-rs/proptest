@@ -19,6 +19,4 @@ features = ["std"]
 A few APIs are unavailable on `wasm` targets (beyond those which are removed by
 deselecting certain default features):
 
-- Numeric strategies for `i128` and `u128`.
-
 - The `Arbitrary` implementation for `std::env::VarError`.
