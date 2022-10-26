@@ -8,11 +8,11 @@
 // except according to those terms.
 
 use crate::std_facade::{fmt, Arc};
-use core::mem;
 
 use crate::strategy::fuse::Fuse;
 use crate::strategy::traits::*;
 use crate::test_runner::*;
+use std::mem;
 
 /// Adaptor that flattens a `Strategy` which produces other `Strategy`s into a
 /// `Strategy` that picks one of those strategies and then picks values from
@@ -33,6 +33,7 @@ impl<S: Strategy> Flatten<S> {
 impl<S: Strategy> Strategy for Flatten<S>
 where
     S::Value: Strategy,
+    <S::Value as Strategy>::Tree: Clone,
 {
     type Tree = FlattenValueTree<S::Tree>;
     type Value = <S::Value as Strategy>::Value;
@@ -50,19 +51,7 @@ where
 {
     meta: Fuse<S>,
     current: Fuse<<S::Value as Strategy>::Tree>,
-    // The final value to produce after successive calls to complicate() on the
-    // underlying objects return false.
-    final_complication: Option<Fuse<<S::Value as Strategy>::Tree>>,
-    // When `simplify()` or `complicate()` causes a new `Strategy` to be
-    // chosen, we need to find a new failing input for that case. To do this,
-    // we implement `complicate()` by regenerating values up to a number of
-    // times corresponding to the maximum number of test cases. A `simplify()`
-    // which does not cause a new strategy to be chosen always resets
-    // `complicate_regen_remaining` to 0.
-    //
-    // This does unfortunately depart from the direct interpretation of
-    // simplify/complicate as binary search, but is still easier to think about
-    // than other implementations of higher-order strategies.
+    last_complication: Option<Fuse<<S::Value as Strategy>::Tree>>,
     runner: TestRunner,
     complicate_regen_remaining: u32,
 }
@@ -77,7 +66,7 @@ where
         FlattenValueTree {
             meta: self.meta.clone(),
             current: self.current.clone(),
-            final_complication: self.final_complication.clone(),
+            last_complication: self.last_complication.clone(),
             runner: self.runner.clone(),
             complicate_regen_remaining: self.complicate_regen_remaining,
         }
@@ -94,7 +83,7 @@ where
         f.debug_struct("FlattenValueTree")
             .field("meta", &self.meta)
             .field("current", &self.current)
-            .field("final_complication", &self.final_complication)
+            .field("last_complication", &self.last_complication)
             .field(
                 "complicate_regen_remaining",
                 &self.complicate_regen_remaining,
@@ -112,7 +101,7 @@ where
         Ok(FlattenValueTree {
             meta: Fuse::new(meta),
             current: Fuse::new(current),
-            final_complication: None,
+            last_complication: None,
             runner: runner.partial_clone(),
             complicate_regen_remaining: 0,
         })
@@ -122,6 +111,7 @@ where
 impl<S: ValueTree> ValueTree for FlattenValueTree<S>
 where
     S::Value: Strategy,
+    <S::Value as Strategy>::Tree: Clone,
 {
     type Value = <S::Value as Strategy>::Value;
 
@@ -130,33 +120,28 @@ where
     }
 
     fn simplify(&mut self) -> bool {
+        self.current.disallow_complicate();
+
+        if self.meta.simplify() {
+            if let Ok(v) = self.meta.current().new_tree(&mut self.runner) {
+                self.last_complication = Some(Fuse::new(v));
+                mem::swap(
+                    self.last_complication.as_mut().unwrap(),
+                    &mut self.current,
+                );
+                self.complicate_regen_remaining = self.runner.config().cases;
+                return true;
+            } else {
+                self.meta.disallow_simplify();
+            }
+        }
+
         self.complicate_regen_remaining = 0;
+        let mut old_current = self.current.clone();
+        old_current.disallow_simplify();
 
         if self.current.simplify() {
-            // Now that we've simplified the derivative value, we can't
-            // re-complicate the meta value unless it gets simplified again.
-            // We also mustn't complicate back to whatever's in
-            // `final_complication` since the new state of `self.current` is
-            // the most complicated state.
-            self.meta.disallow_complicate();
-            self.final_complication = None;
-            true
-        } else if !self.meta.simplify() {
-            false
-        } else if let Ok(v) = self.meta.current().new_tree(&mut self.runner) {
-            // Shift current into final_complication and `v` into
-            // `current`. We also need to prevent that value from
-            // complicating beyond the current point in the future
-            // since we're going to return `true` from `simplify()`
-            // ourselves.
-            self.current.disallow_complicate();
-            self.final_complication = Some(Fuse::new(v));
-            mem::swap(
-                self.final_complication.as_mut().unwrap(),
-                &mut self.current,
-            );
-            // Initially complicate by regenerating the chosen value.
-            self.complicate_regen_remaining = self.runner.config().cases;
+            self.last_complication = Some(old_current);
             true
         } else {
             false
@@ -177,17 +162,20 @@ where
             }
         }
 
-        if self.current.complicate() {
-            return true;
-        } else if self.meta.complicate() {
+        if self.meta.complicate() {
             if let Ok(v) = self.meta.current().new_tree(&mut self.runner) {
-                self.complicate_regen_remaining = self.runner.config().cases;
                 self.current = Fuse::new(v);
+                self.complicate_regen_remaining = self.runner.config().cases;
                 return true;
+            } else {
             }
         }
 
-        if let Some(v) = self.final_complication.take() {
+        if self.current.complicate() {
+            return true;
+        }
+
+        if let Some(v) = self.last_complication.take() {
             self.current = v;
             true
         } else {

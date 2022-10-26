@@ -53,7 +53,7 @@ macro_rules! int_any {
     };
 }
 
-macro_rules! numeric_api {
+macro_rules! int_api {
     ($typ:ident, $epsilon:expr) => {
         impl Strategy for ::core::ops::Range<$typ> {
             type Tree = BinarySearch;
@@ -131,6 +131,40 @@ macro_rules! numeric_api {
                         self.end,
                     ),
                     self.end,
+                ))
+            }
+        }
+    };
+}
+
+macro_rules! float_api {
+    ($typ:ident, $epsilon:expr) => {
+        impl Strategy for ::core::ops::Range<$typ> {
+            type Tree = BinarySearch;
+            type Value = $typ;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                Ok(BinarySearch::new_clamped(
+                    self.start,
+                    $crate::num::sample_uniform(runner, self.clone()),
+                    self.end - $epsilon,
+                ))
+            }
+        }
+
+        impl Strategy for ::core::ops::RangeInclusive<$typ> {
+            type Tree = BinarySearch;
+            type Value = $typ;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                Ok(BinarySearch::new_clamped(
+                    *self.start(),
+                    $crate::num::sample_uniform_incl(
+                        runner,
+                        *self.start(),
+                        *self.end(),
+                    ),
+                    *self.end(),
                 ))
             }
         }
@@ -234,7 +268,7 @@ macro_rules! signed_integer_bin_search {
                 }
             }
 
-            numeric_api!($typ, 1);
+            int_api!($typ, 1);
         }
     };
 }
@@ -322,7 +356,7 @@ macro_rules! unsigned_integer_bin_search {
                 }
             }
 
-            numeric_api!($typ, 1);
+            int_api!($typ, 1);
         }
     };
 }
@@ -842,7 +876,7 @@ macro_rules! float_bin_search {
                 }
             }
 
-            numeric_api!($typ, 0.0);
+            float_api!($typ, 0.0);
         }
     };
 }
@@ -1032,7 +1066,7 @@ mod test {
     }
 
     mod contract_sanity {
-        macro_rules! contract_sanity {
+        macro_rules! contract_sanity_int {
             ($t:tt) => {
                 mod $t {
                     use crate::strategy::check_strategy_sanity;
@@ -1067,18 +1101,40 @@ mod test {
                 }
             };
         }
-        contract_sanity!(u8);
-        contract_sanity!(i8);
-        contract_sanity!(u16);
-        contract_sanity!(i16);
-        contract_sanity!(u32);
-        contract_sanity!(i32);
-        contract_sanity!(u64);
-        contract_sanity!(i64);
-        contract_sanity!(usize);
-        contract_sanity!(isize);
-        contract_sanity!(f32);
-        contract_sanity!(f64);
+
+        macro_rules! contract_sanity_float {
+            ($t:tt) => {
+                mod $t {
+                    use crate::strategy::check_strategy_sanity;
+
+                    const FOURTY_TWO: $t = 42 as $t;
+                    const FIFTY_SIX: $t = 56 as $t;
+
+                    #[test]
+                    fn range() {
+                        check_strategy_sanity(FOURTY_TWO..FIFTY_SIX, None);
+                    }
+
+                    #[test]
+                    fn range_inclusive() {
+                        check_strategy_sanity(FOURTY_TWO..=FIFTY_SIX, None);
+                    }
+                }
+            };
+        }
+
+        contract_sanity_int!(u8);
+        contract_sanity_int!(i8);
+        contract_sanity_int!(u16);
+        contract_sanity_int!(i16);
+        contract_sanity_int!(u32);
+        contract_sanity_int!(i32);
+        contract_sanity_int!(u64);
+        contract_sanity_int!(i64);
+        contract_sanity_int!(usize);
+        contract_sanity_int!(isize);
+        contract_sanity_float!(f32);
+        contract_sanity_float!(f64);
     }
 
     #[test]

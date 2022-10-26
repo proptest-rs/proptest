@@ -1,3 +1,20 @@
+## Unreleased
+
+### Breaking Changes
+
+- `prop_flat_map` can only be used with closures that produce a strategy that
+  implements `Copy`.
+
+- Half-bounded ranges (`x..`, `..x`, and `..=x`) are no longer supported for
+  `f32` and `f64`.
+
+### New Features
+
+- The shrink strategy for `prop_flat_map` now shrinks the "outer" strategy
+  first (the one that produces the values given to `prop_flat_map`) and
+  shrinks the "inner" strategy" (the one produced by `prop_flat_map`) only
+  when the outer strategy cannot be shrunk further.
+
 ## 1.0.0
 
 ### Breaking Changes

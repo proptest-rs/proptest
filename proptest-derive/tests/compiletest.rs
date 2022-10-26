@@ -17,7 +17,7 @@ fn run_mode(src: &'static str, mode: &'static str) {
     config.target_rustcflags =
         Some("-L ../target/debug/deps --edition=2018".to_owned());
     if let Ok(name) = env::var("TESTNAME") {
-        config.filter = Some(name);
+        config.filters = vec![name];
     }
     config.src_base = format!("tests/{}", src).into();
 
