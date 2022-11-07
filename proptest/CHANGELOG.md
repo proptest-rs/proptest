@@ -1,3 +1,10 @@
+## Unreleased
+
+### Bug Fixes
+
+- Sampling from large ranges of floats such as `(0f32)..` no longer panics
+  with newer versions of the `rand` crate
+
 ## 1.0.0
 
 ### Breaking Changes
