@@ -55,11 +55,18 @@ macro_rules! int_any {
 
 macro_rules! numeric_api {
     ($typ:ident, $epsilon:expr) => {
+        const EMPTY_RANGE_ERR_MSG: &str = "Empty range cannot be sampled from. \
+            (hint: use an inclusive range (`..=`) instead of an exclusive range (`..`))";
+
         impl Strategy for ::core::ops::Range<$typ> {
             type Tree = BinarySearch;
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if self.is_empty() {
+                    return Err(EMPTY_RANGE_ERR_MSG.into());
+                }
+
                 Ok(BinarySearch::new_clamped(
                     self.start,
                     $crate::num::sample_uniform(runner, self.clone()),
@@ -90,6 +97,10 @@ macro_rules! numeric_api {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if self.start == ::core::$typ::MAX {
+                    return Err(EMPTY_RANGE_ERR_MSG.into());
+                }
+
                 Ok(BinarySearch::new_clamped(
                     self.start,
                     $crate::num::sample_uniform_incl(
@@ -107,6 +118,10 @@ macro_rules! numeric_api {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if self.end == ::core::$typ::MIN {
+                    return Err(EMPTY_RANGE_ERR_MSG.into());
+                }
+
                 Ok(BinarySearch::new_clamped(
                     ::core::$typ::MIN,
                     $crate::num::sample_uniform(
