@@ -1,3 +1,9 @@
+## 1.1.0
+
+### New Features
+
+- Add `Arbitrary` impls for `core::num::NonZero*`
+
 ## 1.0.0
 
 ### Breaking Changes
