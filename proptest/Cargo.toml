@@ -18,7 +18,7 @@ Hypothesis-like property-based testing and shrinking.
 
 [features]
 
-default = ["std", "fork", "timeout", "bit-set", "break-dead-code"]
+default = ["std", "fork", "timeout", "bit-set", "num-bigint", "break-dead-code"]
 # Everything in `default` that doesn't break code coverage builds
 default-code-coverage = ["std", "fork", "timeout", "bit-set"]
 
@@ -27,7 +27,7 @@ unstable = []
 
 # Enables the use of standard-library dependent features
 std = ["rand/std", "byteorder/std", "lazy_static",
-       "quick-error", "regex-syntax", "num-traits/std"]
+       "quick-error", "regex-syntax", "num-traits/std", "num-bigint/std"]
 
 # For use in no_std environments with access to an allocator
 #alloc = ["hashmap_core"]
@@ -69,6 +69,11 @@ optional = true
 [dependencies.num-traits]
 version = "0.2.2"
 default-features = false
+
+[dependencies.num-bigint]
+version = "0.4.0"
+optional = true
+features = ["rand"]
 
 [dependencies.quick-error]
 version = "2.0.0"

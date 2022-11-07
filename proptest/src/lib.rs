@@ -81,6 +81,9 @@ extern crate quick_error;
 #[macro_use]
 extern crate rusty_fork;
 
+#[cfg(feature = "num-bigint")]
+extern crate num_bigint;
+
 #[macro_use]
 mod macros;
 
