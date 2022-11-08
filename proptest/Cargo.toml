@@ -57,7 +57,7 @@ break-dead-code = []
 
 [dependencies]
 bitflags = "1.0.1"
-unarray = "0.1"
+unarray = "0.1.3"
 
 # [dependencies.hashmap_core]
 # version = "0.1.5"
