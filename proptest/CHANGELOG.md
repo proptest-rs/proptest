@@ -1,3 +1,9 @@
+## Unreleased Changes
+
+### New Features
+
+- Arrays of all sizes now supported via const generics
+
 ## 1.0.0
 
 ### Breaking Changes
