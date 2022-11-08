@@ -16,7 +16,7 @@ Custom-derive for the Arbitrary trait of proptest.
 """
 
 homepage = "https://altsysrq.github.io/proptest-book/proptest-derive/index.html"
-edition = "2021"
+edition = "2018"
 
 [lib]
 proc-macro = true
