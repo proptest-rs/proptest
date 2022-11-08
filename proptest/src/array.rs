@@ -124,7 +124,7 @@ impl<S: Strategy, const N: usize> Strategy for [S; N] {
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         Ok(ArrayValueTree {
-            tree: unarray::build_array(|i| self[i].new_tree(runner)),
+            tree: unarray::build_array_result(|i| self[i].new_tree(runner))?,
             shrinker: 0,
             last_shrinker: None,
         })
@@ -138,7 +138,9 @@ impl<S: Strategy, const N: usize> Strategy
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         Ok(ArrayValueTree {
-            tree: unarray::build_array(|_| self.strategy.new_tree(runner)),
+            tree: unarray::build_array_result(|_| {
+                self.strategy.new_tree(runner)
+            })?,
             shrinker: 0,
             last_shrinker: None,
         })
