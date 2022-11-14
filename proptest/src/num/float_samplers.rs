@@ -1,5 +1,5 @@
 //-
-// Copyright 2022 Michael Wright
+// Copyright 2022 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -9,7 +9,7 @@
 
 //! Alternative uniform float samplers because the ones provided by the rand crate are prone
 //! to overflow. The samplers work by uniformly selecting from a set of equally spaced values in
-//! the interval and the included bounds. Selection is slighly biased towards the bounds.
+//! the interval and the included bounds. Selection is slightly biased towards the bounds.
 
 pub(crate) use self::f32::F32U;
 pub(crate) use self::f64::F64U;
@@ -166,6 +166,11 @@ macro_rules! float_sampler {
                         return self.end;
                     }
 
+                    // `index` might be greater that `MAX_PERCISE_INT` which means
+                    // `index as $typ` could round to a different integer and
+                    // `index as $typ + self.start` would have a rounding error.
+                    // Fortunately, `index` will never be larger than `2 * MAX_PRECISE_INT`
+                    // (as asserted above) so the expression below will be free of rounding.
                     ((index / 2) as $typ).mul_add(
                         2. * self.step,
                         (index % 2) as $typ * self.step + self.start,
