@@ -24,9 +24,9 @@ macro_rules! float_sampler {
 
             #[must_use]
             // Returns the previous float value. In other words the greatest value representable
-            // as a float such that `last_float(a) < a`. `-0.` is treated as `0.`.
-            fn last_float(a: $typ) -> $typ {
-                debug_assert!(a.is_finite() && a > $typ::MIN, "`last_float` invalid input: {}", a);
+            // as a float such that `next_down(a) < a`. `-0.` is treated as `0.`.
+            fn next_down(a: $typ) -> $typ {
+                debug_assert!(a.is_finite() && a > $typ::MIN, "`next_down` invalid input: {}", a);
                 if a == (0.) {
                     -$typ::from_bits(1)
                 } else if a < 0. {
@@ -37,9 +37,12 @@ macro_rules! float_sampler {
             }
 
             #[must_use]
-            fn last_gap(a: $typ) -> $typ {
-                debug_assert!(a.is_finite() && a > $typ::MIN, "`last_float` invalid input: {}", a);
-                a - last_float(a)
+            // Returns the unit in last place using the definition by John Harrison.
+            // This is the distance between `a` and the next closest float. Note that
+            // `ulp(1) = $typ::EPSILON/2`.
+            fn ulp(a: $typ) -> $typ {
+                debug_assert!(a.is_finite() && a > $typ::MIN, "`ulp` invalid input: {}", a);
+                a.abs() - next_down(a.abs())
             }
 
             #[derive(Copy, Clone, Debug)]
@@ -74,7 +77,7 @@ macro_rules! float_sampler {
                     let low = low.borrow().0;
                     let high = high.borrow().0;
 
-                    let values = SampleValueCollection::new_inclusive(low, last_float(high));
+                    let values = SampleValueCollection::new_inclusive(low, next_down(high));
 
                     FloatUniform {
                         uniform: Uniform::new(0, values.count),
@@ -129,7 +132,7 @@ macro_rules! float_sampler {
                     let min_abs = $typ::min(low.abs(), high.abs());
                     let max_abs = $typ::max(low.abs(), high.abs());
 
-                    let gap = last_gap(max_abs);
+                    let gap = ulp(max_abs);
 
                     let (start, end, step) = if low.abs() < high.abs() {
                         (high, low, -gap)
@@ -274,15 +277,15 @@ macro_rules! float_sampler {
 
                 proptest! {
                     #[test]
-                    fn last_float_less_than_float(val in finite()) {
+                    fn next_down_less_than_float(val in finite()) {
                         prop_assume!(val > $typ::MIN);
-                        prop_assert!(last_float(val) <  val);
+                        prop_assert!(next_down(val) <  val);
                     }
 
                     #[test]
-                    fn no_value_between_float_and_last_float(val in finite()) {
+                    fn no_value_between_float_and_next_down(val in finite()) {
                         prop_assume!(val > $typ::MIN);
-                        let prev = last_float(val);
+                        let prev = next_down(val);
                         let avg = prev / 2. + val / 2.;
                         prop_assert!(avg == prev || avg == val);
                     }
