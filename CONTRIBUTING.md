@@ -67,12 +67,12 @@ All source files start with the copyright header whose template is found at
 `proptest/src/file-preamble`.
 
 When creating a new source file, insert the template and fill it out with the
-current year and either your name or "The proptest developers", at your choice.
+current year and "The proptest developers".
 
 When making non-trivial changes to an existing file, update the header to _add_
 the current year (separated from the previous by a comma) if not already there,
-and change the name to "The proptest developers" if the current name is neither
-that nor your own. Use your best judgement for what "non-trivial" is.
+and change the name to "The proptest developers" if the current name is not
+that. Use your best judgement for what "non-trivial" is.
 
 You retain copyright for any code you add to proptest.
 
