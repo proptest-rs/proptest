@@ -264,6 +264,34 @@ macro_rules! float_sampler {
                 }
 
                 #[test]
+                fn all_floats_in_range_are_possible_1() {
+                    use crate::test_runner::{RngAlgorithm, TestRng};
+
+                    let mut test_rng = TestRng::deterministic_rng(RngAlgorithm::default());
+                    let (low, high) = (1. - $typ::EPSILON, 1. + $typ::EPSILON);
+                    let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high));
+
+                    let mut samples = (0..100)
+                        .map(|_| $typ::from(uniform.sample(&mut test_rng)));
+                    assert!(samples.any(|x| x == 1. - $typ::EPSILON / 2.));
+                }
+
+                #[test]
+                fn all_floats_in_range_are_possible_2() {
+                    use crate::test_runner::{RngAlgorithm, TestRng};
+
+                    let mut test_rng = TestRng::deterministic_rng(RngAlgorithm::default());
+                    let (low, high) = (0., MAX_PRECISE_INT as $typ);
+                    let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high));
+
+                    let mut samples = (0..100)
+                        .map(|_| $typ::from(uniform.sample(&mut test_rng)))
+                        .map(|x| x.fract());
+
+                    assert!(samples.any(|x| x != 0.));
+                }
+
+                #[test]
                 // We treat [-0., 0.] as [0., 0.] since the distance between -0. and 0. is 0.
                 fn zero_sample_values() {
                     let values = SampleValueCollection::new_inclusive(-0., 0.);
