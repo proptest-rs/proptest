@@ -12,27 +12,12 @@
 use crate::arbitrary::{any_with, Arbitrary};
 use crate::array::UniformArrayStrategy;
 
-macro_rules! array {
-    ($($n: expr),*) => { $(
-        impl<A: Arbitrary> Arbitrary for [A; $n] {
-            type Parameters = A::Parameters;
-            type Strategy = UniformArrayStrategy<A::Strategy, [A; $n]>;
-            fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
-                let base = any_with::<A>(args);
-                UniformArrayStrategy::new(base)
-            }
-        }
-    )* };
-}
+impl<A: Arbitrary, const N: usize> Arbitrary for [A; N] {
+    type Parameters = A::Parameters;
+    type Strategy = UniformArrayStrategy<A::Strategy, [A; N]>;
 
-array!(
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-    22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
-);
-
-#[cfg(test)]
-mod test {
-    no_panic_test!(
-        array_16 => [u8; 16]
-    );
+    fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+        let base = any_with::<A>(args);
+        UniformArrayStrategy::new(base)
+    }
 }
