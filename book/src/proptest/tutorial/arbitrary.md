@@ -62,7 +62,7 @@ impl Arbitrary for Range {
                 } else {
                     (b, a)
                 };
-                Range::new(lower, upper)
+                Range::new(lower, upper).unwrap()
             })
     }
 }
