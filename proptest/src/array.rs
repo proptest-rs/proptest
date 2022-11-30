@@ -83,8 +83,7 @@ pub struct ArrayValueTree<T> {
 /// Create a strategy to generate fixed-length arrays.
 ///
 /// All values within the new strategy are generated using the given
-/// strategy. The length of the array corresponds to the suffix of the
-/// name of this function.
+/// strategy.
 ///
 /// See [`UniformArrayStrategy`](struct.UniformArrayStrategy.html) for
 /// example usage.
