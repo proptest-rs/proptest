@@ -28,22 +28,22 @@ This struct has the property that any pair of valid `i32`s can make a valid `Poi
 
 Sometimes, however, there are extra constraints that your type has, which the derive macro can't understand. In these cases, you'll need to implement `Arbitrary` for your type manually.
 
-For example, consider this struct which represents a range:
+For example, consider this struct which represents a range (note, the derive API is can actually represent this case, it's just an example):
 ```rust
 #[derive(Debug)]
 struct Range {
-  lower: i32,
-  upper: i32,
+    lower: i32,
+    upper: i32,
 }
 
 impl Range {
-  pub fn new(lower: i32, upper: i32) -> Option<Self> {
-    if lower <= upper {
-      Some(Self { lower, upper })
-    } else {
-      None
+    pub fn new(lower: i32, upper: i32) -> Option<Self> {
+        if lower <= upper {
+            Some(Self { lower, upper })
+        } else {
+            None
+        }
     }
-  }
 }
 ```
 This struct has an invariant: `lower <= upper`. However, if we derive an `Arbitrary` implementation, we could realistically generate `Range { lower: 1, upper: 0 }`.
@@ -51,15 +51,20 @@ This struct has an invariant: `lower <= upper`. However, if we derive an `Arbitr
 Instead, we can write a manual implementation:
 ```rust
 impl Arbitrary for Range {
-  type Parameters = ();
-  type Strategy = FilterMap<StrategyFor<(i32, i32)>, fn((i32, i32)) -> Option<Self>>;
-
-  fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
-    any::<(i32, i32)>()  // generate 2 arbitrary i32s
-      .prop_filter_map(|(lower, upper)| {
-        Range::new(lower, upper)
-      })
-  }
+    type Parameters = ();
+    type Strategy = FilterMap<StrategyFor<(i32, i32)>, fn((i32, i32)) -> Option<Self>>;
+  
+    fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
+        any::<(i32, i32)>()  // generate 2 arbitrary i32s
+            .prop_map(|(a, b)| {
+                let (lower, upper) = if a < b {
+                    (a, b)
+                } else {
+                    (b, a)
+                };
+                Range::new(lower, upper)
+            })
+    }
 }
 ```
 Here, there are three items we need to define:
@@ -68,7 +73,7 @@ Here, there are three items we need to define:
  - `fn arbitrary_with` - the code that creates the canonical `Strategy` for this type
 
 It's important to consider what type you want to use for `Strategy`. Here, we explicitly write the type out. This uses static dispatch, which is often faster and easier to optimize, but has a few downsides:
- - you need to write out the type of the strategy. Even for this small function, it's a pretty lengthy function signature. In the worst case, it's impossible, since closures which produce un-nameable types.
+ - you need to write out the type of the strategy. Even for this small function, it's a pretty lengthy function signature. In the worst case, it's impossible, since some types are unnameable (e.g. closures which capture their environment)
  - it makes the implementation of `arbitrary_with` a part of your public API signature (if you expose `Arbitrary` impls in general from your crate). This means that changes to the implementation may require a breaking change.
 
 There are a couple of ways around this:
