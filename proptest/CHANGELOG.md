@@ -1,8 +1,14 @@
-## Unreleased Changes
+## Unreleased
+
+### Bug Fixes
+
+- Sampling from large ranges of floats such as `(0f32)..` no longer panics
+  with newer versions of the `rand` crate
 
 ### New Features
 
-- Arrays of all sizes now supported via const generics
+- Add `Arbitrary` impls for arrays of all sizes using const generics
+- Add `Arbitrary` impls for `core::num::NonZero*`
 
 ## 1.0.0
 
