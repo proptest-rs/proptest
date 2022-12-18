@@ -7,6 +7,7 @@
 
 ### New Features
 
+- Add `Arbitrary` impls for arrays of all sizes using const generics
 - Add `Arbitrary` impls for `core::num::NonZero*`
 
 ## 1.0.0
