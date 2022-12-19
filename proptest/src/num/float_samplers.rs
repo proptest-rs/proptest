@@ -21,6 +21,8 @@ macro_rules! float_sampler {
             use rand::distributions::uniform::{
                 SampleBorrow, SampleUniform, Uniform, UniformSampler,
             };
+            #[cfg(not(feature = "std"))]
+            use num_traits::float::Float;
 
             #[must_use]
             // Returns the previous float value. In other words the greatest value representable

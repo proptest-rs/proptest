@@ -68,8 +68,10 @@ version = "1.2"
 optional = true
 
 [dependencies.num-traits]
-version = "0.2.2"
+version = "0.2.15"
 default-features = false
+# std or libm required for mul_add.
+features = ["libm"]
 
 [dependencies.quick-error]
 version = "2.0.0"
