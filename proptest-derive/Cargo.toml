@@ -37,6 +37,11 @@ proc-macro2 = "1.0"
 syn = { version = "1.0", features = ["visit", "extra-traits", "full"] }
 quote = "1.0"
 
+[features]
+
+# Don't generate TupleUnion structs in #[derive(Arbitrary)] code
+boxed_union = []
+
 [[bench]]
 name = "large_enum"
 harness = false

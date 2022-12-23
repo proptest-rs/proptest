@@ -29,6 +29,7 @@ use crate::util::self_ty;
 /// Increase this if the behaviour is changed in `proptest`.
 /// Keeping this lower than what `proptest` supports will also work
 /// but for optimality this should follow what `proptest` supports.
+#[cfg(not(feature = "boxed_union"))]
 const UNION_CHUNK_SIZE: usize = 9;
 
 /// The `MAX - 1` tuple length `Arbitrary` is implemented for. After this number,
@@ -373,7 +374,10 @@ impl ToTokens for Strategy {
                     >
                 )
             }
+            #[cfg(not(feature = "boxed_union"))]
             Union(strats) => union_strat_to_tokens(tokens, strats),
+            #[cfg(feature = "boxed_union")]
+            Union(strats) => union_strat_to_tokens_boxed(tokens, strats),
             Filter(strat, ty) => quote_append!(tokens,
                 _proptest::strategy::Filter<#strat, fn(&#ty) -> bool>
             ),
@@ -465,7 +469,7 @@ impl ToTokens for ToReg {
             ToReg::Range(to) => {
                 let params: Vec<_> = (0..to).map(param).collect();
                 NestedTuple(&params).to_tokens(tokens)
-            },
+            }
             ToReg::API => call_site_ident(API_PARAM_NAME).to_tokens(tokens),
         }
     }
@@ -501,14 +505,17 @@ impl ToTokens for Ctor {
             ),
             Existential(expr) => quote_append!(tokens,
                 _proptest::strategy::Strategy::boxed( #expr ) ),
-            Value(expr) => quote_append!(tokens, || #expr ),
+            Value(expr) => quote_append!(tokens, (|| #expr) as fn() -> _),
             ValueExistential(expr) => quote_append!(tokens,
                 _proptest::strategy::Strategy::boxed(
                     _proptest::strategy::LazyJust::new(move || #expr)
                 )
             ),
             Map(ctors, closure) => map_ctor_to_tokens(tokens, &ctors, closure),
+            #[cfg(not(feature = "boxed_union"))]
             Union(ctors) => union_ctor_to_tokens(tokens, ctors),
+            #[cfg(feature = "boxed_union")]
+            Union(ctors) => union_ctor_to_tokens_boxed(tokens, ctors),
         }
     }
 }
@@ -520,8 +527,7 @@ impl<'a, T: ToTokens> ToTokens for NestedTuple<'a, T> {
         let NestedTuple(elems) = self;
         if elems.is_empty() {
             quote_append!(tokens, ());
-        }
-        else if let [x] = elems {
+        } else if let [x] = elems {
             x.to_tokens(tokens);
         } else {
             let chunks = elems.chunks(NESTED_TUPLE_CHUNK_SIZE);
@@ -547,7 +553,11 @@ impl<'a, T: ToTokens> ToTokens for NestedTuple<'a, T> {
     }
 }
 
-fn map_ctor_to_tokens(tokens: &mut TokenStream, ctors: &[Ctor], closure: &MapClosure) {
+fn map_ctor_to_tokens(
+    tokens: &mut TokenStream,
+    ctors: &[Ctor],
+    closure: &MapClosure,
+) {
     let ctors = NestedTuple(ctors);
 
     quote_append!(tokens,
@@ -597,6 +607,7 @@ fn map_ctor_to_tokens(tokens: &mut TokenStream, ctors: &[Ctor], closure: &MapClo
 ///     (10, 11, 12, 13, 14, 15, 16, 17, 18,
 ///         (19, ..)))
 /// ```
+#[cfg(not(feature = "boxed_union"))]
 fn union_ctor_to_tokens(tokens: &mut TokenStream, ctors: &[(u32, Ctor)]) {
     if ctors.is_empty() {
         return;
@@ -655,6 +666,7 @@ fn union_ctor_to_tokens(tokens: &mut TokenStream, ctors: &[(u32, Ctor)]) {
 
 /// Tokenizes a weighted list of `Strategy`.
 /// For details, see `union_ctor_to_tokens`.
+#[cfg(not(feature = "boxed_union"))]
 fn union_strat_to_tokens(tokens: &mut TokenStream, strats: &[Strategy]) {
     if strats.is_empty() {
         return;
@@ -702,6 +714,55 @@ fn union_strat_to_tokens(tokens: &mut TokenStream, strats: &[Strategy]) {
     fn wrap_arc(s: &Strategy) -> TokenStream {
         quote!( (u32, ::std::sync::Arc<#s>) )
     }
+}
+
+/// Tokenizes a weighted list of `Ctor`.
+///
+/// This can be used instead of `union_ctor_to_tokens` to generate a boxing
+/// macro.
+#[cfg(feature = "boxed_union")]
+fn union_ctor_to_tokens_boxed(tokens: &mut TokenStream, ctors: &[(u32, Ctor)]) {
+    if ctors.is_empty() {
+        return;
+    }
+
+    if let [(_, ctor)] = ctors {
+        // This is not a union at all - user provided an enum with one variant.
+        ctor.to_tokens(tokens);
+        return;
+    }
+
+    let ctors_boxed = ctors.iter().map(wrap_boxed);
+
+    quote_append!(
+        tokens,
+        _proptest::strategy::Union::new_weighted(vec![ #(#ctors_boxed,)* ])
+    );
+
+    fn wrap_boxed(arg: &(u32, Ctor)) -> TokenStream {
+        let (w, c) = arg;
+        quote!( (#w, _proptest::strategy::Strategy::boxed(#c)) )
+    }
+}
+
+/// Tokenizes a weighted list of `Strategy`.
+/// For details, see `union_ctor_to_tokens_boxed`.
+#[cfg(feature = "boxed_union")]
+fn union_strat_to_tokens_boxed(tokens: &mut TokenStream, strats: &[Strategy]) {
+    if strats.is_empty() {
+        return;
+    }
+
+    if let [strat] = strats {
+        // This is not a union at all - user provided an enum with one variant.
+        strat.to_tokens(tokens);
+        return;
+    }
+
+    quote_append!(
+        tokens,
+        _proptest::strategy::Union<_proptest::strategy::BoxedStrategy<Self>>
+    );
 }
 
 /// Wraps a `Ctor` that expects the `to` "register" to be filled with
