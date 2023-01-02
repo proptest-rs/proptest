@@ -4,6 +4,18 @@
 
 - Sampling from large ranges of floats such as `(0f32)..` no longer panics
   with newer versions of the `rand` crate
+- [dependencies.x86] was bumped to latest current version. x86 crate does
+  was on a very old version 0.33.0 which used a removed macro from rust.
+- The calculation for the arbitrary impl of Layout was using a max_size that
+  was too large and overflowing Layout. This has been fixed.
+- Test for arbitrary AllocError was referring to AllocErr which
+  does not exist, this was fixed.
+- NoneError has been removed from rust so it was subsequently
+  removed from proptest. It was blocking compilation. evidence:
+  https://github.com/rust-lang/rust/issues/85614
+- `try_reserve` is stable so removed from unstable features
+- `try_trait` has been changed to `try_trait_v2` so that was adjusted
+  in `Cargo.toml`.
 
 ### New Features
 
@@ -641,7 +653,7 @@ features.
   These are "higher order" `Arbitrary` traits that correspond to the `Arbitrary1`
   and `Arbitrary2` type classes in Haskell's QuickCheck. They are mainly provided
   to support a common set of container-like types in custom deriving self-recursive
-  types in  `proptest_derive`. More on this later releases.
+  types in `proptest_derive`. More on this later releases.
 
 - The strategies in `proptest::option` and `proptest::result` now accept a type
   `Probability` which is a wrapper around `f64`. Conversions from types such as
