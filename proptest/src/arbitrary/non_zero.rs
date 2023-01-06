@@ -25,13 +25,9 @@ macro_rules! non_zero_impl {
                 FilterMap<StrategyFor<$prim>, fn($prim) -> Option<Self>>;
 
             fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
-                any::<$prim>().prop_filter_map(
-                    "must be non zero",
-                    |i| match i {
-                        0 => None,
-                        i => Some(Self::try_from(i).unwrap()),
-                    },
-                )
+                any::<$prim>().prop_filter_map("must be non zero", |i| {
+                    Self::try_from(i).ok()
+                })
             }
         }
     };
