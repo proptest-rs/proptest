@@ -12,19 +12,6 @@
 use crate::arbitrary::{any_with, Arbitrary};
 use crate::array::UniformArrayStrategy;
 
-macro_rules! array {
-    ($($n: expr),*) => { $(
-        impl<A: Arbitrary> Arbitrary for [A; $n] {
-            type Parameters = A::Parameters;
-            type Strategy = UniformArrayStrategy<A::Strategy, [A; $n]>;
-            fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
-                let base = any_with::<A>(args);
-                UniformArrayStrategy::new(base)
-            }
-        }
-    )* };
-}
-
 impl<A: Arbitrary, const N: usize> Arbitrary for [A; N] {
     type Parameters = A::Parameters;
     type Strategy = UniformArrayStrategy<A::Strategy, [A; N]>;
