@@ -25,14 +25,24 @@ macro_rules! array {
     )* };
 }
 
-array!(
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-    22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
-);
+impl<A: Arbitrary, const N: usize> Arbitrary for [A; N] {
+    type Parameters = A::Parameters;
+    type Strategy = UniformArrayStrategy<A::Strategy, [A; N]>;
+
+    fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+        let base = any_with::<A>(args);
+        UniformArrayStrategy::new(base)
+    }
+}
+
 
 #[cfg(test)]
 mod test {
     no_panic_test!(
         array_16 => [u8; 16]
+    );
+
+    no_panic_test!(
+        array_1024 => [u8; 1024]
     );
 }
