@@ -43,7 +43,10 @@ const FORK: &str = "PROPTEST_FORK";
 const TIMEOUT: &str = "PROPTEST_TIMEOUT";
 #[cfg(feature = "std")]
 const VERBOSE: &str = "PROPTEST_VERBOSE";
+#[cfg(feature = "std")]
 const RNG_ALGORITHM: &str = "PROPTEST_RNG_ALGORITHM";
+#[cfg(feature = "std")]
+const DISABLE_FAILURE_PERSISTENCE: &str = "PROPTEST_DISABLE_FAILURE_PERSISTENCE";
 
 #[cfg(feature = "std")]
 fn contextualize_config(mut result: Config) -> Config {
@@ -124,6 +127,9 @@ fn contextualize_config(mut result: Config) -> Config {
                 "RngAlgorithm",
                 RNG_ALGORITHM,
             ),
+            DISABLE_FAILURE_PERSISTENCE => {
+                result.failure_persistence = None
+            }
 
             _ => {
                 if var.starts_with("PROPTEST_") {
@@ -223,7 +229,11 @@ pub struct Config {
     /// See the docs of [`FileFailurePersistence`](enum.FileFailurePersistence.html)
     /// and [`MapFailurePersistence`](struct.MapFailurePersistence.html) for more information.
     ///
-    /// The default cannot currently be overridden by an environment variable.
+    /// You can disable failure persistence with the `PROPTEST_DISABLE_FAILURE_PERSISTENCE`
+    /// environment variable but its not currently possible to set the persistence file
+    /// with an environment variable. (The variable is
+    /// only considered when the `std` feature is enabled, which it is by
+    /// default.)
     pub failure_persistence: Option<Box<dyn FailurePersistence>>,
 
     /// File location of the current test, relevant for persistence
@@ -258,7 +268,9 @@ pub struct Config {
     /// This requires the "fork" feature, enabled by default.
     ///
     /// The default is `false`, which can be overridden by setting the
-    /// `PROPTEST_FORK` environment variable.
+    /// `PROPTEST_FORK` environment variable. (The variable is
+    /// only considered when the `std` feature is enabled, which it is by
+    /// default.)
     #[cfg(feature = "fork")]
     pub fork: bool,
 
@@ -346,7 +358,8 @@ pub struct Config {
     /// since on nostd proptest has no way to produce output.
     ///
     /// The default is `0`, which can be overridden by setting the
-    /// `PROPTEST_VERBOSE` environment variable.
+    /// `PROPTEST_VERBOSE` environment variable. (The variable is only considered
+    /// when the `std` feature is enabled, which it is by default.)
     #[cfg(feature = "std")]
     pub verbose: u32,
 
