@@ -165,7 +165,7 @@ impl Context {
         self.errors.push(msg.to_string());
     }
 
-    /// Add an error to the context and procuce and produce an erroring
+    /// Add an error to the context and produce an erroring
     /// computation that will halt the macro.
     pub fn fatal<T: Display, A>(&mut self, msg: T) -> DeriveResult<A> {
         self.error(msg);

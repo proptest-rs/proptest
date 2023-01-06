@@ -26,10 +26,9 @@
     feature = "unstable",
     feature(
         allocator_api,
-        try_trait,
+        try_trait_v2,
         generator_trait,
-        never_type,
-        try_reserve
+        never_type
     )
 )]
 #![cfg_attr(all(feature = "std", feature = "unstable"), feature(ip))]
