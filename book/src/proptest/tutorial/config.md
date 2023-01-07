@@ -6,7 +6,8 @@ and want to run more or fewer, there are a few ways to do this.
 
 The first way is to set the environment-variable `PROPTEST_CASES` to a
 value that can be successfully parsed as a `u32`. The value you set to this
-variable is now the new default.
+variable is now the new default. (This only applies when the `std` feature of
+proptest is enabled, which it is by default.)
 
 Another way is to use `#![proptest_config(expr)]` inside `proptest!` where
 `expr : Config`. To only change the number of test cases, you can simply
