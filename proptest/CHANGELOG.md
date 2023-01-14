@@ -21,6 +21,7 @@
 
 - Add `Arbitrary` impls for arrays of all sizes using const generics
 - Add `Arbitrary` impls for `core::num::NonZero*`
+- Adds ability to disable failure persistence via env var `PROPTEST_DISABLE_FAILURE_PERSISTENCE`
 
 ## 1.0.0
 
