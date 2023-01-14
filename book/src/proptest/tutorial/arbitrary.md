@@ -46,7 +46,7 @@ impl Range {
     }
 }
 ```
-This struct has an invariant: `lower <= upper`. However, if we derive an `Arbitrary` implementation, we could realistically generate `Range { lower: 1, upper: 0 }`.
+This struct has an invariant: `lower <= upper`. However, if we derive an `Arbitrary` implementation naively, it might generate `Range { lower: 1, upper: 0 }`.
 
 Instead, we can write a manual implementation:
 ```rust
