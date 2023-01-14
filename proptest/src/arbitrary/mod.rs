@@ -30,6 +30,7 @@ pub mod functor;
 mod macros;
 
 mod arrays;
+mod non_zero;
 mod primitives;
 mod sample;
 mod tuples;

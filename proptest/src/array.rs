@@ -80,8 +80,24 @@ pub struct ArrayValueTree<T> {
     last_shrinker: Option<usize>,
 }
 
+/// Create a strategy to generate fixed-length arrays.
+///
+/// All values within the new strategy are generated using the given
+/// strategy.
+///
+/// See [`UniformArrayStrategy`](struct.UniformArrayStrategy.html) for
+/// example usage.
+pub fn uniform<S: Strategy, const N: usize>(
+    strategy: S,
+) -> UniformArrayStrategy<S, [S::Value; N]> {
+    UniformArrayStrategy {
+        strategy,
+        _marker: PhantomData,
+    }
+}
+
 macro_rules! small_array {
-    ($n:tt $uni:ident : $($ix:expr),*) => {
+    ($n:tt $uni:ident) => {
         /// Create a strategy to generate fixed-length arrays.
         ///
         /// All values within the new strategy are generated using the given
@@ -90,160 +106,111 @@ macro_rules! small_array {
         ///
         /// See [`UniformArrayStrategy`](struct.UniformArrayStrategy.html) for
         /// example usage.
-        pub fn $uni<S : Strategy>
-            (strategy: S) -> UniformArrayStrategy<S, [S::Value; $n]>
-        {
+        pub fn $uni<S: Strategy>(
+            strategy: S,
+        ) -> UniformArrayStrategy<S, [S::Value; $n]> {
             UniformArrayStrategy {
                 strategy,
-                _marker: PhantomData
+                _marker: PhantomData,
             }
         }
+    };
+}
 
-        impl<S : Strategy> Strategy for [S; $n] {
-            type Tree = ArrayValueTree<[S::Tree; $n]>;
-            type Value = [S::Value; $n];
+impl<S: Strategy, const N: usize> Strategy for [S; N] {
+    type Tree = ArrayValueTree<[S::Tree; N]>;
+    type Value = [S::Value; N];
 
-            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-                Ok(ArrayValueTree {
-                    tree: [$(self[$ix].new_tree(runner)?,)*],
-                    shrinker: 0,
-                    last_shrinker: None,
-                })
+    fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+        Ok(ArrayValueTree {
+            tree: unarray::build_array_result(|i| self[i].new_tree(runner))?,
+            shrinker: 0,
+            last_shrinker: None,
+        })
+    }
+}
+impl<S: Strategy, const N: usize> Strategy
+    for UniformArrayStrategy<S, [S::Value; N]>
+{
+    type Tree = ArrayValueTree<[S::Tree; N]>;
+    type Value = [S::Value; N];
+
+    fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+        Ok(ArrayValueTree {
+            tree: unarray::build_array_result(|_| {
+                self.strategy.new_tree(runner)
+            })?,
+            shrinker: 0,
+            last_shrinker: None,
+        })
+    }
+}
+impl<T: ValueTree, const N: usize> ValueTree for ArrayValueTree<[T; N]> {
+    type Value = [T::Value; N];
+
+    fn current(&self) -> [T::Value; N] {
+        unarray::build_array(|i| self.tree[i].current())
+    }
+
+    fn simplify(&mut self) -> bool {
+        while self.shrinker < N {
+            if self.tree[self.shrinker].simplify() {
+                self.last_shrinker = Some(self.shrinker);
+                return true;
+            } else {
+                self.shrinker += 1;
             }
         }
+        false
+    }
 
-        impl<S : Strategy> Strategy
-        for UniformArrayStrategy<S, [S::Value; $n]> {
-            type Tree = ArrayValueTree<[S::Tree; $n]>;
-            type Value = [S::Value; $n];
-
-            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-                Ok(ArrayValueTree {
-                    tree: [$({
-                        let _ = $ix;
-                        self.strategy.new_tree(runner)?
-                    },)*],
-                    shrinker: 0,
-                    last_shrinker: None,
-                })
-            }
-        }
-
-        impl<T : ValueTree> ValueTree for ArrayValueTree<[T;$n]> {
-            type Value = [T::Value;$n];
-
-            fn current(&self) -> [T::Value;$n] {
-                [$(self.tree[$ix].current(),)*]
-            }
-
-            fn simplify(&mut self) -> bool {
-                while self.shrinker < $n {
-                    if self.tree[self.shrinker].simplify() {
-                        self.last_shrinker = Some(self.shrinker);
-                        return true;
-                    } else {
-                        self.shrinker += 1;
-                    }
-                }
-
+    fn complicate(&mut self) -> bool {
+        if let Some(shrinker) = self.last_shrinker {
+            self.shrinker = shrinker;
+            if self.tree[shrinker].complicate() {
+                true
+            } else {
+                self.last_shrinker = None;
                 false
             }
-
-            fn complicate(&mut self) -> bool {
-                if let Some(shrinker) = self.last_shrinker {
-                    self.shrinker = shrinker;
-                    if self.tree[shrinker].complicate() {
-                        true
-                    } else {
-                        self.last_shrinker = None;
-                        false
-                    }
-                } else {
-                    false
-                }
-            }
+        } else {
+            false
         }
     }
 }
 
-small_array!(1 uniform1:
-             0);
-small_array!(2 uniform2:
-             0, 1);
-small_array!(3 uniform3:
-             0, 1, 2);
-small_array!(4 uniform4:
-             0, 1, 2, 3);
-small_array!(5 uniform5:
-             0, 1, 2, 3, 4);
-small_array!(6 uniform6:
-             0, 1, 2, 3, 4, 5);
-small_array!(7 uniform7:
-             0, 1, 2, 3, 4, 5, 6);
-small_array!(8 uniform8:
-             0, 1, 2, 3, 4, 5, 6, 7);
-small_array!(9 uniform9:
-             0, 1, 2, 3, 4, 5, 6, 7, 8);
-small_array!(10 uniform10:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
-small_array!(11 uniform11:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-small_array!(12 uniform12:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
-small_array!(13 uniform13:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
-small_array!(14 uniform14:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
-small_array!(15 uniform15:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
-small_array!(16 uniform16:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-small_array!(17 uniform17:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
-small_array!(18 uniform18:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17);
-small_array!(19 uniform19:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18);
-small_array!(20 uniform20:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19);
-small_array!(21 uniform21:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20);
-small_array!(22 uniform22:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21);
-small_array!(23 uniform23:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21, 22);
-small_array!(24 uniform24:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21, 22, 23);
-small_array!(25 uniform25:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21, 22, 23, 24);
-small_array!(26 uniform26:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21, 22, 23, 24, 25);
-small_array!(27 uniform27:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21, 22, 23, 24, 25, 26);
-small_array!(28 uniform28:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21, 22, 23, 24, 25, 26, 27);
-small_array!(29 uniform29:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28);
-small_array!(30 uniform30:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29);
-small_array!(31 uniform31:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30);
-small_array!(32 uniform32:
-             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-             18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
+small_array!(1 uniform1);
+small_array!(2 uniform2);
+small_array!(3 uniform3);
+small_array!(4 uniform4);
+small_array!(5 uniform5);
+small_array!(6 uniform6);
+small_array!(7 uniform7);
+small_array!(8 uniform8);
+small_array!(9 uniform9);
+small_array!(10 uniform10);
+small_array!(11 uniform11);
+small_array!(12 uniform12);
+small_array!(13 uniform13);
+small_array!(14 uniform14);
+small_array!(15 uniform15);
+small_array!(16 uniform16);
+small_array!(17 uniform17);
+small_array!(18 uniform18);
+small_array!(19 uniform19);
+small_array!(20 uniform20);
+small_array!(21 uniform21);
+small_array!(22 uniform22);
+small_array!(23 uniform23);
+small_array!(24 uniform24);
+small_array!(25 uniform25);
+small_array!(26 uniform26);
+small_array!(27 uniform27);
+small_array!(28 uniform28);
+small_array!(29 uniform29);
+small_array!(30 uniform30);
+small_array!(31 uniform31);
+small_array!(32 uniform32);
 
 #[cfg(test)]
 mod test {
