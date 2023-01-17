@@ -53,7 +53,7 @@ macro_rules! opaque_strategy_wrapper {
 
      $(#[$vmeta:meta])* pub struct $vtname:ident
      [$($vgen:tt)*][$($vwhere:tt)*]
-     ($innervt:ty) -> $actualy:ty;
+     ($innervt:ty) -> $actualty:ty;
     ) => {
         $(#[$allmeta])*
         $(#[$smeta])*
@@ -67,7 +67,7 @@ macro_rules! opaque_strategy_wrapper {
         $(#[$allmeta])*
         impl $($sgen)* Strategy for $stratname $($sgen)* $($swhere)* {
             type Tree = $stratvtty;
-            type Value = $actualy;
+            type Value = $actualty;
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 self.0.new_tree(runner).map($vtname)
             }
