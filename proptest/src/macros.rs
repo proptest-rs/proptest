@@ -75,7 +75,7 @@ macro_rules! opaque_strategy_wrapper {
 
         $(#[$allmeta])*
         impl $($vgen)* ValueTree for $vtname $($vgen)* $($vwhere)* {
-            type Value = $actualy;
+            type Value = $actualty;
 
             delegate_vt_0!();
         }
