@@ -46,7 +46,8 @@ const VERBOSE: &str = "PROPTEST_VERBOSE";
 #[cfg(feature = "std")]
 const RNG_ALGORITHM: &str = "PROPTEST_RNG_ALGORITHM";
 #[cfg(feature = "std")]
-const DISABLE_FAILURE_PERSISTENCE: &str = "PROPTEST_DISABLE_FAILURE_PERSISTENCE";
+const DISABLE_FAILURE_PERSISTENCE: &str =
+    "PROPTEST_DISABLE_FAILURE_PERSISTENCE";
 
 #[cfg(feature = "std")]
 fn contextualize_config(mut result: Config) -> Config {
@@ -127,9 +128,7 @@ fn contextualize_config(mut result: Config) -> Config {
                 "RngAlgorithm",
                 RNG_ALGORITHM,
             ),
-            DISABLE_FAILURE_PERSISTENCE => {
-                result.failure_persistence = None
-            }
+            DISABLE_FAILURE_PERSISTENCE => result.failure_persistence = None,
 
             _ => {
                 if var.starts_with("PROPTEST_") {

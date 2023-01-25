@@ -468,7 +468,7 @@ enum ZeroOneTwo {
 #[derive(Arbitrary, Debug)]
 enum Nested {
     First(SameType),
-    Second(ZeroOneTwo, OneTwo)
+    Second(ZeroOneTwo, OneTwo),
 }
 
 #[test]
