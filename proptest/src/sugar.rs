@@ -823,20 +823,20 @@ macro_rules! prop_assert_ne {
     ($left:expr, $right:expr) => {{
         let left = $left;
         let right = $right;
-        prop_assert!(
+        $crate::prop_assert!(
             left != right,
             "assertion failed: `(left != right)`\
              \n  left: `{:?}`,\n right: `{:?}`",
-                     left, right);
+            left, right);
     }};
 
     ($left:expr, $right:expr, $fmt:tt $($args:tt)*) => {{
         let left = $left;
         let right = $right;
-        prop_assert!(left != right, concat!(
-            "assertion failed: `(left != right)`\
-             \n  left: `{:?}`,\n right: `{:?}`: ", $fmt),
-                     left, right $($args)*);
+        $crate::prop_assert!(left != right, concat!(
+                "assertion failed: `(left != right)`\
+                 \n  left: `{:?}`,\n right: `{:?}`: ", $fmt),
+            left, right $($args)*);
     }};
 }
 
