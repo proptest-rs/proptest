@@ -23,6 +23,10 @@
 - Add `Arbitrary` impls for `core::num::NonZero*`
 - Adds ability to disable failure persistence via env var `PROPTEST_DISABLE_FAILURE_PERSISTENCE`
 
+### Other Notes
+
+- `proptest` no longer depends on the `quick-error` crate.
+
 ## 1.0.0
 
 ### Breaking Changes

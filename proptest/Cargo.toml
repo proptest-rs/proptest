@@ -27,7 +27,7 @@ unstable = []
 
 # Enables the use of standard-library dependent features
 std = ["rand/std", "byteorder/std", "lazy_static",
-       "quick-error", "regex-syntax", "num-traits/std"]
+       "regex-syntax", "num-traits/std"]
 
 # For use in no_std environments with access to an allocator
 #alloc = ["hashmap_core"]
@@ -72,10 +72,6 @@ version = "0.2.15"
 default-features = false
 # std or libm required for mul_add.
 features = ["libm"]
-
-[dependencies.quick-error]
-version = "2.0.0"
-optional = true
 
 [dependencies.regex-syntax]
 # If you change this, make sure to also bump the `regex` dependency to a
