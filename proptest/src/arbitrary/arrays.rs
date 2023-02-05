@@ -22,7 +22,6 @@ impl<A: Arbitrary, const N: usize> Arbitrary for [A; N] {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     no_panic_test!(

@@ -178,27 +178,34 @@ fn call_test<V, F, R>(
     _runner: &mut TestRunner,
     case: V,
     test: &F,
-    replay: &mut R,
+    replay_from_fork: &mut R,
     result_cache: &mut dyn ResultCache,
     _: &mut ForkOutput,
-) -> TestCaseResult
+    is_from_persisted_seed: bool,
+) -> TestCaseResultV2
 where
     V: fmt::Debug,
     F: Fn(V) -> TestCaseResult,
     R: Iterator<Item = TestCaseResult>,
 {
-    if let Some(result) = replay.next() {
-        return result;
+    if let Some(result) = replay_from_fork.next() {
+        return result.map(|_| TestCaseOk::ReplayFromForkSuccess);
     }
 
     let cache_key = result_cache.key(&ResultCacheKey::new(&case));
     if let Some(result) = result_cache.get(cache_key) {
-        return result.clone();
+        return result.clone().map(|_| TestCaseOk::CacheHitSuccess);
     }
 
     let result = test(case);
     result_cache.put(cache_key, &result);
-    result
+    result.map(|_| {
+        if is_from_persisted_seed {
+            TestCaseOk::PersistedCaseSuccess
+        } else {
+            TestCaseOk::NewCaseSuccess
+        }
+    })
 }
 
 #[cfg(feature = "std")]
@@ -206,10 +213,11 @@ fn call_test<V, F, R>(
     runner: &mut TestRunner,
     case: V,
     test: &F,
-    replay: &mut R,
+    replay_from_fork: &mut R,
     result_cache: &mut dyn ResultCache,
     fork_output: &mut ForkOutput,
-) -> TestCaseResult
+    is_from_persisted_seed: bool,
+) -> TestCaseResultV2
 where
     V: fmt::Debug,
     F: Fn(V) -> TestCaseResult,
@@ -219,8 +227,8 @@ where
 
     let timeout = runner.config.timeout();
 
-    if let Some(result) = replay.next() {
-        return result;
+    if let Some(result) = replay_from_fork.next() {
+        return result.map(|_| TestCaseOk::ReplayFromForkSuccess);
     }
 
     // Now that we're about to start a new test (as far as the replay system is
@@ -237,7 +245,7 @@ where
             TRACE,
             "Test input hit cache, skipping execution"
         );
-        return result.clone();
+        return result.clone().map(|_| TestCaseOk::CacheHitSuccess);
     }
 
     let time_start = time::Instant::now();
@@ -285,7 +293,13 @@ where
         ),
     }
 
-    result
+    result.map(|_| {
+        if is_from_persisted_seed {
+            TestCaseOk::PersistedCaseSuccess
+        } else {
+            TestCaseOk::NewCaseSuccess
+        }
+    })
 }
 
 type TestRunResult<S> = Result<(), TestError<<S as Strategy>::Value>>;
@@ -569,7 +583,7 @@ impl TestRunner {
         &mut self,
         strategy: &S,
         test: impl Fn(S::Value) -> TestCaseResult,
-        mut replay: impl Iterator<Item = TestCaseResult>,
+        mut replay_from_fork: impl Iterator<Item = TestCaseResult>,
         mut fork_output: ForkOutput,
     ) -> TestRunResult<S> {
         let old_rng = self.rng.clone();
@@ -588,9 +602,10 @@ impl TestRunner {
             self.gen_and_run_case(
                 strategy,
                 &test,
-                &mut replay,
+                &mut replay_from_fork,
                 &mut *result_cache,
                 &mut fork_output,
+                true,
             )?;
         }
         self.rng = old_rng;
@@ -602,9 +617,10 @@ impl TestRunner {
             let result = self.gen_and_run_case(
                 strategy,
                 &test,
-                &mut replay,
+                &mut replay_from_fork,
                 &mut *result_cache,
                 &mut fork_output,
+                false,
             );
             if let Err(TestError::Fail(_, ref value)) = result {
                 if let Some(ref mut failure_persistence) =
@@ -639,22 +655,33 @@ impl TestRunner {
         &mut self,
         strategy: &S,
         f: &impl Fn(S::Value) -> TestCaseResult,
-        replay: &mut impl Iterator<Item = TestCaseResult>,
+        replay_from_fork: &mut impl Iterator<Item = TestCaseResult>,
         result_cache: &mut dyn ResultCache,
         fork_output: &mut ForkOutput,
+        is_from_persisted_seed: bool,
     ) -> TestRunResult<S> {
         let case = unwrap_or!(strategy.new_tree(self), msg =>
                 return Err(TestError::Abort(msg)));
 
-        if self.run_one_with_replay(
+        // We only count new cases to our set of successful runs against
+        // `PROPTEST_CASES` config.
+        let ok_type = self.run_one_with_replay(
             case,
             f,
-            replay,
+            replay_from_fork,
             result_cache,
             fork_output,
-        )? {
-            self.successes += 1;
+            is_from_persisted_seed,
+        )?;
+        match ok_type {
+            TestCaseOk::NewCaseSuccess | TestCaseOk::ReplayFromForkSuccess => {
+                self.successes += 1
+            }
+            TestCaseOk::PersistedCaseSuccess
+            | TestCaseOk::CacheHitSuccess
+            | TestCaseOk::Reject => (),
         }
+
         Ok(())
     }
 
@@ -679,37 +706,51 @@ impl TestRunner {
             &mut iter::empty::<TestCaseResult>().fuse(),
             &mut *result_cache,
             &mut ForkOutput::empty(),
+            false,
         )
+        .map(|ok_type| match ok_type {
+            TestCaseOk::Reject => false,
+            _ => true,
+        })
     }
 
     fn run_one_with_replay<V: ValueTree>(
         &mut self,
         mut case: V,
         test: impl Fn(V::Value) -> TestCaseResult,
-        replay: &mut impl Iterator<Item = TestCaseResult>,
+        replay_from_fork: &mut impl Iterator<Item = TestCaseResult>,
         result_cache: &mut dyn ResultCache,
         fork_output: &mut ForkOutput,
-    ) -> Result<bool, TestError<V::Value>> {
+        is_from_persisted_seed: bool,
+    ) -> Result<TestCaseOk, TestError<V::Value>> {
         let result = call_test(
             self,
             case.current(),
             &test,
-            replay,
+            replay_from_fork,
             result_cache,
             fork_output,
+            is_from_persisted_seed,
         );
 
         match result {
-            Ok(_) => Ok(true),
+            Ok(success_type) => Ok(success_type),
             Err(TestCaseError::Fail(why)) => {
                 let why = self
-                    .shrink(&mut case, test, replay, result_cache, fork_output)
+                    .shrink(
+                        &mut case,
+                        test,
+                        replay_from_fork,
+                        result_cache,
+                        fork_output,
+                        is_from_persisted_seed,
+                    )
                     .unwrap_or(why);
                 Err(TestError::Fail(why, case.current()))
             }
             Err(TestCaseError::Reject(whence)) => {
                 self.reject_global(whence)?;
-                Ok(false)
+                Ok(TestCaseOk::Reject)
             }
         }
     }
@@ -718,9 +759,10 @@ impl TestRunner {
         &mut self,
         case: &mut V,
         test: impl Fn(V::Value) -> TestCaseResult,
-        replay: &mut impl Iterator<Item = TestCaseResult>,
+        replay_from_fork: &mut impl Iterator<Item = TestCaseResult>,
         result_cache: &mut dyn ResultCache,
         fork_output: &mut ForkOutput,
+        is_from_persisted_seed: bool,
     ) -> Option<Reason> {
         #[cfg(feature = "std")]
         use std::time;
@@ -808,9 +850,10 @@ impl TestRunner {
                     self,
                     case.current(),
                     &test,
-                    replay,
+                    replay_from_fork,
                     result_cache,
                     fork_output,
+                    is_from_persisted_seed,
                 );
 
                 match result {
@@ -1067,6 +1110,41 @@ mod test {
             Ok(())
         });
         assert_eq!(Err(TestError::Fail("not less than 5".into(), 5)), result);
+    }
+
+    #[test]
+    fn persisted_cases_do_not_count_towards_total_cases() {
+        const FILE: &'static str = "persistence-test.txt";
+        let _ = fs::remove_file(FILE);
+
+        let config = Config {
+            failure_persistence: Some(Box::new(
+                FileFailurePersistence::Direct(FILE),
+            )),
+            cases: 1,
+            ..Config::default()
+        };
+
+        let max = 10_000_000i32;
+        {
+            TestRunner::new(config.clone())
+                .run(&(0i32..max), |_v| {
+                    Err(TestCaseError::Fail("persist a failure".into()))
+                })
+                .expect_err("didn't fail?");
+        }
+
+        let run_count = RefCell::new(0);
+        TestRunner::new(config.clone())
+            .run(&(0i32..max), |_v| {
+                *run_count.borrow_mut() += 1;
+                Ok(())
+            })
+            .expect("should succeed");
+
+        // Persisted ran, and a new case ran, and only new case counts
+        // against `cases: 1`.
+        assert_eq!(run_count.into_inner(), 2);
     }
 
     #[derive(Clone, Copy, PartialEq)]
