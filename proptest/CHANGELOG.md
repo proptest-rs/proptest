@@ -2,6 +2,15 @@
 
 ### Bug Fixes
 
+### New Features
+
+### Other Notes
+- Minimal failing input is now printed using debug pretty-printing
+
+## 1.1.0
+
+### Bug Fixes
+
 - Sampling from large ranges of floats such as `(0f32)..` no longer panics
   with newer versions of the `rand` crate
 - [dependencies.x86] was bumped to latest current version. x86 crate does
@@ -16,6 +25,8 @@
 - `try_reserve` is stable so removed from unstable features
 - `try_trait` has been changed to `try_trait_v2` so that was adjusted
   in `Cargo.toml`.
+- `prop_assert_ne!` now uses fully qualified `prop_assert_eq!`
+- Persisted tests are not counted against the number of cases to run
 
 ### New Features
 
