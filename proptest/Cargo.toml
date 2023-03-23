@@ -10,6 +10,7 @@ documentation = "https://altsysrq.github.io/rustdoc/proptest/1.0.0/proptest/"
 keywords = ["property", "testing", "quickcheck", "fuzz", "hypothesis"]
 categories = ["development-tools::testing"]
 edition = "2018"
+rust-version = "1.60"
 exclude = ["/gen-*.sh", "/readme-*.md"]
 
 description = """
