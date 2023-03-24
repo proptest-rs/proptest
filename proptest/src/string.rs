@@ -113,7 +113,7 @@ type ParseResult<T> = Result<RegexGeneratorStrategy<T>, Error>;
 /// This trait exists for the benefit of `#[proptest(regex = "...")]`.
 /// It is semver exempt, so use at your own risk.
 /// If you found a use for the trait beyond `Vec<u8>` and `String`,
-/// please file an issue at https://github.com/AltSysrq/proptest.
+/// please file an issue at https://github.com/proptest-rs/proptest.
 pub trait StrategyFromRegex: Sized + fmt::Debug {
     type Strategy: Strategy<Value = Self>;
 

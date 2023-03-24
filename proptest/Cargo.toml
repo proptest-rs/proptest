@@ -53,7 +53,7 @@ timeout = ["fork", "rusty-fork/timeout"]
 atomic64bit = []
 
 # Include features which break the Rust compiler when `-C link-dead-code` is
-# passed (see https://github.com/AltSysrq/proptest/issues/124).
+# passed (see https://github.com/proptest-rs/proptest/issues/124).
 break-dead-code = []
 
 [dependencies]

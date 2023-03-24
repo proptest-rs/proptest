@@ -11,7 +11,7 @@
 ## Introduction
 
 Proptest is a property testing framework (i.e., the QuickCheck family)
-inspired by the [Hypothesis](http://hypothesis.works/) framework for
+inspired by the [Hypothesis](https://hypothesis.works/) framework for
 Python. It allows to test that certain properties of your code hold for
 arbitrary inputs, and if a failure is found, automatically finds the
 minimal test case to reproduce the problem. Unlike QuickCheck, generation
@@ -24,7 +24,7 @@ The crate is fairly close to being feature-complete and has not seen
 substantial architectural changes in quite some time. At this point, it mainly
 sees passive maintenance.
 
-See the [changelog](https://github.com/AltSysrq/proptest/blob/master/proptest/CHANGELOG.md)
+See the [changelog](https://github.com/proptest-rs/proptest/blob/master/proptest/CHANGELOG.md)
 for a full list of substantial historical changes, breaking and otherwise.
 
 ### What is property testing?
@@ -346,7 +346,7 @@ QuickCheck approach has a lot of disadvantages in comparison:
   violate them.
 
 The author of Hypothesis also has an [article on this
-topic](http://hypothesis.works/articles/integrated-shrinking/).
+topic](https://hypothesis.works/articles/integrated-shrinking/).
 
 Of course, there's also some relative downsides that fall out of what
 Proptest does differently:
@@ -388,7 +388,7 @@ makes it to a code generator.
 # Acknowledgements
 
 This crate wouldn't have come into existence had it not been for the [Rust port
-of QuickCheck](https://github.com/burntsushi/quickcheck) and the
+of QuickCheck](https://github.com/BurntSushi/quickcheck) and the
 [`regex_generate`](https://github.com/CryptArchy/regex_generate) crate which
 gave wonderful examples of what is possible.
 

@@ -1,6 +1,6 @@
 # Error Index
 
-[issue tracker]: https://github.com/altsysrq/proptest
+[issue tracker]: https://github.com/proptest-rs/proptest
 
 ## E0001
 
@@ -17,7 +17,7 @@ struct Foo<'a> {
 ```
 
 [gats]: https://github.com/rust-lang/rust/issues/44265
-[issue#9]: https://github.com/AltSysrq/proptest/issues/9
+[issue#9]: https://github.com/proptest-rs/proptest/issues/9
 
 Due to the lack of *[generic associated types (GATs)][gats]* on stable Rust,
 it is currently impossible to define a `Strategy` which generates a type
@@ -680,7 +680,7 @@ struct MyStruct {
 ```
 
 If you need to implement such a work around, consider also [filing an
-issue](https://github.com/altsysrq/proptest/issues).
+issue](https://github.com/proptest-rs/proptest/issues).
 
 [`#[proptest(filter = "expr")]`]: modifiers.md#filter
 [`#[proptest(no_bound)]`]: modifiers.md#no_bound

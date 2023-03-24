@@ -103,7 +103,7 @@
 
 ### Bug Fixes
 
-- Fixed [#186](https://github.com/AltSysrq/proptest/issues/186),
+- Fixed [#186](https://github.com/proptest-rs/proptest/issues/186),
   a Rust future-compatibility issue.
 
 ## 0.9.5
@@ -218,7 +218,7 @@ makes it possible to use an external source of entropy with Proptest.
 - There is now a work-around for a [compiler
   bug](https://github.com/rust-lang/rust/issues/52478) which prevents building
   with `-C link-dead-code`. Please see this issue for details:
-  https://github.com/AltSysrq/proptest/issues/124
+  https://github.com/proptest-rs/proptest/issues/124
 
 ### Deprecations
 
@@ -533,7 +533,7 @@ features.
 
 - Fix that failure persistence file would be written to the incorrect location
   in projects using workspaces. See
-  [#24](https://github.com/AltSysrq/proptest/issues/24) for more details and
+  [#24](https://github.com/proptest-rs/proptest/issues/24) for more details and
   instructions on how to migrate any persistence files that had been written to
   the wrong location.
 
@@ -753,7 +753,7 @@ features.
 
 - Cases where `file!()` returns a relative path, such as on Windows, are now
   handled more reasonably. See
-  [#24](https://github.com/AltSysrq/proptest/issues/24) for more details and
+  [#24](https://github.com/proptest-rs/proptest/issues/24) for more details and
   instructions on how to migrate any persistence files that had been written to
   the wrong location.
 
