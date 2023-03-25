@@ -32,10 +32,10 @@ compiletest_rs = { version = "0.9", features = ["tmp", "stable"] }
 criterion = "0.2"
 
 [dependencies]
-proc-macro2 = "0.4"
+proc-macro2 = "1.0"
 
-syn = { version = "0.15.17", features = ["visit", "extra-traits", "full"] }
-quote = "0.6"
+syn = { version = "1.0.0", features = ["visit", "extra-traits", "full"] }
+quote = "1.0"
 
 [[bench]]
 name = "large_enum"
