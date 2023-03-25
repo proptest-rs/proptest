@@ -8,6 +8,11 @@
 
 [book]: https://altsysrq.github.io/proptest-book/intro.html
 [api-docs]: https://altsysrq.github.io/rustdoc/proptest/latest/proptest/
+
+## Book
+
+A detailed introduction to proptest can be found in the [book](https://altsysrq.github.io/proptest-book/)
+
 ## Introduction
 
 Proptest is a property testing framework (i.e., the QuickCheck family)
@@ -39,6 +44,7 @@ using specific inputs chosen by hand). Traditional tests can test specific
 known edge cases, simple inputs, and inputs that were known in the past to
 reveal bugs, whereas property tests will search for more complicated inputs
 that cause problems.
+
 ## Getting Started
 
 Let's say we want to make a function that parses dates of the form
@@ -312,6 +318,7 @@ The `proptest!` macro has some additional syntax, including for setting
 configuration for things like the number of test cases to generate. See its
 [documentation](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.proptest.html)
 for more details.
+
 ## Differences between QuickCheck and Proptest
 
 QuickCheck and Proptest are similar in many ways: both generate random
@@ -356,6 +363,7 @@ Proptest does differently:
   shrinking based on the output value, whereas Proptest must hold on to all the
   intermediate states and relationships in order for its richer shrinking model
   to work.
+
 ## Limitations of Property Testing
 
 Given infinite time, property testing will eventually explore the whole
