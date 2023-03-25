@@ -558,3 +558,206 @@ impl<
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use proptest::collection::hash_set;
+    use proptest::prelude::*;
+
+    use heap_state_machine::*;
+    use std::collections::HashSet;
+
+    /// A number of simplifications that can be applied in the `ValueTree`
+    /// produced by [`deterministic_sequential_value_tree`]. It depends on the
+    /// [`TRANSITIONS`] given to its `sequential_strategy`.
+    ///
+    /// This constant can be determined from the test
+    /// `number_of_sequential_value_tree_simplifications`.
+    const SIMPLIFICATIONS: usize = 699;
+    /// Number of transitions in the [`deterministic_sequential_value_tree`].
+    const TRANSITIONS: usize = 32;
+
+    #[test]
+    fn number_of_sequential_value_tree_simplifications() {
+        let mut value_tree = deterministic_sequential_value_tree();
+
+        let mut i = 0;
+        loop {
+            let simplified = value_tree.simplify();
+            if simplified {
+                i += 1;
+            } else {
+                break;
+            }
+        }
+        assert_eq!(i, SIMPLIFICATIONS);
+    }
+
+    proptest! {
+        /// Test the simplifications and complication of the
+        /// `SequentialValueTree` produced by
+        /// `deterministic_sequential_value_tree`.
+        ///
+        /// The indices of simplification on which we'll attempt to complicate
+        /// after simplification are selected from the randomly generated
+        /// `complicate_ixs`.
+        ///
+        /// Every simplification and complication must satisfy pre-conditions of
+        /// the state-machine.
+        #[test]
+        fn test_state_machine_sequential_value_tree(
+            complicate_ixs in hash_set(0..SIMPLIFICATIONS, 0..SIMPLIFICATIONS)
+        ) {
+            test_state_machine_sequential_value_tree_aux(complicate_ixs)
+        }
+    }
+
+    fn test_state_machine_sequential_value_tree_aux(
+        complicate_ixs: HashSet<usize>,
+    ) {
+        println!("Complicate indices: {complicate_ixs:?}");
+
+        let mut value_tree = deterministic_sequential_value_tree();
+
+        let check_preconditions = |value_tree: &TestValueTree| {
+            let (mut state, transitions) = value_tree.current();
+            let len = transitions.len();
+            println!("Transitions {}", len);
+            for (ix, transition) in transitions.into_iter().enumerate() {
+                println!("Transition {}/{len} {transition:?}", ix + 1);
+                // Every transition must satisfy the pre-conditions
+                assert!(
+                    <HeapStateMachine as ReferenceStateMachine>::preconditions(
+                        &state,
+                        &transition
+                    )
+                );
+
+                // Apply the transition to update the state for the next transition
+                state = <HeapStateMachine as ReferenceStateMachine>::apply(
+                    state,
+                    &transition,
+                );
+            }
+        };
+
+        let mut ix = 0_usize;
+        loop {
+            let simplified = value_tree.simplify();
+
+            check_preconditions(&value_tree);
+
+            if !simplified {
+                break;
+            }
+            ix += 1;
+
+            if complicate_ixs.contains(&ix) {
+                loop {
+                    let complicated = value_tree.complicate();
+
+                    check_preconditions(&value_tree);
+
+                    if !complicated {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// The following is a definition of an reference state machine used for the
+    /// tests.
+    mod heap_state_machine {
+        use std::vec::Vec;
+
+        use crate::{ReferenceStateMachine, SequentialValueTree};
+        use proptest::prelude::*;
+        use proptest::test_runner::TestRunner;
+
+        use super::TRANSITIONS;
+
+        pub struct HeapStateMachine;
+
+        pub type TestValueTree = SequentialValueTree<
+            TestState,
+            TestTransition,
+            <BoxedStrategy<TestState> as Strategy>::Tree,
+            <BoxedStrategy<TestTransition> as Strategy>::Tree,
+        >;
+
+        pub type TestState = Vec<i32>;
+
+        #[derive(Clone, Debug)]
+        pub enum TestTransition {
+            PopNonEmpty,
+            PopEmpty,
+            Push(i32),
+        }
+
+        pub fn deterministic_sequential_value_tree() -> TestValueTree {
+            let sequential =
+                <HeapStateMachine as ReferenceStateMachine>::sequential_strategy(
+                    TRANSITIONS,
+                );
+            let mut runner = TestRunner::deterministic();
+            sequential.new_tree(&mut runner).unwrap()
+        }
+
+        impl ReferenceStateMachine for HeapStateMachine {
+            type State = TestState;
+            type Transition = TestTransition;
+
+            fn init_state() -> BoxedStrategy<Self::State> {
+                Just(vec![]).boxed()
+            }
+
+            fn transitions(
+                state: &Self::State,
+            ) -> BoxedStrategy<Self::Transition> {
+                if state.is_empty() {
+                    prop_oneof![
+                        1 => Just(TestTransition::PopEmpty),
+                        2 => (any::<i32>()).prop_map(TestTransition::Push),
+                    ]
+                    .boxed()
+                } else {
+                    prop_oneof![
+                        1 => Just(TestTransition::PopNonEmpty),
+                        2 => (any::<i32>()).prop_map(TestTransition::Push),
+                    ]
+                    .boxed()
+                }
+            }
+
+            fn apply(
+                mut state: Self::State,
+                transition: &Self::Transition,
+            ) -> Self::State {
+                match transition {
+                    TestTransition::PopEmpty => {
+                        state.pop();
+                    }
+                    TestTransition::PopNonEmpty => {
+                        state.pop();
+                    }
+                    TestTransition::Push(value) => state.push(*value),
+                }
+                state
+            }
+
+            fn preconditions(
+                state: &Self::State,
+                transition: &Self::Transition,
+            ) -> bool {
+                match transition {
+                    TestTransition::PopEmpty => state.is_empty(),
+                    TestTransition::PopNonEmpty => !state.is_empty(),
+                    TestTransition::Push(_) => true,
+                }
+            }
+        }
+    }
+}
