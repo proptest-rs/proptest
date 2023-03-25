@@ -356,7 +356,8 @@ pub struct Config {
     /// meaning of certain levels other than 0 is subject to change.
     ///
     /// - 0: No extra output.
-    /// - 1: Log test failure messages.
+    /// - 1: Log test failure messages. In state machine tests, this level is
+    ///   used to print transitions.
     /// - 2: Trace low-level details.
     ///
     /// This is only available with the `std` feature (enabled by default)
