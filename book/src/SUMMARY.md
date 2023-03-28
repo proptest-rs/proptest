@@ -25,6 +25,7 @@
   - [Limitations of Property Testing](proptest/limitations.md)
   - [Proptest vs Quickcheck](proptest/vs-quickcheck.md)
   - [Reference documentation](proptest/reference-docs.md)
+  - [State Machine testing](proptest/state-machine.md)
 
 - [proptest-derive](proptest-derive/index.md)
   - [Getting started](proptest-derive/getting-started.md)
