@@ -1,0 +1,2634 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Proptest</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Usage documentation for the proptest and proptest-derive crates">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body class="light">
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">var path_to_root = "";</script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'visible';
+            if (document.body.clientWidth < 500) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li class="chapter-item expanded affix "><a href="intro.html">Introduction</a></li><li class="chapter-item expanded "><a href="proptest/index.html"><strong aria-hidden="true">1.</strong> proptest</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="proptest/getting-started.html"><strong aria-hidden="true">1.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/index.html"><strong aria-hidden="true">1.2.</strong> Understanding Proptest from the Bottom Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="proptest/tutorial/strategy-basics.html"><strong aria-hidden="true">1.2.1.</strong> Strategy Basics</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/shrinking-basics.html"><strong aria-hidden="true">1.2.2.</strong> Shrinking Basics</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/test-runner.html"><strong aria-hidden="true">1.2.3.</strong> Using the Test Runner</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/compound-strategies.html"><strong aria-hidden="true">1.2.4.</strong> Compound Strategies</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/macro-proptest.html"><strong aria-hidden="true">1.2.5.</strong> The proptest! macro</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/transforming-strategies.html"><strong aria-hidden="true">1.2.6.</strong> Transforming Strategies</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/macro-prop-compose.html"><strong aria-hidden="true">1.2.7.</strong> The prop_compose! macro</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/enums.html"><strong aria-hidden="true">1.2.8.</strong> Generating Enums</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/filtering.html"><strong aria-hidden="true">1.2.9.</strong> Filtering</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/recursive.html"><strong aria-hidden="true">1.2.10.</strong> Generating Recursive Data</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/higher-order.html"><strong aria-hidden="true">1.2.11.</strong> Higher-Order Strategies</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/arbitrary.html"><strong aria-hidden="true">1.2.12.</strong> Defining a Canonical Strategy for a Type</a></li><li class="chapter-item expanded "><a href="proptest/tutorial/config.html"><strong aria-hidden="true">1.2.13.</strong> Configuring Proptest</a></li></ol></li><li class="chapter-item expanded "><a href="proptest/failure-persistence.html"><strong aria-hidden="true">1.3.</strong> Failure Persistence</a></li><li class="chapter-item expanded "><a href="proptest/forking.html"><strong aria-hidden="true">1.4.</strong> Test Timeouts and Forking</a></li><li class="chapter-item expanded "><a href="proptest/no-std.html"><strong aria-hidden="true">1.5.</strong> no_std Support</a></li><li class="chapter-item expanded "><a href="proptest/wasm.html"><strong aria-hidden="true">1.6.</strong> Web Assembly Support</a></li><li class="chapter-item expanded "><a href="proptest/limitations.html"><strong aria-hidden="true">1.7.</strong> Limitations of Property Testing</a></li><li class="chapter-item expanded "><a href="proptest/vs-quickcheck.html"><strong aria-hidden="true">1.8.</strong> Proptest vs Quickcheck</a></li><li class="chapter-item expanded "><a href="proptest/reference-docs.html"><strong aria-hidden="true">1.9.</strong> Reference documentation</a></li></ol></li><li class="chapter-item expanded "><a href="proptest-derive/index.html"><strong aria-hidden="true">2.</strong> proptest-derive</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="proptest-derive/getting-started.html"><strong aria-hidden="true">2.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="proptest-derive/modifiers.html"><strong aria-hidden="true">2.2.</strong> Modifier reference</a></li><li class="chapter-item expanded "><a href="proptest-derive/errors.html"><strong aria-hidden="true">2.3.</strong> Error index</a></li></ol></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </div>
+
+                        <h1 class="menu-title">Proptest</h1>
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<p>Proptest is a property testing framework (i.e., the QuickCheck family)
+inspired by the <a href="https://hypothesis.works/">Hypothesis</a> framework for
+Python. It allows to test that certain properties of your code hold for
+arbitrary inputs, and if a failure is found, automatically finds the
+minimal test case to reproduce the problem. Unlike QuickCheck, generation
+and shrinking is defined on a per-value basis instead of per-type, which
+makes it more flexible and simplifies composition.</p>
+<h2 id="status-of-this-crate"><a class="header" href="#status-of-this-crate">Status of this crate</a></h2>
+<p>The crate is fairly close to being feature-complete and has not seen
+substantial architectural changes in quite some time. At this point, it mainly
+sees passive maintenance.</p>
+<p>See the <a href="https://github.com/proptest-rs/proptest/blob/master/proptest/CHANGELOG.md">changelog</a>
+for a full list of substantial historical changes, breaking and otherwise.</p>
+<h2 id="what-is-property-testing"><a class="header" href="#what-is-property-testing">What is property testing?</a></h2>
+<p><em>Property testing</em> is a system of testing code by checking that certain
+properties of its output or behaviour are fulfilled for all inputs. These
+inputs are generated automatically, and, critically, when a failing input
+is found, the input is automatically reduced to a <em>minimal</em> test case.</p>
+<p>Property testing is best used to complement traditional unit testing (i.e.,
+using specific inputs chosen by hand). Traditional tests can test specific
+known edge cases, simple inputs, and inputs that were known in the past to
+reveal bugs, whereas property tests will search for more complicated inputs
+that cause problems.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="the-proptest-crate"><a class="header" href="#the-proptest-crate">The <code>proptest</code> crate</a></h1>
+<p>The <code>proptest</code> crate provides most of Proptest’s functionality, including most
+strategies and the testing framework itself.</p>
+<p>This part of the book is dedicated to introductory material, such as tutorials,
+and general usage suggestions. It does <em>not</em> contain reference documentation;
+for that, please see the <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/">rustdoc
+documentation</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<p>Let’s say we want to make a function that parses dates of the form
+<code>YYYY-MM-DD</code>. We’re not going to worry about <em>validating</em> the date, any
+triple of integers is fine. So let’s bang something out real quick.</p>
+<pre><pre class="playground"><code class="language-rust no_run">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
+    if 10 != s.len() { return None; }
+    if &quot;-&quot; != &amp;s[4..5] || &quot;-&quot; != &amp;s[7..8] { return None; }
+
+    let year = &amp;s[0..4];
+    let month = &amp;s[6..7];
+    let day = &amp;s[8..10];
+
+    year.parse::&lt;u32&gt;().ok().and_then(
+        |y| month.parse::&lt;u32&gt;().ok().and_then(
+            |m| day.parse::&lt;u32&gt;().ok().map(
+                |d| (y, m, d))))
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>It compiles, that means it works, right? Maybe not, let’s add some tests.</p>
+<pre><code class="language-rust ignore">#[test]
+fn test_parse_date() {
+    assert_eq!(None, parse_date(&quot;2017-06-1&quot;));
+    assert_eq!(None, parse_date(&quot;2017-06-170&quot;));
+    assert_eq!(None, parse_date(&quot;2017006-17&quot;));
+    assert_eq!(None, parse_date(&quot;2017-06017&quot;));
+    assert_eq!(Some((2017, 06, 17)), parse_date(&quot;2017-06-17&quot;));
+}
+</code></pre>
+<p>Tests pass, deploy to production! But now your application starts crashing,
+and people are upset that you moved Christmas to February. Maybe we need to
+be a bit more thorough.</p>
+<p>In <code>Cargo.toml</code>, add</p>
+<pre><code class="language-toml">[dev-dependencies]
+proptest = &quot;1.0.0&quot;
+</code></pre>
+<p>Now we can add some property tests to our date parser. But how do we test
+the date parser for arbitrary inputs, without making another date parser in
+the test to validate it? We won’t need to as long as we choose our inputs
+and properties correctly. But before correctness, there’s actually an even
+simpler property to test: <em>The function should not crash.</em> Let’s start
+there.</p>
+<pre><code class="language-rust ignore">// Bring the macros and other important things into scope.
+use proptest::prelude::*;
+
+proptest! {
+    #[test]
+    fn doesnt_crash(s in &quot;\\PC*&quot;) {
+        parse_date(&amp;s);
+    }
+}
+</code></pre>
+<p>What this does is take a literally random <code>&amp;String</code> (ignore <code>\\PC*</code> for the
+moment, we’ll get back to that — if you’ve already figured it out, contain
+your excitement for a bit) and give it to <code>parse_date()</code> and then throw the
+output away.</p>
+<p>When we run this, we get a bunch of scary-looking output, eventually ending
+with</p>
+<pre><code class="language-text">thread 'main' panicked at 'Test failed: byte index 4 is not a char boundary; it is inside 'ௗ' (bytes 2..5) of `aAௗ0㌀0`; minimal failing input: s = &quot;aAௗ0㌀0&quot;
+	successes: 102
+	local rejects: 0
+	global rejects: 0
+'
+</code></pre>
+<p>If we look at the top directory after the test fails, we’ll see a new
+<code>proptest-regressions</code> directory, which contains some files corresponding to
+source files containing failing test cases. These are <a href="https://altsysrq.github.io/proptest-book/proptest/failure-persistence.html"><em>failure
+persistence</em></a>
+files. The first thing we should do is add these to source control.</p>
+<pre><code class="language-text">$ git add proptest-regressions
+</code></pre>
+<p>The next thing we should do is copy the failing case to a traditional unit
+test since it has exposed a bug not similar to what we’ve tested in the
+past.</p>
+<pre><code class="language-rust ignore">#[test]
+fn test_unicode_gibberish() {
+    assert_eq!(None, parse_date(&quot;aAௗ0㌀0&quot;));
+}
+</code></pre>
+<p>Now, let’s see what happened… we forgot about UTF-8! You can’t just
+blindly slice strings since you could split a character, in this case that
+Tamil diacritic placed atop other characters in the string.</p>
+<p>In the interest of making the code changes as small as possible, we’ll just
+check that the string is ASCII and reject anything that isn’t.</p>
+<pre><pre class="playground"><code class="language-rust no_run">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use std::ascii::AsciiExt; //NOREADME
+</span><span class="boring">// NOREADME
+</span>fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
+    if 10 != s.len() { return None; }
+
+    // NEW: Ignore non-ASCII strings so we don't need to deal with Unicode.
+    if !s.is_ascii() { return None; }
+
+    if &quot;-&quot; != &amp;s[4..5] || &quot;-&quot; != &amp;s[7..8] { return None; }
+
+    let year = &amp;s[0..4];
+    let month = &amp;s[6..7];
+    let day = &amp;s[8..10];
+
+    year.parse::&lt;u32&gt;().ok().and_then(
+        |y| month.parse::&lt;u32&gt;().ok().and_then(
+            |m| day.parse::&lt;u32&gt;().ok().map(
+                |d| (y, m, d))))
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The tests pass now! But we know there are still more problems, so let’s
+test more properties.</p>
+<p>Another property we want from our code is that it parses every valid date.
+We can add another test to the <code>proptest!</code> section:</p>
+<pre><code class="language-rust ignore">proptest! {
+    // snip...
+
+    #[test]
+    fn parses_all_valid_dates(s in &quot;[0-9]{4}-[0-9]{2}-[0-9]{2}&quot;) {
+        parse_date(&amp;s).unwrap();
+    }
+}
+</code></pre>
+<p>The thing to the right-hand side of <code>in</code> is actually a <em>regular
+expression</em>, and <code>s</code> is chosen from strings which match it. So in our
+previous test, <code>&quot;\\PC*&quot;</code> was generating arbitrary strings composed of
+arbitrary non-control characters. Now, we generate things in the YYYY-MM-DD
+format.</p>
+<p>The new test passes, so let’s move on to something else.</p>
+<p>The final property we want to check is that the dates are actually parsed
+<em>correctly</em>. Now, we can’t do this by generating strings — we’d end up just
+reimplementing the date parser in the test! Instead, we start from the
+expected output, generate the string, and check that it gets parsed back.</p>
+<pre><code class="language-rust ignore">proptest! {
+    // snip...
+
+    #[test]
+    fn parses_date_back_to_original(y in 0u32..10000,
+                                    m in 1u32..13, d in 1u32..32) {
+        let (y2, m2, d2) = parse_date(
+            &amp;format!(&quot;{:04}-{:02}-{:02}&quot;, y, m, d)).unwrap();
+        // prop_assert_eq! is basically the same as assert_eq!, but doesn't
+        // cause a bunch of panic messages to be printed on intermediate
+        // test failures. Which one to use is largely a matter of taste.
+        prop_assert_eq!((y, m, d), (y2, m2, d2));
+    }
+}
+</code></pre>
+<p>Here, we see that besides regexes, we can use any expression which is a
+<code>proptest::strategy::Strategy</code>, in this case, integer ranges.</p>
+<p>The test fails when we run it. Though there’s not much output this time.</p>
+<pre><code class="language-text">thread 'main' panicked at 'Test failed: assertion failed: `(left == right)` (left: `(0, 10, 1)`, right: `(0, 0, 1)`) at examples/dateparser_v2.rs:46; minimal failing input: y = 0, m = 10, d = 1
+	successes: 2
+	local rejects: 0
+	global rejects: 0
+', examples/dateparser_v2.rs:33
+note: Run with `RUST_BACKTRACE=1` for a backtrace.
+</code></pre>
+<p>The failing input is <code>(y, m, d) = (0, 10, 1)</code>, which is a rather specific
+output. Before thinking about why this breaks the code, let’s look at what
+proptest did to arrive at this value. At the start of our test function,
+insert</p>
+<pre><code class="language-rust ignore">    println!(&quot;y = {}, m = {}, d = {}&quot;, y, m, d);
+</code></pre>
+<p>Running the test again, we get something like this:</p>
+<pre><code class="language-text">y = 2497, m = 8, d = 27
+y = 9641, m = 8, d = 18
+y = 7360, m = 12, d = 20
+y = 3680, m = 12, d = 20
+y = 1840, m = 12, d = 20
+y = 920, m = 12, d = 20
+y = 460, m = 12, d = 20
+y = 230, m = 12, d = 20
+y = 115, m = 12, d = 20
+y = 57, m = 12, d = 20
+y = 28, m = 12, d = 20
+y = 14, m = 12, d = 20
+y = 7, m = 12, d = 20
+y = 3, m = 12, d = 20
+y = 1, m = 12, d = 20
+y = 0, m = 12, d = 20
+y = 0, m = 6, d = 20
+y = 0, m = 9, d = 20
+y = 0, m = 11, d = 20
+y = 0, m = 10, d = 20
+y = 0, m = 10, d = 10
+y = 0, m = 10, d = 5
+y = 0, m = 10, d = 3
+y = 0, m = 10, d = 2
+y = 0, m = 10, d = 1
+</code></pre>
+<p>The test failure message said there were two successful cases; we see these
+at the very top, <code>2497-08-27</code> and <code>9641-08-18</code>. The next case,
+<code>7360-12-20</code>, failed. There’s nothing immediately obviously special about
+this date. Fortunately, proptest reduced it to a much simpler case. First,
+it rapidly reduced the <code>y</code> input to <code>0</code> at the beginning, and similarly
+reduced the <code>d</code> input to the minimum allowable value of <code>1</code> at the end.
+Between those two, though, we see something different: it tried to shrink
+<code>12</code> to <code>6</code>, but then ended up raising it back up to <code>10</code>. This is because
+the <code>0000-06-20</code> and <code>0000-09-20</code> test cases <em>passed</em>.</p>
+<p>In the end, we get the date <code>0000-10-01</code>, which apparently gets parsed as
+<code>0000-00-01</code>. Again, this failing case was added to the failure persistence
+file, and we should add this as its own unit test:</p>
+<pre><code class="language-text">$ git add proptest-regressions
+</code></pre>
+<pre><code class="language-rust ignore">#[test]
+fn test_october_first() {
+    assert_eq!(Some((0, 10, 1)), parse_date(&quot;0000-10-01&quot;));
+}
+</code></pre>
+<p>Now to figure out what’s broken in the code. Even without the intermediate
+input, we can say with reasonable confidence that the year and day parts
+don’t come into the picture since both were reduced to the minimum
+allowable input. The month input was <em>not</em>, but was reduced to <code>10</code>. This
+means we can infer that there’s something special about <code>10</code> that doesn’t
+hold for <code>9</code>. In this case, that “special something” is being two digits
+wide. In our code:</p>
+<pre><code class="language-rust ignore">    let month = &amp;s[6..7];
+</code></pre>
+<p>We were off by one, and need to use the range <code>5..7</code>. After fixing this,
+the test passes.</p>
+<p>The <code>proptest!</code> macro has some additional syntax, including for setting
+configuration for things like the number of test cases to generate. See its
+<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.proptest.html">documentation</a>
+for more details.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="proptest-from-the-bottom-up"><a class="header" href="#proptest-from-the-bottom-up">Proptest from the Bottom Up</a></h1>
+<p>This tutorial will introduce proptest from the bottom up, starting from the
+basic building blocks, in the hopes of making the model as a whole clear.
+In particular, we’ll start off without using the macros so that the macros
+can later be understood in terms of what they expand into rather than
+magic. But as a result, the first part is <em>not</em> representative of how
+proptest is normally used. If bottom-up isn’t your style, you may wish to
+skim the first few sections.</p>
+<p>Also note that the examples here focus on the usage of proptest itself, and
+as such generally have trivial test bodies. In real code, you would
+obviously have assertions and so forth in the test bodies.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="strategy-basics"><a class="header" href="#strategy-basics">Strategy Basics</a></h1>
+<p>Please make sure to read the <a href="proptest/tutorial/index.html">introduction to this tutorial</a> before
+starting this section.</p>
+<p>The <a href="proptest/tutorial/strategy/trait.Strategy.html"><em>Strategy</em></a> is the most fundamental
+concept in proptest. A strategy defines two things:</p>
+<ul>
+<li>
+<p>How to generate random values of a particular type from a random number
+generator.</p>
+</li>
+<li>
+<p>How to “shrink” such values into “simpler” forms.</p>
+</li>
+</ul>
+<p>Proptest ships with a substantial library of strategies. Some of these are
+defined in terms of built-in types; for example, <code>0..100i32</code> is a strategy
+to generate <code>i32</code>s between 0, inclusive, and 100, exclusive. As we’ve
+already seen, strings are themselves strategies for generating strings
+which match the former as a regular expression.</p>
+<p>Generating a value is a two-step process. First, a <code>TestRunner</code> is passed
+to the <code>new_tree()</code> method of the <code>Strategy</code>; this returns a <code>ValueTree</code>,
+which we’ll look at in more detail momentarily. Calling the <code>current()</code>
+method on the <code>ValueTree</code> produces the actual value. Knowing that, we can
+put the pieces together and generate values. The below is the
+<code>tutorial-strategy-play.rs</code> example:</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::test_runner::TestRunner;
+use proptest::strategy::{Strategy, ValueTree};
+
+fn main() {
+    let mut runner = TestRunner::default();
+    let int_val = (0..100i32).new_tree(&amp;mut runner).unwrap();
+    let str_val = &quot;[a-z]{1,4}\\p{Cyrillic}{1,4}\\p{Greek}{1,4}&quot;
+        .new_tree(&amp;mut runner).unwrap();
+    println!(&quot;int_val = {}, str_val = {}&quot;,
+             int_val.current(), str_val.current());
+}
+</code></pre></pre>
+<p>If you run this a few times, you’ll get output similar to the following:</p>
+<pre><code class="language-text">$ target/debug/examples/tutorial-strategy-play
+int_val = 99, str_val = vѨͿἕΌ
+$ target/debug/examples/tutorial-strategy-play
+int_val = 25, str_val = cwᵸійΉ
+$ target/debug/examples/tutorial-strategy-play
+int_val = 5, str_val = oegiᴫᵸӈᵸὛΉ
+</code></pre>
+<p>This knowledge is sufficient to build an extremely primitive fuzzing test.</p>
+<pre><pre class="playground"><code class="language-rust no_run">use proptest::test_runner::TestRunner;
+use proptest::strategy::{Strategy, ValueTree};
+
+fn some_function(v: i32) {
+    // Do a bunch of stuff, but crash if v &gt; 500
+    assert!(v &lt;= 500);
+}
+
+#[test]
+fn some_function_doesnt_crash() {
+    let mut runner = TestRunner::default();
+    for _ in 0..256 {
+        let val = (0..10000i32).new_tree(&amp;mut runner).unwrap();
+        some_function(val.current());
+    }
+}
+<span class="boring">fn main() { }
+</span></code></pre></pre>
+<p>This <em>works</em>, but when the test fails, we don’t get much context, and even
+if we recover the input, we see some arbitrary-looking value like 1771
+rather than the boundary condition of 501. For a function taking just an
+integer, this is probably still good enough, but as inputs get more
+complex, interpreting completely random values becomes increasingly
+difficult.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="shrinking-basics"><a class="header" href="#shrinking-basics">Shrinking Basics</a></h1>
+<p>Finding the “simplest” input that causes a test failure is referred to as
+<em>shrinking</em>. This is where the intermediate <code>ValueTree</code> type comes in.
+Besides <code>current()</code>, it provides two methods — <code>simplify()</code> and
+<code>complicate()</code> — which together allow binary searching over the input
+space. The <code>tutorial-simplify-play.rs</code> example shows how repeated calls to
+<code>simplify()</code> produce incrementally “simpler” outputs, both in terms of size
+and in characters used.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::test_runner::TestRunner;
+use proptest::strategy::{Strategy, ValueTree};
+
+fn main() {
+    let mut runner = TestRunner::default();
+    let mut str_val = &quot;[a-z]{1,4}\\p{Cyrillic}{1,4}\\p{Greek}{1,4}&quot;
+        .new_tree(&amp;mut runner).unwrap();
+    println!(&quot;str_val = {}&quot;, str_val.current());
+    while str_val.simplify() {
+        println!(&quot;        = {}&quot;, str_val.current());
+    }
+}
+</code></pre></pre>
+<p>A couple runs:</p>
+<pre><code class="language-text">$ target/debug/examples/tutorial-simplify-play
+str_val = vy꙲ꙈᴫѱΆῨῨ
+        = y꙲ꙈᴫѱΆῨῨ
+        = y꙲ꙈᴫѱΆῨῨ
+        = m꙲ꙈᴫѱΆῨῨ
+        = g꙲ꙈᴫѱΆῨῨ
+        = d꙲ꙈᴫѱΆῨῨ
+        = b꙲ꙈᴫѱΆῨῨ
+        = a꙲ꙈᴫѱΆῨῨ
+        = aꙈᴫѱΆῨῨ
+        = aᴫѱΆῨῨ
+        = aѱΆῨῨ
+        = aѱΆῨῨ
+        = aѱΆῨῨ
+        = aиΆῨῨ
+        = aМΆῨῨ
+        = aЎΆῨῨ
+        = aЇΆῨῨ
+        = aЃΆῨῨ
+        = aЁΆῨῨ
+        = aЀΆῨῨ
+        = aЀῨῨ
+        = aЀῨ
+        = aЀῨ
+        = aЀῢ
+        = aЀ῟
+        = aЀ῞
+        = aЀ῝
+$ target/debug/examples/tutorial-simplify-play
+str_val = dyiꙭᾪῇΊ
+        = yiꙭᾪῇΊ
+        = iꙭᾪῇΊ
+        = iꙭᾪῇΊ
+        = iꙭᾪῇΊ
+        = eꙭᾪῇΊ
+        = cꙭᾪῇΊ
+        = bꙭᾪῇΊ
+        = aꙭᾪῇΊ
+        = aꙖᾪῇΊ
+        = aꙋᾪῇΊ
+        = aꙅᾪῇΊ
+        = aꙂᾪῇΊ
+        = aꙁᾪῇΊ
+        = aꙀᾪῇΊ
+        = aꙀῇΊ
+        = aꙀΊ
+        = aꙀΊ
+        = aꙀΊ
+        = aꙀΉ
+        = aꙀΈ
+</code></pre>
+<p>Note that shrinking never shrinks a value to something outside the range
+the strategy describes. Notice the strings in the above example still match
+the regular expression even in the end. An integer drawn from
+<code>100..1000i32</code> will shrink towards zero, but will stop at 100 since that is
+the minimum value.</p>
+<p><code>simplify()</code> and <code>complicate()</code> can be used to adapt our primitive fuzz
+test to actually find the boundary condition.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::test_runner::TestRunner;
+use proptest::strategy::{Strategy, ValueTree};
+
+fn some_function(v: i32) -&gt; bool {
+    // Do a bunch of stuff, but crash if v &gt; 500
+    // assert!(v &lt;= 500);
+    // But return a boolean instead of panicking for simplicity
+    v &lt;= 500
+}
+
+// We know the function is broken, so use a purpose-built main function to
+// find the breaking point.
+fn main() {
+    let mut runner = TestRunner::default();
+    for _ in 0..256 {
+        let mut val = (0..10000i32).new_tree(&amp;mut runner).unwrap();
+        if some_function(val.current()) {
+            // Test case passed
+            continue;
+        }
+
+        // We found our failing test case, simplify it as much as possible.
+        loop {
+            if !some_function(val.current()) {
+                // Still failing, find a simpler case
+                if !val.simplify() {
+                    // No more simplification possible; we're done
+                    break;
+                }
+            } else {
+                // Passed this input, back up a bit
+                if !val.complicate() {
+                    break;
+                }
+            }
+        }
+
+        println!(&quot;The minimal failing case is {}&quot;, val.current());
+        assert_eq!(501, val.current());
+        return;
+    }
+    panic!(&quot;Didn't find a failing test case&quot;);
+}
+</code></pre></pre>
+<p>This code reliably finds the boundary of the failure, 501.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="using-the-test-runner"><a class="header" href="#using-the-test-runner">Using the Test Runner</a></h1>
+<p>Rather than manually shrinking, proptest’s
+<a href="proptest/tutorial/test_runner/struct.TestRunner.html"><code>TestRunner</code></a> provides this
+functionality for us and additionally handles things like panics. The
+method we’re interested in is <code>run</code>. We simply
+give it the strategy and a function to test inputs and it takes care of the
+rest.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::test_runner::{Config, FileFailurePersistence,
+                            TestError, TestRunner};
+
+fn some_function(v: i32) {
+    // Do a bunch of stuff, but crash if v &gt; 500.
+    // We return to normal `assert!` here since `TestRunner` catches
+    // panics.
+    assert!(v &lt;= 500);
+}
+
+// We know the function is broken, so use a purpose-built main function to
+// find the breaking point.
+fn main() {
+    let mut runner = TestRunner::new(Config {
+        // Turn failure persistence off for demonstration
+        failure_persistence: Some(Box::new(FileFailurePersistence::Off)),
+        .. Config::default()
+    });
+    let result = runner.run(&amp;(0..10000i32), |v| {
+        some_function(v);
+        Ok(())
+    });
+    match result {
+        Err(TestError::Fail(_, value)) =&gt; {
+            println!(&quot;Found minimal failing case: {}&quot;, value);
+            assert_eq!(501, value);
+        },
+        result =&gt; panic!(&quot;Unexpected result: {:?}&quot;, result),
+    }
+}
+</code></pre></pre>
+<p>That’s a lot better! Still a bit boilerplatey; the <code>proptest!</code> macro will
+help with that, but it does some other stuff we haven’t covered yet, so for
+the moment we’ll keep using <code>TestRunner</code> directly.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="compound-strategies"><a class="header" href="#compound-strategies">Compound Strategies</a></h1>
+<p>Testing functions that take single arguments of primitive types is nice and
+all, but is kind of underwhelming. Back when we were writing the whole
+stack by hand, extending the technique to, say, <em>two</em> integers was clear,
+if verbose. But <code>TestRunner</code> only takes a single <code>Strategy</code>; how can we
+test a function that needs inputs from more than one?</p>
+<pre><code class="language-rust ignore">use proptest::test_runner::TestRunner;
+
+fn add(a: i32, b: i32) -&gt; i32 {
+    a + b
+}
+
+#[test]
+fn test_add() {
+    let mut runner = TestRunner::default();
+    runner.run(/* uhhm... */).unwrap();
+}
+<span class="boring">
+</span><span class="boring">fn main() { test_add(); }
+</span></code></pre>
+<p>The key is that strategies are <em>composable</em>. The simplest form of
+composition is “compound strategies”, where we take multiple strategies and
+combine their values into one value that holds each input separately. There
+are several of these. The simplest is a tuple; a tuple of strategies is
+itself a strategy for tuples of the values those strategies produce. For
+example, <code>(0..100i32,100..1000i32)</code> is a strategy for pairs of integers
+where the first value is between 0 and 100 and the second is between 100
+and 1000.</p>
+<p>So for our two-argument function, our strategy is simply a tuple of ranges.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::test_runner::TestRunner;
+
+fn add(a: i32, b: i32) -&gt; i32 {
+    a + b
+}
+
+#[test]
+fn test_add() {
+    let mut runner = TestRunner::default();
+    // Combine our two inputs into a strategy for one tuple. Our test
+    // function then destructures the generated tuples back into separate
+    // `a` and `b` variables to be passed in to `add()`.
+    runner.run(&amp;(0..1000i32, 0..1000i32), |(a, b)| {
+        let sum = add(a, b);
+        assert!(sum &gt;= a);
+        assert!(sum &gt;= b);
+        Ok(())
+    }).unwrap();
+}
+<span class="boring">
+</span><span class="boring">fn main() { test_add(); }
+</span></code></pre></pre>
+<p>Other compound strategies include fixed-sizes arrays of strategies and
+<code>Vec</code>s of strategies (which produce arrays or <code>Vec</code>s of values parallel to
+the strategy collection), as well as the various strategies provided in the
+<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/collection/index.html">collection</a> module.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="syntax-sugar-proptest"><a class="header" href="#syntax-sugar-proptest">Syntax Sugar: <code>proptest!</code></a></h1>
+<p>Now that we know about compound strategies, we can understand how the
+<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.proptest.html"><code>proptest!</code></a>
+macro works. Our example from the prior section can be rewritten using that
+macro like so:</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+fn add(a: i32, b: i32) -&gt; i32 {
+    a + b
+}
+
+proptest! {
+    #[test]
+    fn test_add(a in 0..1000i32, b in 0..1000i32) {
+        let sum = add(a, b);
+        assert!(sum &gt;= a);
+        assert!(sum &gt;= b);
+    }
+}
+<span class="boring">
+</span><span class="boring">fn main() { test_add(); }
+</span></code></pre></pre>
+<p>Conceptually, the desugaring process is fairly simple. At the start of the
+test function, a new <code>TestRunner</code> is constructed. The input strategies
+(after the <code>in</code> keyword) are grouped into a tuple. That tuple is passed in
+to the <code>TestRunner</code> as the input strategy. The test body has <code>Ok(())</code> added
+to the end, then is put into a lambda that destructures the generated input
+tuple back into the named parameters and then runs the body. The end result
+is extremely similar to what we wrote by hand in the prior section.</p>
+<p><code>proptest!</code> actually does a few other things in order to make failure
+output easier to read and to overcome the 10-tuple limit.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="transforming-strategies"><a class="header" href="#transforming-strategies">Transforming Strategies</a></h1>
+<p>Suppose you have a function that takes a string which needs to be the
+<code>Display</code> format of an arbitrary <code>u32</code>. A first attempt to providing this
+argument might be to use a regular expression, like so:</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+fn do_stuff(v: String) {
+    let i: u32 = v.parse().unwrap();
+    let s = i.to_string();
+    assert_eq!(s, v);
+}
+
+proptest! {
+    #[test]
+    fn test_do_stuff(v in &quot;[1-9][0-9]{0,8}&quot;) {
+        do_stuff(v);
+    }
+}
+<span class="boring">fn main() { test_do_stuff(); }
+</span></code></pre></pre>
+<p>This kind of works, but it has problems. For one, it does not explore the
+whole <code>u32</code> space. It is possible to write a regular expression that does,
+but such an expression is rather long, and also results in a pretty odd
+distribution of values. The input also doesn’t shrink correctly, since
+proptest tries to shrink it in terms of a string rather than an integer.</p>
+<p>What you really want to do is generate a <code>u32</code> and then pass in its string
+representation. One way to do this is to just take <code>u32</code> as an input to the
+test and then transform it to a string within the test code. This approach
+works fine, but isn’t reusable or composable. Ideally, we could get a
+<em>strategy</em> that does this.</p>
+<p>The thing we’re looking for is the first strategy <em>combinator</em>, <code>prop_map</code>.
+We need to ensure <code>Strategy</code> is in scope to use it.</p>
+<pre><pre class="playground"><code class="language-rust">// Grab `Strategy`, shorter namespace prefix, and the macros
+use proptest::prelude::*;
+
+fn do_stuff(v: String) {
+    let i: u32 = v.parse().unwrap();
+    let s = i.to_string();
+    assert_eq!(s, v);
+}
+
+proptest! {
+    #[test]
+    fn test_do_stuff(v in any::&lt;u32&gt;().prop_map(|v| v.to_string())) {
+        do_stuff(v);
+    }
+}
+<span class="boring">fn main() { test_do_stuff(); }
+</span></code></pre></pre>
+<p>Calling <code>prop_map</code> on a <code>Strategy</code> creates a new strategy which transforms
+every generated value using the provided function. Proptest retains the
+relationship between the original <code>Strategy</code> and the transformed one; as a
+result, shrinking occurs in terms of <code>u32</code>, even though we’re generating a
+<code>String</code>.</p>
+<p><code>prop_map</code> is also the principal way to define strategies for new types,
+since most types are simply composed of other, simpler values.</p>
+<p>Let’s update our code so it takes a more interesting structure.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+#[derive(Clone, Debug)]
+struct Order {
+  id: String,
+  // Some other fields, though the test doesn't do anything with them
+  item: String,
+  quantity: u32,
+}
+
+fn do_stuff(order: Order) {
+    let i: u32 = order.id.parse().unwrap();
+    let s = i.to_string();
+    assert_eq!(s, order.id);
+}
+
+proptest! {
+    #[test]
+    fn test_do_stuff(
+        order in
+        (any::&lt;u32&gt;().prop_map(|v| v.to_string()),
+         &quot;[a-z]*&quot;, 1..1000u32).prop_map(
+             |(id, item, quantity)| Order { id, item, quantity })
+    ) {
+        do_stuff(order);
+    }
+}
+<span class="boring">fn main() { test_do_stuff(); }
+</span></code></pre></pre>
+<p>Notice how we were able to take the output from <code>prop_map</code> and put it in a
+tuple, then call <code>prop_map</code> on <em>that</em> tuple to produce yet another value.</p>
+<p>But that’s quite a mouthful in the argument list. Fortunately, strategies
+are normal values, so we can extract it to a function.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+// snip
+<span class="boring">
+</span><span class="boring">#[derive(Clone, Debug)]
+</span><span class="boring">struct Order {
+</span><span class="boring">  id: String,
+</span><span class="boring">  // Some other fields, though the test doesn't do anything with them
+</span><span class="boring">  item: String,
+</span><span class="boring">  quantity: u32,
+</span><span class="boring">}
+</span><span class="boring">
+</span><span class="boring">fn do_stuff(order: Order) {
+</span><span class="boring">    let i: u32 = order.id.parse().unwrap();
+</span><span class="boring">    let s = i.to_string();
+</span><span class="boring">    assert_eq!(s, order.id);
+</span><span class="boring">}
+</span>
+fn arb_order(max_quantity: u32) -&gt; BoxedStrategy&lt;Order&gt; {
+    (any::&lt;u32&gt;().prop_map(|v| v.to_string()),
+     &quot;[a-z]*&quot;, 1..max_quantity)
+    .prop_map(|(id, item, quantity)| Order { id, item, quantity })
+    .boxed()
+}
+
+proptest! {
+    #[test]
+    fn test_do_stuff(order in arb_order(1000)) {
+        do_stuff(order);
+    }
+}
+<span class="boring">fn main() { test_do_stuff(); }
+</span></code></pre></pre>
+<p>We <code>boxed()</code> the strategy in the function since otherwise the type would
+not be nameable, and even if it were, it would be very hard to read or
+write. Boxing a <code>Strategy</code> turns both it and its <code>ValueTree</code>s into trait
+objects, which both makes the types simpler and can be used to mix
+heterogeneous <code>Strategy</code> types as long as they produce the same value
+types.</p>
+<p>The <code>arb_order()</code> function is also <em>parameterised</em>, which is another
+advantage of extracting strategies to separate functions. In this case, if
+we have a test that needs an <code>Order</code> with no more than a dozen items, we
+can simply call <code>arb_order(12)</code> rather than needing to write out a whole
+new strategy.</p>
+<p>We can also use <code>-&gt; impl Strategy&lt;Value = Order&gt;</code> instead to avoid the
+overhead as in the following example. You should use <code>-&gt; impl Strategy&lt;..&gt;</code>
+unless you need the dynamic dispatch.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+// snip
+<span class="boring">
+</span><span class="boring">#[derive(Clone, Debug)]
+</span><span class="boring">struct Order {
+</span><span class="boring">  id: String,
+</span><span class="boring">  // Some other fields, though the test doesn't do anything with them
+</span><span class="boring">  item: String,
+</span><span class="boring">  quantity: u32,
+</span><span class="boring">}
+</span><span class="boring">
+</span>
+<span class="boring">fn do_stuff(order: Order) {
+</span><span class="boring">    let i: u32 = order.id.parse().unwrap();
+</span><span class="boring">    let s = i.to_string();
+</span><span class="boring">    assert_eq!(s, order.id);
+</span><span class="boring">}
+</span>
+fn arb_order(max_quantity: u32) -&gt; impl Strategy&lt;Value = Order&gt; {
+    (any::&lt;u32&gt;().prop_map(|v| v.to_string()),
+     &quot;[a-z]*&quot;, 1..max_quantity)
+    .prop_map(|(id, item, quantity)| Order { id, item, quantity })
+}
+
+proptest! {
+    #[test]
+    fn test_do_stuff(order in arb_order(1000)) {
+        do_stuff(order);
+    }
+}
+
+<span class="boring">fn main() { test_do_stuff(); }
+</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="syntax-sugar-prop_compose"><a class="header" href="#syntax-sugar-prop_compose">Syntax Sugar: <code>prop_compose!</code></a></h1>
+<p>Defining strategy-returning functions like this is extremely useful, but
+the code above is a bit verbose, as well as hard to read for similar
+reasons to writing test functions by hand.</p>
+<p>To simplify this task, proptest includes the
+<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.prop_compose.html"><code>prop_compose!</code></a>
+macro. Before going into details, here’s our code from above rewritten to use
+it.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+// snip
+<span class="boring">
+</span><span class="boring">#[derive(Clone, Debug)]
+</span><span class="boring">struct Order {
+</span><span class="boring">  id: String,
+</span><span class="boring">  // Some other fields, though the test doesn't do anything with them
+</span><span class="boring">  item: String,
+</span><span class="boring">  quantity: u32,
+</span><span class="boring">}
+</span><span class="boring">
+</span><span class="boring">fn do_stuff(order: Order) {
+</span><span class="boring">    let i: u32 = order.id.parse().unwrap();
+</span><span class="boring">    let s = i.to_string();
+</span><span class="boring">    assert_eq!(s, order.id);
+</span><span class="boring">}
+</span>
+prop_compose! {
+    fn arb_order_id()(id in any::&lt;u32&gt;()) -&gt; String {
+        id.to_string()
+    }
+}
+prop_compose! {
+    fn arb_order(max_quantity: u32)
+                (id in arb_order_id(), item in &quot;[a-z]*&quot;,
+                 quantity in 1..max_quantity)
+                -&gt; Order {
+        Order { id, item, quantity }
+    }
+}
+
+proptest! {
+<span class="boring">    /*
+</span>    #[test]
+<span class="boring">    */
+</span>    fn test_do_stuff(order in arb_order(1000)) {
+        do_stuff(order);
+    }
+}
+<span class="boring">fn main() { test_do_stuff(); }
+</span></code></pre></pre>
+<p>We had to extract <code>arb_order_id()</code> out into its own function, but otherwise
+this desugars to almost exactly what we wrote in the previous section. The
+generated function takes the first parameter list as arguments. These
+arguments are used to select the strategies in the second argument list.
+Values are then drawn from those strategies and transformed by the function
+body. The actual function has a return type of <code>impl Strategy&lt;Value = T&gt;</code>
+where <code>T</code> is the declared return type.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="generating-enums"><a class="header" href="#generating-enums">Generating Enums</a></h1>
+<p>The syntax sugar for defining strategies for <code>enum</code>s is currently somewhat
+limited. Creating such strategies with <code>prop_compose!</code> is possible but
+generally is not very readable, so in most cases defining the function by
+hand is preferable.</p>
+<p>The core building block is the <a href="proptest/tutorial/macro.prop_oneof.html"><code>prop_oneof!</code></a>
+macro, in which you list one case for each case in your <code>enum</code>. For <code>enum</code>s
+which have no data, the strategy for each case is
+<code>Just(YourEnum::TheCase)</code>. Enum cases with data generally require putting
+the data in a tuple and then using <code>prop_map</code> to map it into the enum case.</p>
+<p>Here is a simple example:</p>
+<pre><pre class="playground"><code class="language-rust no_run">use proptest::prelude::*;
+
+#[derive(Debug, Clone)]
+enum MyEnum {
+    SimpleCase,
+    CaseWithSingleDatum(u32),
+    CaseWithMultipleData(u32, String),
+}
+
+fn my_enum_strategy() -&gt; impl Strategy&lt;Value = MyEnum&gt; {
+  prop_oneof![
+    // For cases without data, `Just` is all you need
+    Just(MyEnum::SimpleCase),
+
+    // For cases with data, write a strategy for the interior data, then
+    // map into the actual enum case.
+    any::&lt;u32&gt;().prop_map(MyEnum::CaseWithSingleDatum),
+
+    (any::&lt;u32&gt;(), &quot;.*&quot;).prop_map(
+      |(a, b)| MyEnum::CaseWithMultipleData(a, b)),
+  ]
+}
+<span class="boring">
+</span><span class="boring">fn main() { }
+</span></code></pre></pre>
+<p>In general, it is best to list the enum cases in order from “simplest” to
+“most complex”, since shrinking will shrink down toward items earlier in
+the list.</p>
+<p>For particularly complex enum cases, it can be helpful to extract the strategy
+for that case to a separate strategy. Here,
+<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.prop_compose.html"><code>prop_compose!</code></a>
+can be of use.</p>
+<pre><pre class="playground"><code class="language-rust no_run">use proptest::prelude::*;
+
+#[derive(Debug, Clone)]
+enum MyComplexEnum {
+    SimpleCase,
+    AnotherSimpleCase,
+    ComplexCase {
+        product_code: String,
+        id: u64,
+        chapter: String,
+    },
+}
+
+prop_compose! {
+  fn my_complex_enum_complex_case()(
+      product_code in &quot;[0-9A-Z]{10,20}&quot;,
+      id in 1u64..10000u64,
+      chapter in &quot;X{0,2}(V?I{1,3}|IV|IX)&quot;,
+  ) -&gt; MyComplexEnum {
+      MyComplexEnum::ComplexCase { product_code, id, chapter }
+  }
+}
+
+fn my_enum_strategy() -&gt; BoxedStrategy&lt;MyComplexEnum&gt; {
+  prop_oneof![
+    Just(MyComplexEnum::SimpleCase),
+    Just(MyComplexEnum::AnotherSimpleCase),
+    my_complex_enum_complex_case(),
+  ].boxed()
+}
+<span class="boring">
+</span><span class="boring">fn main() { }
+</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="filtering"><a class="header" href="#filtering">Filtering</a></h1>
+<p>Sometimes, you have a case where your input values have some sort of
+“irregular” constraint on them. For example, an integer needing to be even,
+or two values needing to be non-equal.</p>
+<p>In general, the ideal solution is to find a way to take a seed value and
+then use <code>prop_map</code> to transform it into the desired, irregular domain. For
+example, to generate even integers, use something like</p>
+<pre><pre class="playground"><code class="language-rust no_run">use proptest::prelude::*;
+prop_compose! {
+    // Generate arbitrary integers up to half the maximum desired value,
+    // then multiply them by 2, thus producing only even integers in the
+    // desired range.
+    fn even_integer(max: i32)(base in 0..max/2) -&gt; i32 { base * 2 }
+}
+<span class="boring">fn main() { }
+</span></code></pre></pre>
+<p>For the cases where this is not viable, it is possible to filter
+strategies. Proptest actually divides filters into two categories:</p>
+<ul>
+<li>
+<p>“Local” filters apply to a single strategy. If a value is rejected,
+a new value is drawn from that strategy only.</p>
+</li>
+<li>
+<p>“Global” filters apply to the whole test case. If the test case is
+rejected, the whole thing is regenerated.</p>
+</li>
+</ul>
+<p>The distinction is somewhat arbitrary, since something like a “global
+filter” could be created by just putting a “local filter” around the whole
+input strategy. In practise, the distinction is as to what code performs
+the rejection.</p>
+<p>A local filter is created with the <code>prop_filter</code> combinator. Besides a
+function indicating whether to accept the value, it also takes a value of
+type <code>&amp;'static str</code>, <code>String</code>, .., which it uses to record where/why the
+rejection happened.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+proptest! {
+    #[test]
+    fn some_test(
+      v in (0..1000u32)
+        .prop_filter(&quot;Values must not divisible by 7 xor 11&quot;,
+                     |v| !((0 == v % 7) ^ (0 == v % 11)))
+    ) {
+        assert_eq!(0 == v % 7, 0 == v % 11);
+    }
+}
+<span class="boring">fn main() { some_test(); }
+</span></code></pre></pre>
+<p>Global filtering results when a test itself returns
+<code>Err(TestCaseError::Reject)</code>. The
+<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.prop_assume.html"><code>prop_assume!</code></a>
+macro provides an easy way to do this.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+fn frob(a: i32, b: i32) -&gt; (i32, i32) {
+    let d = (a - b).abs();
+    (a / d, b / d)
+}
+
+proptest! {
+    #[test]
+    fn test_frob(a in -1000..1000, b in -1000..1000) {
+        // Input illegal if a==b.
+        // Equivalent to
+        // if (a == b) { return Err(TestCaseError::Reject(...)); }
+        prop_assume!(a != b);
+
+        let (a2, b2) = frob(a, b);
+        assert!(a2.abs() &lt;= a.abs());
+        assert!(b2.abs() &lt;= b.abs());
+    }
+}
+<span class="boring">fn main() { test_frob(); }
+</span></code></pre></pre>
+<p>While useful, filtering has a lot of disadvantages:</p>
+<ul>
+<li>
+<p>Since it is simply rejection sampling, it will slow down generation of test
+cases since values need to be generated additional times to satisfy the
+filter. In the case where a filter always returns false, a test could
+theoretically never generate a result.</p>
+</li>
+<li>
+<p>Proptest tracks how many local and global rejections have happened, and
+aborts if they exceed a certain number. This prevents a test taking an
+extremely long time due to rejections, but means not all filters are viable
+in the default configuration. The limits for local and global rejections are
+different; by default, proptest allows a large number of local rejections but
+a fairly small number of global rejections, on the premise that the former
+are cheap but potentially common (having been built into the strategy) but
+the latter are expensive but rare (being an edge case in the particular
+test).</p>
+</li>
+<li>
+<p>Shrinking and filtering do not play well together. When shrinking, if a value
+winds up being rejected, there is no pass/fail information to continue
+shrinking properly. Instead, proptest treats such a rejection the same way it
+handles a shrink that results in a passing test: by backing away from
+simplification with a call to <code>complicate()</code>. Thus encountering a filter
+rejection during shrinking prevents shrinking from continuing to any simpler
+values, even if there are some that would be accepted by the filter.</p>
+</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="generating-recursive-data"><a class="header" href="#generating-recursive-data">Generating Recursive Data</a></h1>
+<p>Randomly generating recursive data structures is trickier than it sounds. For
+example, the below is a naïve attempt at generating a JSON AST by using
+recursion.</p>
+<pre><pre class="playground"><code class="language-rust no_run">use std::collections::HashMap;
+use proptest::prelude::*;
+
+#[derive(Clone, Debug)]
+enum Json {
+    Null,
+    Bool(bool),
+    Number(f64),
+    String(String),
+    Array(Vec&lt;Json&gt;),
+    Map(HashMap&lt;String, Json&gt;),
+}
+
+fn arb_json() -&gt; impl Strategy&lt;Value = Json&gt; {
+    prop_oneof![
+        Just(Json::Null),
+        any::&lt;bool&gt;().prop_map(Json::Bool),
+        any::&lt;f64&gt;().prop_map(Json::Number),
+        &quot;.*&quot;.prop_map(Json::String),
+        prop::collection::vec(arb_json(), 0..10).prop_map(Json::Array),
+        prop::collection::hash_map(
+          &quot;.*&quot;, arb_json(), 0..10).prop_map(Json::Map),
+    ].boxed()
+}
+<span class="boring">fn main() { }
+</span></code></pre></pre>
+<p>Upon closer consideration, this obviously can’t work because <code>arb_json()</code>
+recurses unconditionally.</p>
+<p>A more sophisticated attempt is to define one strategy for each level of
+nesting up to some maximum. This doesn’t overflow the stack, but as defined
+here, even four levels of nesting will produce trees with <em>thousands</em> of
+nodes; by eight levels, we get to tens of <em>millions</em>.</p>
+<p>Proptest provides a more reliable solution in the form of the
+<code>prop_recursive</code> combinator. To use this, we create a strategy for the
+non-recursive case, then give the combinator that strategy, some size
+parameters, and a function to transform a nested strategy into a recursive
+strategy.</p>
+<pre><pre class="playground"><code class="language-rust">use std::collections::HashMap;
+use proptest::prelude::*;
+
+#[derive(Clone, Debug)]
+enum Json {
+    Null,
+    Bool(bool),
+    Number(f64),
+    String(String),
+    Array(Vec&lt;Json&gt;),
+    Map(HashMap&lt;String, Json&gt;),
+}
+
+fn arb_json() -&gt; impl Strategy&lt;Value = Json&gt; {
+    let leaf = prop_oneof![
+        Just(Json::Null),
+        any::&lt;bool&gt;().prop_map(Json::Bool),
+        any::&lt;f64&gt;().prop_map(Json::Number),
+        &quot;.*&quot;.prop_map(Json::String),
+    ];
+    leaf.prop_recursive(
+      8, // 8 levels deep
+      256, // Shoot for maximum size of 256 nodes
+      10, // We put up to 10 items per collection
+      |inner| prop_oneof![
+          // Take the inner strategy and make the two recursive cases.
+          prop::collection::vec(inner.clone(), 0..10)
+              .prop_map(Json::Array),
+          prop::collection::hash_map(&quot;.*&quot;, inner, 0..10)
+              .prop_map(Json::Map),
+      ])
+}
+<span class="boring">fn main() { }
+</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="higher-order-strategies"><a class="header" href="#higher-order-strategies">Higher-Order Strategies</a></h1>
+<p>A <em>higher-order strategy</em> is a strategy which is generated by another
+strategy. That sounds kind of scary, so let’s consider an example first.</p>
+<p>Say you have a function you want to test that takes a slice and an index
+into that slice. If we use a fixed size for the slice, it’s easy, but maybe
+we need to test with different slice sizes. We could try something with a
+filter:</p>
+<pre><code class="language-rust ignore">fn some_function(stuff: &amp;[String], index: usize) { /* do stuff */ }
+
+proptest! {
+    #[test]
+    fn test_some_function(
+        stuff in prop::collection::vec(&quot;.*&quot;, 1..100),
+        index in 0..100usize
+    ) {
+        prop_assume!(index &lt; stuff.len());
+        some_function(stuff, index);
+    }
+}
+</code></pre>
+<p>This doesn’t work very well. First off, you get a lot of global rejections
+since <code>index</code> will be outside of <code>stuff</code> 50% of the time. But secondly, it
+will be rare to actually get a small <code>stuff</code> vector, since it would have to
+randomly choose a small <code>index</code> at the same time.</p>
+<p>The solution is the <code>prop_flat_map</code> combinator. This is sort of like
+<code>prop_map</code>, except that the transform returns a <em>strategy</em> instead of a
+value. This is more easily understood by implementing our example:</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+fn some_function(stuff: Vec&lt;String&gt;, index: usize) {
+    let _ = &amp;stuff[index];
+    // Do stuff
+}
+
+fn vec_and_index() -&gt; impl Strategy&lt;Value = (Vec&lt;String&gt;, usize)&gt; {
+    prop::collection::vec(&quot;.*&quot;, 1..100)
+        .prop_flat_map(|vec| {
+            let len = vec.len();
+            (Just(vec), 0..len)
+        })
+}
+
+proptest! {
+    #[test]
+    fn test_some_function((vec, index) in vec_and_index()) {
+        some_function(vec, index);
+    }
+}
+<span class="boring">fn main() { test_some_function(); }
+</span></code></pre></pre>
+<p>In <code>vec_and_index()</code>, we make a strategy to produce an arbitrary vector.
+But then we derive a new strategy based on <em>values</em> produced by the first
+one. The new strategy produces the generated vector unchanged, but also
+adds a valid index into that vector, which we can do by picking the
+strategy for that index based on the size of the vector.</p>
+<p>Even though the new strategy specifies the singleton <code>Just(vec)</code> strategy
+for the vector, proptest still understands the connection to the original
+strategy and will shrink <code>vec</code> as well. All the while, <code>index</code> continues to
+be a valid index into <code>vec</code>.</p>
+<p><code>prop_compose!</code> actually allows making second-order strategies like this by
+simply providing three argument lists instead of two. The below desugars to
+something much like what we wrote by hand above, except that the index and
+vector’s positions are internally reversed due to borrowing limitations.</p>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">use proptest::prelude::*;
+</span>prop_compose! {
+    fn vec_and_index()(vec in prop::collection::vec(&quot;.*&quot;, 1..100))
+                    (index in 0..vec.len(), vec in Just(vec))
+                    -&gt; (Vec&lt;String&gt;, usize) {
+       (vec, index)
+   }
+}
+<span class="boring">fn main() { }
+</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="defining-a-canonical-strategy-for-a-type"><a class="header" href="#defining-a-canonical-strategy-for-a-type">Defining a canonical <code>Strategy</code> for a type</a></h1>
+<p>We previously used the function <code>any</code> as in <code>any::&lt;u32&gt;()</code> to generate a
+strategy for all <code>u32</code>s. This function works with the trait <code>Arbitrary</code>,
+which QuickCheck users may be familiar with. In proptest, this trait
+is already implemented for most owned types in the standard library,
+but you can of course implement it for your own types.</p>
+<p>In some cases, where it makes sense to define a canonical strategy, such as in
+the <a href="proptest/tutorial/recursive.html">JSON AST example</a>, it is a good idea to implement
+<code>Arbitrary</code>.</p>
+<p>The experimental <a href="proptest/tutorial/../../proptest-derive/index.html"><code>proptest-derive</code> crate</a> can
+be used to automate implementing <code>Arbitrary</code> in common cases.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="configuring-the-number-of-tests-cases-requried"><a class="header" href="#configuring-the-number-of-tests-cases-requried">Configuring the number of tests cases requried</a></h1>
+<p>The default number of successful test cases that must execute for a test
+as a whole to pass is currently 256. If you are not satisfied with this
+and want to run more or fewer, there are a few ways to do this.</p>
+<p>The first way is to set the environment-variable <code>PROPTEST_CASES</code> to a
+value that can be successfully parsed as a <code>u32</code>. The value you set to this
+variable is now the new default. (This only applies when the <code>std</code> feature of
+proptest is enabled, which it is by default.)</p>
+<p>Another way is to use <code>#![proptest_config(expr)]</code> inside <code>proptest!</code> where
+<code>expr : Config</code>. To only change the number of test cases, you can simply
+write:</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+fn add(a: i32, b: i32) -&gt; i32 { a + b }
+
+proptest! {
+    // The next line modifies the number of tests.
+    #![proptest_config(ProptestConfig::with_cases(1000))]
+    #[test]
+    fn test_add(a in 0..1000i32, b in 0..1000i32) {
+        let sum = add(a, b);
+        assert!(sum &gt;= a);
+        assert!(sum &gt;= b);
+    }
+}
+<span class="boring">
+</span><span class="boring">fn main() { test_add(); }
+</span></code></pre></pre>
+<p>Through the same <code>proptest_config</code> mechanism you may fine-tune your
+configuration through the <code>Config</code> type. See its documentation for more
+information.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="failure-persistence"><a class="header" href="#failure-persistence">Failure Persistence</a></h1>
+<p>By default, when Proptest finds a failing test case, it <em>persists</em> that
+failing case in a file named after the source containing the failing test,
+but in a separate directory tree rooted at <code>proptest-regressions</code>. Later
+runs of tests will replay those test cases before generating novel cases.
+This ensures that the test will not fail on one run and then spuriously
+pass on the next, and also exposes similar tests to the same
+known-problematic input.</p>
+<p>(If you do not have an obvious source directory, you may instead find files
+next to the source files, with a different extension.)</p>
+<p>It is recommended to check these files in to your source control so that
+other test runners (e.g., collaborators or a CI system) also replay these
+cases.</p>
+<p>Note that, by default, all tests in the same crate will share that one
+persistence file. If you have a very large number of tests, it may be
+desirable to separate them into smaller groups so the number of extra test
+cases that get run is reduced. This can be done by adjusting the
+<code>failure_persistence</code> flag on <code>Config</code>.</p>
+<p>There are two ways this persistence could theoretically be done.</p>
+<p>The immediately obvious option is to persist a representation of the value
+itself, for example by using Serde. While this has some advantages,
+particularly being resistant to changes like tweaking the input strategy,
+it also has a lot of problems. Most importantly, there is no way to
+determine whether any given value is actually within the domain of the
+strategy that produces it. Thus, some (likely extremely fragile) mechanism
+to ensure that the strategy that produced the value exactly matches the one
+in use in a test case would be required.</p>
+<p>The other option is to store the <em>seed</em> that was used to produce the
+failing test case. This approach requires no support from the strategy or
+the produced value. If the strategy in use differs from the one used to
+produce failing case that was persisted, the seed may or may not produce
+the problematic value, but nonetheless produces a valid value. Due to these
+advantages, this is the approach Proptest uses.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="forking-and-timeouts"><a class="header" href="#forking-and-timeouts">Forking and Timeouts</a></h1>
+<p>By default, proptest tests are run in-process and are allowed to run for
+however long it takes them. This is resource-efficient and produces the nicest
+test output, and for many use cases is sufficient. However, problems like
+overflowing the stack, aborting the process, or getting stuck in an infinite
+loop will simply break the entire test process and prevent proptest from
+determining a minimal reproducible case.</p>
+<p>As of version 0.7.1, proptest has optional “fork” and “timeout” features
+(both enabled by default), which make it possible to run your test cases in
+a subprocess and limit how long they may run. This is generally slower,
+may make using a debugger more difficult, and makes test output harder to
+interpret, but allows proptest to find and minimise test cases for these
+situations as well.</p>
+<p>To use these features, simply set the <code>fork</code> and/or <code>timeout</code> fields on the
+<code>Config</code>. (Setting <code>timeout</code> implies <code>fork</code>.)</p>
+<p>Here is a simple example of using both features:</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+// The worst possible way to calculate Fibonacci numbers
+fn fib(n: u64) -&gt; u64 {
+    if n &lt;= 1 {
+        n
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        // Setting both fork and timeout is redundant since timeout implies
+        // fork, but both are shown for clarity.
+        fork: true,
+        timeout: 1000,
+        .. ProptestConfig::default()
+    })]
+
+    #[test]
+    fn test_fib(n: u64) {
+        // For large n, this will variously run for an extremely long time,
+        // overflow the stack, or panic due to integer overflow.
+        assert!(fib(n) &gt;= n);
+    }
+}
+<span class="boring">//NOREADME
+</span><span class="boring">fn main() { } //NOREADME
+</span></code></pre></pre>
+<p>The exact value of the test failure depends heavily on the performance of
+the host system, the rust version, and compiler flags, but on the system
+where it was originally tested, it found that the maximum value that
+<code>fib()</code> could handle was 39, despite having dozens of processes dump core
+due to stack overflow or time out along the way.</p>
+<p>If you just want to run tests in subprocesses or with a timeout every now
+and then, you can do that by setting the <code>PROPTEST_FORK</code> or
+<code>PROPTEST_TIMEOUT</code> environment variables to alter the default
+configuration. For example, on Unix,</p>
+<pre><code class="language-sh"># Run all the proptest tests in subprocesses with no timeout.
+# Individual tests can still opt out by setting `fork: false` in their
+# own configuration.
+PROPTEST_FORK=true cargo test
+# Run all the proptest tests in subprocesses with a 1 second timeout.
+# Tests can still opt out or use a different timeout by setting `timeout: 0`
+# or another timeout in their own configuration.
+PROPTEST_TIMEOUT=1000 cargo test
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="no_std-support"><a class="header" href="#no_std-support"><code>no_std</code> Support</a></h1>
+<p>Proptest has partial support for being used in <code>no_std</code> contexts.</p>
+<p>You will need a nightly compiler version. In your <code>Cargo.toml</code>, adjust the
+Proptest dependency to look something like this:</p>
+<pre><code class="language-toml">[dev-dependencies.proptest]
+version = &quot;proptestVersion&quot;
+
+# Opt out of the `std` feature
+default-features = false
+
+# alloc: Use the `alloc` crate directly. Proptest has a hard requirement on
+# memory allocation, so either this or `std` is needed.
+# unstable: Enable use of nightly-only compiler features.
+features = [&quot;alloc&quot;, &quot;unstable&quot;]
+</code></pre>
+<p>Some APIs are not available in the <code>no_std</code> build. This includes functionality
+which necessarily needs <code>std</code> such as failure persistence and forking, as well
+as features depending on other crates which do not support <code>no_std</code> usage, such
+as regex support.</p>
+<p>The <code>no_std</code> build may not have access to an entropy source (one exception are
+x86-64 machines that support rdrand, in this case the library can be compiled
+with the <code>hardware-rng</code> feature to get random numbers). If no entropy source is
+available, every <code>TestRunner</code> (i.e., every <code>#[test]</code> when using the <code>proptest!</code>
+macro) uses a single hard-coded seed. For complex inputs, it may be a good idea
+to increase the number of test cases to compensate. The hard-coded seed is not
+contractually guaranteed and may change between Proptest releases without
+notice.</p>
+<p>To see an accurate representation of what APIs are available in a <code>no_std</code>
+environment, refer to <a href="https://altsysrq.github.io/rustdoc/proptest-nostd/latest/proptest/">the rustdocs for the <code>no_std</code>
+build</a>
+instead of the usual reference.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="web-assembly-support"><a class="header" href="#web-assembly-support">Web Assembly support</a></h1>
+<p>As of 0.9.2, it is possible to compile proptest on <code>wasm</code> targets. Please note
+that this is <strong>highly experimental</strong> and has not been subject to any
+substantial amount of testing.</p>
+<p>In <code>cargo.toml</code>, write something like</p>
+<pre><code class="language-toml">[dev-dependencies.proptest]
+version = &quot;$proptestVersion&quot;
+# The default feature set includes things like process forking which are not
+# supported in Web Assembly.
+default-features = false
+# Enable using the `std` crate.
+features = [&quot;std&quot;]
+</code></pre>
+<p>A few APIs are unavailable on <code>wasm</code> targets (beyond those which are removed by
+deselecting certain default features):</p>
+<ul>
+<li>
+<p>Numeric strategies for <code>i128</code> and <code>u128</code>.</p>
+</li>
+<li>
+<p>The <code>Arbitrary</code> implementation for <code>std::env::VarError</code>.</p>
+</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="limitations-of-property-testing"><a class="header" href="#limitations-of-property-testing">Limitations of Property Testing</a></h1>
+<p>Given infinite time, property testing will eventually explore the whole
+input space to a test. However, time is not infinite, so only a randomly
+sampled portion of the input space can be explored. This means that
+property testing is extremely unlikely to find single-value edge cases in a
+large space. For example, the following test will virtually always pass:</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
+
+proptest! {
+    #[test]
+    fn i64_abs_is_never_negative(a: i64) {
+        // This actually fails if a == i64::MIN, but randomly picking one
+        // specific value out of 2⁶⁴ is overwhelmingly unlikely.
+        assert!(a.abs() &gt;= 0);
+    }
+}
+<span class="boring">// NOREADME
+</span><span class="boring">fn main() { } // NOREADME
+</span></code></pre></pre>
+<p>Because of this, traditional unit testing with intelligently selected cases
+is still necessary for many kinds of problems.</p>
+<p>Similarly, in some cases it can be hard or impossible to define a strategy
+which actually produces useful inputs. A strategy of <code>.{1,4096}</code> may be
+great to fuzz a C parser, but is highly unlikely to produce anything that
+makes it to a code generator.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="differences-between-quickcheck-and-proptest"><a class="header" href="#differences-between-quickcheck-and-proptest">Differences between QuickCheck and Proptest</a></h1>
+<p>QuickCheck and Proptest are similar in many ways: both generate random
+inputs for a function to check certain properties, and automatically shrink
+inputs to minimal failing cases.</p>
+<p>The one big difference is that QuickCheck generates and shrinks values
+based on type alone, whereas Proptest uses explicit <code>Strategy</code> objects. The
+QuickCheck approach has a lot of disadvantages in comparison:</p>
+<ul>
+<li>
+<p>QuickCheck can only define one generator and shrinker per type. If you need a
+custom generation strategy, you need to wrap it in a newtype and implement
+traits on that by hand. In Proptest, you can define arbitrarily many
+different strategies for the same type, and there are plenty built-in.</p>
+</li>
+<li>
+<p>For the same reason, QuickCheck has a single “size” configuration that tries
+to define the range of values generated. If you need an integer between 0 and
+100 and another between 0 and 1000, you probably need to do another newtype.
+In Proptest, you can directly just express that you want a <code>0..100</code> integer
+and a <code>0..1000</code> integer.</p>
+</li>
+<li>
+<p>Types in QuickCheck are not easily composable. Defining <code>Arbitrary</code> and
+<code>Shrink</code> for a new struct which is simply produced by the composition of its
+fields requires implementing both by hand, including a bidirectional mapping
+between the struct and a tuple of its fields. In Proptest, you can make a
+tuple of the desired components and then <code>prop_map</code> it into the desired form.
+Shrinking happens automatically in terms of the input types.</p>
+</li>
+<li>
+<p>Because constraints on values cannot be expressed in QuickCheck, generation
+and shrinking may lead to a lot of input rejections. Strategies in Proptest
+are aware of simple constraints and do not generate or shrink to values that
+violate them.</p>
+</li>
+</ul>
+<p>The author of Hypothesis also has an <a href="http://hypothesis.works/articles/integrated-shrinking/">article on this
+topic</a>.</p>
+<p>Of course, there’s also some relative downsides that fall out of what
+Proptest does differently:</p>
+<ul>
+<li>Generating complex values in Proptest can be up to an order of magnitude
+slower than in QuickCheck. This is because QuickCheck performs stateless
+shrinking based on the output value, whereas Proptest must hold on to all the
+intermediate states and relationships in order for its richer shrinking model
+to work.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="reference-documentation"><a class="header" href="#reference-documentation">Reference documentation</a></h1>
+<p>For the API reference documentation, please see the <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/">rustdoc documentation for
+the <code>proptest</code>
+crate</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="the-proptest-derive-crate"><a class="header" href="#the-proptest-derive-crate">The <code>proptest-derive</code> crate</a></h1>
+<p>The <code>proptest-derive</code> crate provides a procedural macro,
+<code>#[derive(Arbitrary)]</code>, which can be used to automatically generate simple
+<code>Arbitrary</code> implementations for user-defined types, allowing them to be used
+with <code>any()</code> and embedded in other <code>#[derive(Arbitrary)]</code> types without fuss.</p>
+<p>It is recommended to have a basic working understanding of the <a href="proptest-derive//proptest/index.html"><code>proptest</code>
+crate</a> before getting into this part of the
+documentation.</p>
+<p><strong>This crate is currently somewhat experimental.</strong> Expect rough edges,
+particularly in documentation. It is also more likely to see releases with
+breaking changes than the main <code>proptest</code> crate.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="getting-started-1"><a class="header" href="#getting-started-1">Getting started</a></h1>
+<h2 id="cargo"><a class="header" href="#cargo">Cargo</a></h2>
+<p>To the <code>[dev-dependencies]</code> section of your <code>Cargo.toml</code>, add</p>
+<pre><code class="language-toml">proptest-derive = &quot;0.2.0&quot;
+</code></pre>
+<p>In a Rust 2015 crate, you must add</p>
+<pre><code>#[cfg(test)] extern crate proptest;
+</code></pre>
+<p>to the top of the crate.</p>
+<h3 id="about-versioning"><a class="header" href="#about-versioning">About Versioning</a></h3>
+<p><code>proptest-derive</code> is currently experimental and has its own version. Once it is
+more stable, it will be versioned in lock-step with the main <code>proptest</code> crate.</p>
+<h2 id="using-derive"><a class="header" href="#using-derive">Using derive</a></h2>
+<p>Inside any of your test modules, you can simply add <code>#[derive(Arbitrary)]</code> to a
+struct or enum declaration.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(test)]
+mod test {
+    use proptest::prelude::*;
+    use proptest_derive::Arbitrary;
+
+    #[derive(Arbitrary, Debug)]
+    struct MyStruct {
+        // ...
+    }
+
+    proptest! {
+        #[test]
+        fn test_one(my_struct: MyStruct) {
+            // ...
+        }
+
+        // Equivalent to the above
+        fn test_two(my_struct in any::&lt;MyStruct&gt;()) {
+            // ...
+        }
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>In order to use <code>proptest-derive</code> on a type <em>not</em> in a test module without also
+depending on proptest for your main build, you must currently manually gate off
+the related annotations. This is something we plan to <a href="https://github.com/proptest-rs/proptest/pull/106">improve in the
+future</a>.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(test)] use proptest_derive::Arbitrary;
+
+#[derive(Debug)]
+// derive(Arbitrary) is only available in tests
+#[cfg_attr(test, derive(Arbitrary))]
+struct MyStruct {
+    // Attributes consumed proptest-derive must not be added when the
+    // declaration is not being processed by derive(Arbitrary).
+    #[cfg_attr(test, proptest(value = 42))]
+    answer: u32,
+    // ...
+}
+<span class="boring">}
+</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="modifier-reference"><a class="header" href="#modifier-reference">Modifier Reference</a></h1>
+<p>All modifiers interpreted by <code>#[derive(Arbitrary)]</code> are of the form
+<code>#[proptest(..)]</code>, where the content between the parentheses follows the normal
+Rust attribute syntax.</p>
+<p>Each modifier within the parentheses is independent, in that putting two
+modifiers in the same attribute is equivalent to having two <code>#[proptest(..)]</code>
+attributes with one modifier each.</p>
+<p>For brevity, modifiers are sometimes referenced by name alone; e.g., “the
+<code>weight</code> modifier” refers to <code>#[proptest(weight = nn)]</code> and not some
+freestanding <code>#[weight]</code> attribute.</p>
+<h2 id="filter"><a class="header" href="#filter"><code>filter</code></a></h2>
+<p>Form: <code>#[proptest(filter = F)]</code> or <code>#[proptest(filter(F))]</code> where <code>F</code> is either
+a bare identifier (i.e., naming a function) or a Rust expression in a string.
+In either case, the parameter must evaluate to something which is <code>Fn (&amp;T) -&gt; bool</code>, where <code>T</code> is the type of the item being filtered.</p>
+<p>Usable on: structs, enums, enum variants, fields</p>
+<p>The <code>filter</code> modifier allows filtering values generated for a field via
+rejection sampling. Since rejection sampling is inefficient and interferes with
+shrinking, it should only be used for conditions that are very rare or are
+unfeasible to express otherwise. In many cases, <a href="proptest-derive/modifiers.html#strategy"><code>strategy</code></a> can be
+used to more directly express the desired behaviour without rejection sampling.
+See the documentation for <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter"><code>prop_filter</code></a> for more details.</p>
+<p>The argument to the modifier must be a valid argument for the second parameter
+of <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter"><code>prop_filter</code></a>.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(filter = &quot;|segment| segment.start != segment.end&quot;)]
+struct NonEmptySegment {
+    start: i32,
+    end: i32,
+}
+
+// Equivalent to the above
+fn is_nonempty(segment: &amp;NonEmptySegment) -&gt; bool {
+    segment.start != segment.end
+}
+
+#[derive(Debug, Arbitrary)]
+#[proptest(filter = is_nomempty)]
+struct NonEmptySegment {
+    start: i32,
+    end: i32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>As mentioned above, filtering should be avoided when it is reasonably possible
+to express a non-filtering strategy that achieves the same effect. For example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct BadExample {
+    // Don't do this! Your tests will run more slowly and shrinking won't work
+    // properly.
+    #[proptest(filter = &quot;|x| x % 2 == 0&quot;)]
+    even_number: u32,
+}
+
+#[derive(Debug, Arbitrary)]
+struct GoodExample {
+    // Directly generate even numbers only by transforming the set of all
+    // `u32`s and then mapping it to the set of even `u32`s.
+    #[proptest(strategy = &quot;any::&lt;u32&gt;().prop_map(|x| x / 2 * 2)&quot;)]
+    even_number: u32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="no_bound"><a class="header" href="#no_bound"><code>no_bound</code></a></h2>
+<p>Form: <code>#[proptest(no_bound)]</code></p>
+<p>Usable on: generic type definitions and type parameters</p>
+<p>Normally, when <code>#[derive(Arbitrary)]</code> is applied to an item with generic type
+parameter, every type parameter which is “used” (see below) is required to
+<code>impl Arbitrary</code>. For example, given a declaration like the following:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Arbitrary)]
+struct MyStruct&lt;T&gt; { /* ... */ }
+<span class="boring">}
+</span></code></pre></pre>
+<p>Something like this will be generated:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl&lt;T&gt; Arbitrary for MyStruct&lt;T&gt; where T: Arbitrary { /* ... */ }
+<span class="boring">}
+</span></code></pre></pre>
+<p>Placing <code>#[proptest(no_bound)]</code> on a generic type parameter suppresses this. For
+example, the following removes the extra <code>where T: Arbitrary</code>:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Arbitrary)]
+struct MyStruct&lt;#[proptest(no_bound)] T&gt; { /* ... */ }
+<span class="boring">}
+</span></code></pre></pre>
+<p>Placing <code>#[proptest(no_bound)]</code> on a generic type definition is equivalent to
+placing the same attribute on every type parameter.</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Arbitrary)]
+#[proptest(no_bound)]
+struct MyStruct&lt;A, B, C&gt; { /* ... */ }
+
+// Equivalent to
+#[derive[Arbitrary)]
+struct MyStruct&lt;
+  #[proptest(no_bound)] A,
+  #[proptest(no_bound)] B,
+  #[proptest(no_bound)] C,
+&gt; { /* ... */ }
+<span class="boring">}
+</span></code></pre></pre>
+<p>A type parameter is “used” if the following hold:</p>
+<ul>
+<li>
+<p>The enum or struct definition references it at least once, and that reference
+is not inside the type argument of a <code>PhantomData</code>.</p>
+</li>
+<li>
+<p>The item referencing the type parameter does not have any proptest modifiers
+which replace the usual use of <code>Arbitrary</code>, such as <a href="proptest-derive/modifiers.html#skip"><code>skip</code></a> or
+<a href="proptest-derive/modifiers.html#value"><code>value</code></a>.</p>
+</li>
+</ul>
+<p>Due to the above, <code>#[proptest(no_bound)]</code> is generally only needed when the
+type parameter is used in another type which does not itself have an
+<code>Arbitrary</code> mound on the type.</p>
+<h2 id="no_params"><a class="header" href="#no_params"><code>no_params</code></a></h2>
+<p>Form: <code>#[proptest(no_params)]</code></p>
+<p>Usable on: structs, enums, enum variants, fields</p>
+<p>On a struct or enum, <code>no_params</code> causes the <code>Arbitrary</code> parameter type to be
+<code>()</code>. All automatic delegations to <code>Arbitrary</code> on members of the item use
+<code>Default::default()</code> for their parameters.</p>
+<p>On an enum variant or field, suppresses the addition of any parameter for the
+variant or field to the parameters for the whole struct. If the variant or
+field automatically delegates to <code>Arbitrary</code> for its value, that <code>Arbitrary</code>
+call uses <code>Default::default()</code> for its own parameter.</p>
+<p>See the <a href="proptest-derive/modifiers.html#param"><code>param</code> modifier</a> for more information on how parameters work.</p>
+<h2 id="params"><a class="header" href="#params"><code>params</code></a></h2>
+<p>Form: <code>#[proptest(params = T)]</code> or <code>#[proptest(params(T))]</code>, where <code>T</code> is
+either a bare identifier or Rust code inside a string. In either case, the
+value must name a concrete Rust type which implements <code>Default</code>.</p>
+<p>Usable on: structs, enums, enum variants, fields</p>
+<p>The <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/arbitrary/trait.Arbitrary.html"><code>Arbitrary</code> trait</a> specifies a <code>Parameters</code> type which is used to control
+generation. By default, the <code>Parameters</code> type is a tuple of the parameters
+which are automatically passed to other <code>Arbitrary</code> implementations.</p>
+<p>If applied to a struct or enum, <code>params</code> completely replaces the <code>Parameters</code>
+type. Any automatic delegations to other <code>Arbitrary</code> implementations then use
+<code>Default::default()</code> as there is no automatic way to locate an appropriate
+value (if there even is any) within the <code>params</code> type.</p>
+<p>If applied to an enum variant or field, <code>params</code> specifies the parameters type
+for just that item, as if its type had an <code>Arbitrary</code> implementation taking
+that type. In this case, either <a href="proptest-derive/modifiers.html#value"><code>value</code></a> or <a href="proptest-derive/modifiers.html#strategy"><code>strategy</code></a>
+<em>must</em> be specified since the parameter type will not generally be compatible
+with the normal <code>Arbitrary</code> invocation (and in cases where it is, <code>params</code>
+would be useless if not used).</p>
+<p>Any expressions (such as in the <a href="proptest-derive/modifiers.html#value"><code>value</code></a> and <a href="proptest-derive/modifiers.html#strategy"><code>strategy</code></a>
+modifiers) underneath an item with the <code>params</code> modifier has access to a
+variable named <code>params</code> which is of the type passed in
+<code>#[proptest(params = ..)]</code>.</p>
+<p>Examples:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug)]
+struct WidgetRange(usize, usize);
+
+impl Default for WidgetRange {
+    fn default() -&gt; Self { Self(0, 100) }
+}
+
+#[derive(Debug, Arbitrary)]
+#[proptest(params(WidgetRange))]
+struct WidgetCollection {
+    #[proptest(strategy = &quot;params.0 ..= params.1&quot;)]
+    desired_widget_count: usize,
+    // ...
+}
+
+// ...
+
+proptest! {
+    #[test]
+    fn test_something(wc in any_with::&lt;WidgetCollection&gt;(WidgetRange(10, 20))) {
+        assert!(wc.desired_widget_count &gt;= 10 &amp;&amp; wc.desired_widget_count &lt;= 20);
+    }
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="regex"><a class="header" href="#regex"><code>regex</code></a></h2>
+<p>Form: <code>#[proptest(regex = &quot;string&quot;)]</code> or <code>#[proptest(regex(&quot;string&quot;))]</code>, where
+<code>string</code> is a regular expression. May also be invoked as
+<code>#[proptest(regex(function_name))]</code>, where <code>function_name</code> is a no-argument
+function that returns an <code>&amp;'static str</code>.</p>
+<p>Usable on: fields</p>
+<p>This modifier specifies to generate character or byte strings for a field which
+match a particular regular expression.</p>
+<p>The <code>regex</code> modifier is equivalent to using the <a href="proptest-derive/modifiers.html#strategy"><code>strategy</code></a> modifier and
+enclosing the string in <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/string/fn.string_regex.html"><code>string_regex</code></a> or <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/string/fn.bytes_regex.html"><code>bytes_regex</code></a>. It can only be
+applied to fields of type <code>String</code> or <code>Vec&lt;u8&gt;</code>.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct FileContent {
+    #[proptest(regex = &quot;[a-z0-9.]+&quot;)]
+    name: String,
+    #[proptest(regex = &quot;([0-9]+\n)*&quot;)]
+    content: Vec&lt;u8&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="skip"><a class="header" href="#skip"><code>skip</code></a></h2>
+<p>Form: <code>#[proptest(skip)]</code></p>
+<p>Usable on: enum variants</p>
+<p>Annotating an enum variant with <code>#[proptest(skip)]</code> prevents proptest from
+generating that particular variant. This is useful when there is no sensible
+way to generate the variant or when you want to temporarily stop generating
+some variant during development.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum DataSource {
+    Memory(Vec&lt;u8&gt;),
+
+    // There's no way to produce an &quot;arbitrary&quot; file handle, so we skip
+    // generating this case.
+    #[proptest(skip)]
+    File(std::fs::File),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>It is an error to annotate all inhabited variants of an enum with
+<code>#[proptest(skip)]</code> as this leaves proptest with no options to generate the
+enum.</p>
+<h2 id="strategy"><a class="header" href="#strategy"><code>strategy</code></a></h2>
+<p>Form: <code>#[proptest(strategy = S)]</code> or <code>#[proptest(strategy = S)]</code>, where <code>S</code> is
+either a string containing a Rust expression which evaluates to an appropriate
+<code>Strategy</code>, or a bare identifier naming a function which, when called with no
+arguments, returns such a <code>Strategy</code>.</p>
+<p>Usable on: enum variants, fields</p>
+<p>By default, enum variants are generated by recursing into their definition as
+is done for struct declarations, and fields are generated by invoking
+<code>Arbitrary</code> on the field type to produce a <code>Strategy</code>. The <code>strategy</code> modifier
+allows to manually provide a custom strategy directly.</p>
+<p>In the case of fields, the strategy must produce values of the same type as
+that field. For enum variants, it must produce values of the enum type itself
+and these values ought to be of the variant in question.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Token {
+    Delimitation {
+        // This field is still generated via Arbitrary
+        delimiter: Delimiter,
+
+        // But for this field we use a custom strategy
+        #[proptest(strategy = &quot;1..10&quot;)]
+        count: u32,
+
+        // Here we also use a custom strategy, generated by the function
+        // `offset_strategy`.
+        #[proptest(strategy = offset_strategy)]
+        offset: u32,
+    },
+
+    // Specify how to generate the whole enum variant
+    #[proptest(strategy = &quot;\&quot;[a-zA-Z]+\&quot;.prop_map(Token::Word)&quot;)]
+    Word(String),
+}
+
+#[derive(Debug, Arbitrary)]
+enum Delimiter { /* ... */ }
+
+fn offset_strategy() -&gt; impl Strategy&lt;Value = u32&gt; {
+  0..100
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="value"><a class="header" href="#value"><code>value</code></a></h2>
+<p>Form: <code>#[proptest(value = V)]</code> or <code>#[proptest(value(V))]</code>, where V can be: (a)
+a Rust expression enclosed in a string; (b) another literal, or (c) a bare
+identifier naming a no-argument function.</p>
+<p>Usable on: enum variants, fields</p>
+<p>The <code>value</code> modifier indicates that proptest should use the given expression or
+function to produce a value for the field, instead of going through the usual
+value generation machinery.</p>
+<p>The argument to <code>value</code> is directly used as an expression for the field value
+or enum variant to be generated, except that in the third form where it is a
+bare identifier, it is called as a no-argument function to produce the value.</p>
+<p>Using <code>value</code> is equivalent to using <a href="proptest-derive/modifiers.html#strategy"><code>strategy</code></a> and enclosing the
+value in <code>LazyJust</code>.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct EventCounter {
+    // We always start with the first two fields set to 0/None
+    #[proptest(value = 0)]
+    number_seen: u64,
+
+    #[proptest(value = &quot;None&quot;)]
+    last_seen_time: Option&lt;Instant&gt;,
+
+    // This field is generated normally
+    max_events: u64,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="weight"><a class="header" href="#weight"><code>weight</code></a></h2>
+<p>Form: <code>#[proptest(weight = W)]</code> or <code>#[proptest(weight(W))]</code>, where <code>W</code> is an
+expression evaluating to a <code>u32</code>. <code>weight</code> may also be abbreviated to <code>w</code>, as
+in <code>#[proptest(w = W)]</code>.</p>
+<p>Usable on: enum variants</p>
+<p>The <code>weight</code> modifier determines how likely proptest is to generate a
+particular enum variant. Weights are relative to each other; for example, a
+<code>weight = 3</code> variant is 50% more likely to be generated than a <code>weight = 2</code>
+variant and three times as likely to be generated as a <code>weight = 1</code> variant.</p>
+<p>Variants with no <code>weight</code> modifier are equivalent to being annotated
+<code>#[proptest(weight = 1)]</code>.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum FilterOption {
+    KeepAll,
+    DiscardAll,
+
+    // This option is presumably harder for the code to handle correctly,
+    // so we generate it more frequently than the other options.
+    #[proptest(weight = 3)]
+    OnlyMatching(String),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="error-index"><a class="header" href="#error-index">Error Index</a></h1>
+<h2 id="e0001"><a class="header" href="#e0001">E0001</a></h2>
+<p>This error occurs when <code>#[derive(Arbitrary)]</code> is used on a type which has any
+<a href="https://doc.rust-lang.org/stable/book/second-edition/ch10-03-lifetime-syntax.html#lifetime-annotations-in-struct-definitions">lifetime parameters</a>. For example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo&lt;'a&gt; {
+    bar: &amp;'a str,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Due to the lack of <em><a href="https://github.com/rust-lang/rust/issues/44265">generic associated types (GATs)</a></em> on stable Rust,
+it is currently impossible to define a <code>Strategy</code> which generates a type
+that is lifetime-generic (e.g. <code>&amp;'a T</code>). Thus, proptest cannot implement
+<code>Arbitrary</code> for such types either and therefore you cannot <code>#[derive(Arbitrary)]</code>
+for such types. Once GATs are available, we will try to lift this restriction.
+To follow the progress, consult the <a href="https://github.com/proptest-rs/proptest/issues/9">tracking issue</a> on the matter.</p>
+<h2 id="e0002"><a class="header" href="#e0002">E0002</a></h2>
+<p>This error occurs when <code>#[derive(Arbitrary)]</code> is used on a <code>union</code> type.
+An example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+union IU32 {
+    signed: i32,
+    unsigned: u32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>There are two main reasons for the error.</p>
+<ol>
+<li>
+<p>It is not possible to <code>#[derive(Debug)]</code> on <code>union</code> types and manual
+implementations cannot know which variant is valid so there are not
+many valid implementations which are possible.</p>
+</li>
+<li>
+<p>Second, we cannot mechanically tell which variant out of <code>signed</code> and
+<code>unsigned</code> to generate. While we could allow you to tell the macro,
+with an attribute such as <code>#[proptest(select)]</code> on the variant,
+we have opted for a more conservative approach for the time being.
+If you have a use case for <code>#[derive(Arbitrary)]</code> on <code>union</code> types,
+please reach out on the <a href="https://github.com/proptest-rs/proptest">issue tracker</a>.</p>
+</li>
+</ol>
+<h2 id="e0003"><a class="header" href="#e0003">E0003</a></h2>
+<p>This error occurs when <code>#[derive(Arbitrary)]</code> is used on a struct which
+contains known <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html#empty-types">uninhabited
+types</a>. This
+in turn means the struct itself is uninhabited and so it there is no sensible
+<code>Arbitrary</code> implementation since values of the struct cannot be produced.</p>
+<p>A trivial example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Uninhabited {
+    inhabited: u32,
+    never: !,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Because there exist no values assignable to field <code>never</code>, it is also
+impossible to construct an instance of struct <code>Uninhabited</code>.</p>
+<p>Proptest’s ability to identify uninhabited types is limited. If it does not
+recognise a particular type as uninhabited, the type will instead be assumed to
+be inhabited and you will instead get an error about the type not implementing
+<code>Arbitrary</code> trait.</p>
+<h2 id="e0004"><a class="header" href="#e0004">E0004</a></h2>
+<p>This error occurs when <code>#[derive(Arbitrary)]</code> is used on an enum with no
+variants at all. For example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Uninhabited {}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Such an enum has no values at all, so it does not make sense to provide an
+<code>Arbitrary</code> implementation for it since no values can be generated.</p>
+<h2 id="e0005"><a class="header" href="#e0005">E0005</a></h2>
+<p>This error occurs if <code>#[derive(Arbitrary)]</code> is used on an enum whose variants
+are all uninhabited, using the same logic as described for <a href="proptest-derive/errors.html#e0003"><code>E0003</code></a>.
+As a result, the enum itself is totally uninhabited.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Uninhabited {
+    Never(!),
+    NeverEver(!, !),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0006"><a class="header" href="#e0006">E0006</a></h2>
+<p>This error occurs if <code>#[derive(Arbitrary)]</code> is used on an enum where all
+inhabited variants are marked with [<code>#[proptest(skip)]</code>]. In other words,
+proptest is forbidden from generating any of the enum’s variants, and thus the
+enum itself cannot be generated.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum MyEnum {
+    // Ordinarily, proptest would be able to generate either of these variants,
+    // but both are forbidden, so in the end proptest isn't allowed to generate
+    // anything at all.
+    #[proptest(skip)]
+    UnitVariant,
+    #[proptest(skip)]
+    SimpleVariant(u32),
+    // This variant is implicitly skipped because proptest knows it is
+    // uninhabited.
+    Uninhabited(!),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0007"><a class="header" href="#e0007">E0007</a></h2>
+<p>This error happens if an attribute [<code>#[proptest(strategy = &quot;expr&quot;)]</code>] or
+[<code>#[proptest(value = &quot;expr&quot;)]</code>] is applied to the same item that has
+<code>#[derive(Arbitrary)]</code>.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(value = &quot;MyStruct(42)&quot;)]
+struct MyStruct(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<p>This is rejected since nothing is being “derived” <em>per se</em>. A written out
+implementation of <code>Arbitrary</code> should be used instead.</p>
+<h2 id="e0008"><a class="header" href="#e0008">E0008</a></h2>
+<p>This error happens if [<code>#[proptest(skip)]</code>] is applied to an unskippable item.
+For example, struct fields cannot be skipped because Rust requires every field
+of a struct to have a value.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct WidgetContainer {
+    desired_widget_count: usize,
+    #[proptest(skip)]
+    widgets: Vec&lt;Widget&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>In general, the appropriate way to request proptest to not generate a field
+value is to use [<code>#[proptest(value = &quot;expr&quot;)]</code>] to provide a fixed value
+yourself. For example, the above code could be properly written as follows:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct WidgetContainer {
+    desired_widget_count: usize,
+    #[proptest(value = &quot;vec![]&quot;)] // Always generate an empty widget vec
+    widgets: Vec&lt;Widget&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0009"><a class="header" href="#e0009">E0009</a></h2>
+<p>This error happens if [<code>#[proptest(weight = &lt;integer&gt;)]</code>] is applied to an item
+where this does not make sense, such as a struct field. For example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Point {
+    x: u32,
+    #[proptest(weight = 42)]
+    y: u32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The <code>weight</code> attribute only is sensible where proptest has a choice between
+multiple items, i.e., enum variants. In contrast, with struct fields proptest
+must provide a value for <em>every</em> field so there is no “this-or-that” choice.</p>
+<h2 id="e0010"><a class="header" href="#e0010">E0010</a></h2>
+<p>This error occurs if [<code>#[proptest(params = &quot;type&quot;)]</code>] and/or
+[<code>#[proptest(no_params)]</code>] are set on both an item and its parent.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(params = &quot;String&quot;)]
+struct Foo {
+    #[proptest(no_params)]
+    bar: String,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>If the parent item has any explicit parameter configuration, it totally defines
+the parameters for the whole <code>Arbitrary</code> implementation and the child items
+must work with that and cannot specify their own parameters.</p>
+<h2 id="e0011"><a class="header" href="#e0011">E0011</a></h2>
+<p>This error occurs if [<code>#[proptest(params = &quot;type&quot;)]</code>] is set on a field but no
+explicit strategy is configured with [<code>#[proptest(strategy = &quot;expr&quot;)]</code>] or
+another such modifier. For example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(param = &quot;u8&quot;)]
+    some_string: String,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>This example illustrates why both must be specified: <code>String</code>’s arbitrary
+implementation takes a <code>proptest::string::StringParam</code>, but here we try to pass
+it a <code>u8</code>.</p>
+<p>While the generated code could work if the type given by <code>param</code> is the same as
+that for the default strategy, there would be no purpose in specifying the
+parameter type by hand; therefore specifying only <code>param</code> is in all cases
+forbidden.</p>
+<h2 id="e0012"><a class="header" href="#e0012">E0012</a></h2>
+<p>This error occurs if [<code>#[proptest(filter = &quot;expr&quot;)]</code>] is set on an item, but the
+item containing it specifies a direct way to generate the whole value, which
+would thus occur without consulting the filter.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Foo {
+    #[proptest(value = &quot;Foo::Bar(42)&quot;)]
+    Bar {
+        #[proptest(filter = &quot;is_even&quot;)]
+        even_number: u32,
+    },
+    // ...
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>In this example, the entire <code>Bar</code> variant specifies how to generate itself
+wholesale. As a result, the <code>filter</code> clause on <code>even_number</code> has no opportunity
+to run.</p>
+<h2 id="e0013"><a class="header" href="#e0013">E0013</a></h2>
+<p>This error would occur if an outer attribute of the form <code>#![proptest(..)]</code>
+were applied to something underneath a <code>#[derive(Arbitrary)]</code>.</p>
+<p>As of Rust 1.30.0, there are no known ways to produce this error since the Rust
+compiler will reject the attribute first.</p>
+<h2 id="e0014"><a class="header" href="#e0014">E0014</a></h2>
+<p>This error occurs if a bare <code>#[proptest]</code> attribute is applied to anything,
+since it has no meaningful content.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest]
+    field: u8,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The only legal use of the attribute is the form <code>#[proptest(..)]</code>.</p>
+<h2 id="e0015"><a class="header" href="#e0015">E0015</a></h2>
+<p>This error occurs if an attribute of the form <code>#[proptest = value]</code> is
+encountered in any context.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest = 1234]
+    field: u8,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0016"><a class="header" href="#e0016">E0016</a></h2>
+<p>This error occurs if a literal (as opposed to <code>key = value</code>) is passed inside
+<code>#[proptest(..)]</code> in any context.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(1234)]
+    field: u8,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0017"><a class="header" href="#e0017">E0017</a></h2>
+<p>This error occurs if any modifier of <code>#[proptest(..)]</code> is set more than once on
+the same item.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(no_params, no_params)]
+struct Foo(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0018"><a class="header" href="#e0018">E0018</a></h2>
+<p>This error occurs if an unknown modifier is passed in <code>#[proptest(..)]</code>.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(frobnicate = &quot;true&quot;)]
+struct Foo(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<p>Please see the <a href="proptest-derive/modifiers.html">modifiers reference</a> to see what modifiers are
+available.</p>
+<h2 id="e0019"><a class="header" href="#e0019">E0019</a></h2>
+<p>This error happens if anything extra is passed to [<code>#[proptest(no_params)]</code>].</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(no_params = &quot;true&quot;)]
+struct Foo(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<p><code>no_params</code> takes no configuration. The correct form is simply
+<code>#[proptest(no_params)]</code>.</p>
+<h2 id="e0020"><a class="header" href="#e0020">E0020</a></h2>
+<p>This error happens if anything extra is passed to [<code>#[proptest(skip)]</code>].</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Foo {
+    Small,
+    #[proptest(skip = &quot;yes&quot;)]
+    Huge(ExpensiveType),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p><code>skip</code> takes no configuration. The correct form is simply <code>#[proptest(skip)]</code>.</p>
+<h2 id="e0021"><a class="header" href="#e0021">E0021</a></h2>
+<p>This error happens if [<code>#[proptest(weight = &lt;integer&gt;)]</code>] is passed an invalid
+integer or passed nothing at all.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Foo {
+    #[proptest(weight)]
+    V1,
+    #[proptest(weight = heavy)]
+    V2,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The only acceptable form is <code>#[proptest(weight = &lt;integer&gt;)]</code>, where
+<code>&lt;integer&gt;</code> is either an integer literal which fits in a <code>u32</code> or the same but
+enclosed in quotation marks.</p>
+<h2 id="e0022"><a class="header" href="#e0022">E0022</a></h2>
+<p>This error occurs if more than one of [<code>#[proptest(no_params)]</code>] and
+[<code>#[proptest(params = &quot;type&quot;)]</code>] are applied to the same item.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(no_params, params = &quot;u8&quot;)]
+struct Foo(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<p>One attribute or the other must be picked depending on desired effect.</p>
+<h2 id="e0023"><a class="header" href="#e0023">E0023</a></h2>
+<p>This error happens if an invalid [<code>#[proptest(params = &quot;type&quot;)]</code>] attribute is
+applied to an item.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(params = &quot;Vec&lt;u8&quot;)] // Note missing '&gt;'
+struct Foo(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<p>There are a few different ways to get this error:</p>
+<ul>
+<li>
+<p>Pass nothing at all. E.g., <code>#[proptest(params)]</code>.</p>
+</li>
+<li>
+<p>Pass something other than a string as the value. E.g.,
+<code>#[proptest(params = 42)]</code>.</p>
+</li>
+<li>
+<p>Pass a malformed type in the string, as in the example above. (See also
+<a href="proptest-derive/errors.html#valid-rust-syntax">caveat on syntax</a>.)</p>
+</li>
+</ul>
+<h2 id="e0024"><a class="header" href="#e0024">E0024</a></h2>
+<p>This error happens if an invalid <code>#[proptest ..]</code> attribute is applied using a
+syntax the <code>proptest-derive</code> crate is not prepared to handle.</p>
+<p>Exactly what conditions can produce this error vary by Rust version.</p>
+<h2 id="e0025"><a class="header" href="#e0025">E0025</a></h2>
+<p>This error happens if more than one of [<code>#[proptest(strategy = &quot;expr&quot;)]</code>],
+[<code>#[proptest(value = &quot;expr&quot;)]</code>], or [<code>#[proptest(regex = &quot;string&quot;)]</code>] are applied
+to the same item.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(value = &quot;42&quot;, strategy = &quot;Just(56)&quot;)]
+    bar: u32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Each of these modifiers completely describe how to generate the value, so they
+cannot both be applied to the same thing. One or the other must be chosen
+depending on the desired effect.</p>
+<h2 id="e0026"><a class="header" href="#e0026">E0026</a></h2>
+<p>This error happens if an invalid form of [<code>#[proptest(strategy = &quot;expr&quot;)]</code>] or
+[<code>#[proptest(value = &quot;expr&quot;)]</code>] is used.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(value = &quot;3↑↑↑↑3&quot;)] // String content is not valid Rust syntax
+    g1: u128,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>There are a few different ways to get this error:</p>
+<ul>
+<li>
+<p>Pass nothing at all. E.g., <code>#[proptest(value)]</code>.</p>
+</li>
+<li>
+<p>Use another illegal form. E.g., <code>#[proptest(value(&quot;a&quot;, &quot;b&quot;))]</code>.</p>
+</li>
+<li>
+<p>Pass a string expression which is not valid Rust syntax, as in the above
+example. (See also <a href="proptest-derive/errors.html#valid-rust-syntax">caveat on syntax</a>.)</p>
+</li>
+</ul>
+<h2 id="e0027"><a class="header" href="#e0027">E0027</a></h2>
+<p>This error happens if an invalid form of [<code>#[proptest(filter = &quot;expr&quot;)]</code>] is
+used.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(filter = &quot;&gt; 3&quot;)] // String content is not an expression
+    big_number: u128,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>There are a few different ways to get this error:</p>
+<ul>
+<li>
+<p>Pass nothing at all. E.g., <code>#[proptest(filter)]</code>.</p>
+</li>
+<li>
+<p>Use another illegal form. E.g., <code>#[proptest(filter(&quot;a&quot;, &quot;b&quot;))]</code>.</p>
+</li>
+<li>
+<p>Pass a string expression which is not valid Rust syntax, as in the above
+example. (See also <a href="proptest-derive/errors.html#valid-rust-syntax">caveat on syntax</a>.)</p>
+</li>
+</ul>
+<h2 id="e0028"><a class="header" href="#e0028">E0028</a></h2>
+<p>This error occurs if a modifier which implies a value is to be generated is
+applied to an enum variant which is also marked [<code>#[proptest(skip)]</code>].</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Enum {
+    V1(u32),
+    #[proptest(skip, value = &quot;Enum::V2(42)&quot;)]
+    V2(u32),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Here, the [<code>#[proptest(value = &quot;expr&quot;)]</code>] modifier suggests the user intends
+some value to be generated for the enum variant, but at the same time
+[<code>#[proptest(skip)]</code>] indicates not to generate that variant.</p>
+<h2 id="e0029"><a class="header" href="#e0029">E0029</a></h2>
+<p>This error happens if a modifier which would constrain or control how the value
+of an enum variant is to be generated is applied to a unit variant.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Foo {
+    #[proptest(value = &quot;Foo::V1&quot;)]
+    UnitVariant,
+    // ...
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Unit variants only have one possible value, so there is only one possible
+strategy. As a result, it is pointless to try to specify an alternate strategy
+or to filter such variants.</p>
+<h2 id="e0030"><a class="header" href="#e0030">E0030</a></h2>
+<p>This error happens if a modifier which would constrain or control how the value
+of a struct is to be generated is applied to a unit struct.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(params = &quot;u8&quot;)]
+struct UnitStruct;
+<span class="boring">}
+</span></code></pre></pre>
+<p>Unit structs only have one possible value, so there is only one possible
+strategy. As a result, it is pointless to try to specify an alternate strategy
+or to filter such structs.</p>
+<h2 id="e0031"><a class="header" href="#e0031">E0031</a></h2>
+<p>This error occurs if [<code>#[proptest(no_bound)]</code>] is applied to something that is
+not a type variable.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(no_bound)]
+    bar: u32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The <code>no_bound</code> modifier only makes sense on generic type variables, as in</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo&lt;#[proptest(no_bound)] T&gt; {
+    #[proptest(value = &quot;None&quot;)]
+    bar: Option&lt;T&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0032"><a class="header" href="#e0032">E0032</a></h2>
+<p>This error happens if [<code>#[proptest(no_bound)]</code>] is passed anything.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo&lt;#[proptest(no_bound = &quot;yes&quot;)] T&gt; {
+    _bar: PhantomData&lt;T&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The only valid form for the modifier is <code>#[proptest(no_bound)]</code>.</p>
+<h2 id="e0033"><a class="header" href="#e0033">E0033</a></h2>
+<p>This error occurs if the sum of the weights on the variants of an enum overflow
+a <code>u32</code>.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Foo {
+    #[proptest(weight = 3_000_000_000)]
+    ThreeFifths,
+    #[proptest(weight = 2_000_000_000)]
+    TwoFifths,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The only solution is to reduce the magnitude of the weights so that their sum
+fits in a <code>u32</code>. Keep in mind that variants without a <code>weight</code> modifier still
+effectively have <code>#[proptest(weight = 1)]</code>.</p>
+<h2 id="e0034"><a class="header" href="#e0034">E0034</a></h2>
+<p>This error occurs if [<code>#[proptest(regex = &quot;string&quot;)]</code>] is used with invalid
+syntax.</p>
+<p>The most common forms are <code>#[proptest(regex = &quot;string-regex&quot;)]</code> and
+<code>#[proptest(regex(&quot;string-regex&quot;))]</code>.</p>
+<h2 id="e0035"><a class="header" href="#e0035">E0035</a></h2>
+<p>This error occurs if both [<code>#[proptest(regex = &quot;string&quot;)]</code>] and
+[<code>#[proptest(params = &quot;type&quot;)]</code>] are applied to the same item.</p>
+<p>Values generated via regular expression take no parameters so the <code>params</code>
+modifier would be meaningless.</p>
+<h2 id="valid-rust-syntax"><a class="header" href="#valid-rust-syntax">“Valid Rust syntax”</a></h2>
+<p>The definition of “valid Rust syntax” in various string modifiers is determined
+by the <code>syn</code> crate. If valid syntax is rejected, you can work around it in a
+couple ways depending on what the syntax is describing:</p>
+<p>For types, simply define a type alias for the type in question. For example,</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>type RetroBox = ~str; // N.B. &quot;~str&quot; is not valid Rust 1.30 syntax
+
+//...
+#[derive(Debug, Arbitrary)]
+#[proptest(params = &quot;RetroBox&quot;)]
+struct MyStruct { /* ... */ }
+<span class="boring">}
+</span></code></pre></pre>
+<p>For values, you can generally factor the code into a constant or function. For
+example,</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// N.B. Rust 1.30 does not have an exponentiation operator.
+const PI_SQUARED: f64 = PI ** 2.0;
+
+//...
+#[derive(Debug, Arbitrary)]
+struct MyStruct {
+    #[proptest(value = &quot;PI_SQUARED&quot;)]
+    factor: f64,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>If you need to implement such a work around, consider also <a href="https://github.com/proptest-rs/proptest/issues">filing an
+issue</a>.</p>
+<p>[<code>#[proptest(filter = &quot;expr&quot;)]</code>]: modifiers.md#filter
+[<code>#[proptest(no_bound)]</code>]: modifiers.md#no_bound
+[<code>#[proptest(no_params)]</code>]: modifiers.md#no_params
+[<code>#[proptest(params = &quot;type&quot;)]</code>]: modifiers.md#params
+[<code>#[proptest(regex = &quot;string&quot;)]</code>]: modifiers.md#regex
+[<code>#[proptest(skip)]</code>]: modifiers.md#skip
+[<code>#[proptest(strategy = &quot;expr&quot;)]</code>]: modifiers.md#strategy
+[<code>#[proptest(value = &quot;expr&quot;)]</code>]: modifiers.md#value
+[<code>#[proptest(weight = &lt;integer&gt;)]</code>]: modifiers.md#weight</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+            </nav>
+
+        </div>
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        <script type="text/javascript">
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Compound Strategies - Proptest</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Usage documentation for the proptest and proptest-derive crates">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="../../">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body class="light">
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">var path_to_root = "../../";</script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'visible';
+            if (document.body.clientWidth < 500) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../intro.html">Introduction</a></li><li class="chapter-item expanded "><a href="../../proptest/index.html"><strong aria-hidden="true">1.</strong> proptest</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../proptest/getting-started.html"><strong aria-hidden="true">1.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/index.html"><strong aria-hidden="true">1.2.</strong> Understanding Proptest from the Bottom Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../proptest/tutorial/strategy-basics.html"><strong aria-hidden="true">1.2.1.</strong> Strategy Basics</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/shrinking-basics.html"><strong aria-hidden="true">1.2.2.</strong> Shrinking Basics</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/test-runner.html"><strong aria-hidden="true">1.2.3.</strong> Using the Test Runner</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/compound-strategies.html" class="active"><strong aria-hidden="true">1.2.4.</strong> Compound Strategies</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/macro-proptest.html"><strong aria-hidden="true">1.2.5.</strong> The proptest! macro</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/transforming-strategies.html"><strong aria-hidden="true">1.2.6.</strong> Transforming Strategies</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/macro-prop-compose.html"><strong aria-hidden="true">1.2.7.</strong> The prop_compose! macro</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/enums.html"><strong aria-hidden="true">1.2.8.</strong> Generating Enums</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/filtering.html"><strong aria-hidden="true">1.2.9.</strong> Filtering</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/recursive.html"><strong aria-hidden="true">1.2.10.</strong> Generating Recursive Data</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/higher-order.html"><strong aria-hidden="true">1.2.11.</strong> Higher-Order Strategies</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/arbitrary.html"><strong aria-hidden="true">1.2.12.</strong> Defining a Canonical Strategy for a Type</a></li><li class="chapter-item expanded "><a href="../../proptest/tutorial/config.html"><strong aria-hidden="true">1.2.13.</strong> Configuring Proptest</a></li></ol></li><li class="chapter-item expanded "><a href="../../proptest/failure-persistence.html"><strong aria-hidden="true">1.3.</strong> Failure Persistence</a></li><li class="chapter-item expanded "><a href="../../proptest/forking.html"><strong aria-hidden="true">1.4.</strong> Test Timeouts and Forking</a></li><li class="chapter-item expanded "><a href="../../proptest/no-std.html"><strong aria-hidden="true">1.5.</strong> no_std Support</a></li><li class="chapter-item expanded "><a href="../../proptest/wasm.html"><strong aria-hidden="true">1.6.</strong> Web Assembly Support</a></li><li class="chapter-item expanded "><a href="../../proptest/limitations.html"><strong aria-hidden="true">1.7.</strong> Limitations of Property Testing</a></li><li class="chapter-item expanded "><a href="../../proptest/vs-quickcheck.html"><strong aria-hidden="true">1.8.</strong> Proptest vs Quickcheck</a></li><li class="chapter-item expanded "><a href="../../proptest/reference-docs.html"><strong aria-hidden="true">1.9.</strong> Reference documentation</a></li></ol></li><li class="chapter-item expanded "><a href="../../proptest-derive/index.html"><strong aria-hidden="true">2.</strong> proptest-derive</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../proptest-derive/getting-started.html"><strong aria-hidden="true">2.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../../proptest-derive/modifiers.html"><strong aria-hidden="true">2.2.</strong> Modifier reference</a></li><li class="chapter-item expanded "><a href="../../proptest-derive/errors.html"><strong aria-hidden="true">2.3.</strong> Error index</a></li></ol></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </div>
+
+                        <h1 class="menu-title">Proptest</h1>
+
+                        <div class="right-buttons">
+                            <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="compound-strategies"><a class="header" href="#compound-strategies">Compound Strategies</a></h1>
+<p>Testing functions that take single arguments of primitive types is nice and
+all, but is kind of underwhelming. Back when we were writing the whole
+stack by hand, extending the technique to, say, <em>two</em> integers was clear,
+if verbose. But <code>TestRunner</code> only takes a single <code>Strategy</code>; how can we
+test a function that needs inputs from more than one?</p>
+<pre><code class="language-rust ignore">use proptest::test_runner::TestRunner;
+
+fn add(a: i32, b: i32) -&gt; i32 {
+    a + b
+}
+
+#[test]
+fn test_add() {
+    let mut runner = TestRunner::default();
+    runner.run(/* uhhm... */).unwrap();
+}
+<span class="boring">
+</span><span class="boring">fn main() { test_add(); }
+</span></code></pre>
+<p>The key is that strategies are <em>composable</em>. The simplest form of
+composition is “compound strategies”, where we take multiple strategies and
+combine their values into one value that holds each input separately. There
+are several of these. The simplest is a tuple; a tuple of strategies is
+itself a strategy for tuples of the values those strategies produce. For
+example, <code>(0..100i32,100..1000i32)</code> is a strategy for pairs of integers
+where the first value is between 0 and 100 and the second is between 100
+and 1000.</p>
+<p>So for our two-argument function, our strategy is simply a tuple of ranges.</p>
+<pre><pre class="playground"><code class="language-rust">use proptest::test_runner::TestRunner;
+
+fn add(a: i32, b: i32) -&gt; i32 {
+    a + b
+}
+
+#[test]
+fn test_add() {
+    let mut runner = TestRunner::default();
+    // Combine our two inputs into a strategy for one tuple. Our test
+    // function then destructures the generated tuples back into separate
+    // `a` and `b` variables to be passed in to `add()`.
+    runner.run(&amp;(0..1000i32, 0..1000i32), |(a, b)| {
+        let sum = add(a, b);
+        assert!(sum &gt;= a);
+        assert!(sum &gt;= b);
+        Ok(())
+    }).unwrap();
+}
+<span class="boring">
+</span><span class="boring">fn main() { test_add(); }
+</span></code></pre></pre>
+<p>Other compound strategies include fixed-sizes arrays of strategies and
+<code>Vec</code>s of strategies (which produce arrays or <code>Vec</code>s of values parallel to
+the strategy collection), as well as the various strategies provided in the
+<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/collection/index.html">collection</a> module.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../proptest/tutorial/test-runner.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../../proptest/tutorial/macro-proptest.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a href="../../proptest/tutorial/test-runner.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a href="../../proptest/tutorial/macro-proptest.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script src="../../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

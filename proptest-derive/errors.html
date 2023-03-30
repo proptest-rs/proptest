@@ -1,0 +1,799 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Error index - Proptest</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Usage documentation for the proptest and proptest-derive crates">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="../">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body class="light">
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">var path_to_root = "../";</script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'visible';
+            if (document.body.clientWidth < 500) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li class="chapter-item expanded affix "><a href="../intro.html">Introduction</a></li><li class="chapter-item expanded "><a href="../proptest/index.html"><strong aria-hidden="true">1.</strong> proptest</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest/getting-started.html"><strong aria-hidden="true">1.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/index.html"><strong aria-hidden="true">1.2.</strong> Understanding Proptest from the Bottom Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest/tutorial/strategy-basics.html"><strong aria-hidden="true">1.2.1.</strong> Strategy Basics</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/shrinking-basics.html"><strong aria-hidden="true">1.2.2.</strong> Shrinking Basics</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/test-runner.html"><strong aria-hidden="true">1.2.3.</strong> Using the Test Runner</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/compound-strategies.html"><strong aria-hidden="true">1.2.4.</strong> Compound Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/macro-proptest.html"><strong aria-hidden="true">1.2.5.</strong> The proptest! macro</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/transforming-strategies.html"><strong aria-hidden="true">1.2.6.</strong> Transforming Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/macro-prop-compose.html"><strong aria-hidden="true">1.2.7.</strong> The prop_compose! macro</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/enums.html"><strong aria-hidden="true">1.2.8.</strong> Generating Enums</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/filtering.html"><strong aria-hidden="true">1.2.9.</strong> Filtering</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/recursive.html"><strong aria-hidden="true">1.2.10.</strong> Generating Recursive Data</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/higher-order.html"><strong aria-hidden="true">1.2.11.</strong> Higher-Order Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/arbitrary.html"><strong aria-hidden="true">1.2.12.</strong> Defining a Canonical Strategy for a Type</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/config.html"><strong aria-hidden="true">1.2.13.</strong> Configuring Proptest</a></li></ol></li><li class="chapter-item expanded "><a href="../proptest/failure-persistence.html"><strong aria-hidden="true">1.3.</strong> Failure Persistence</a></li><li class="chapter-item expanded "><a href="../proptest/forking.html"><strong aria-hidden="true">1.4.</strong> Test Timeouts and Forking</a></li><li class="chapter-item expanded "><a href="../proptest/no-std.html"><strong aria-hidden="true">1.5.</strong> no_std Support</a></li><li class="chapter-item expanded "><a href="../proptest/wasm.html"><strong aria-hidden="true">1.6.</strong> Web Assembly Support</a></li><li class="chapter-item expanded "><a href="../proptest/limitations.html"><strong aria-hidden="true">1.7.</strong> Limitations of Property Testing</a></li><li class="chapter-item expanded "><a href="../proptest/vs-quickcheck.html"><strong aria-hidden="true">1.8.</strong> Proptest vs Quickcheck</a></li><li class="chapter-item expanded "><a href="../proptest/reference-docs.html"><strong aria-hidden="true">1.9.</strong> Reference documentation</a></li></ol></li><li class="chapter-item expanded "><a href="../proptest-derive/index.html"><strong aria-hidden="true">2.</strong> proptest-derive</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest-derive/getting-started.html"><strong aria-hidden="true">2.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../proptest-derive/modifiers.html"><strong aria-hidden="true">2.2.</strong> Modifier reference</a></li><li class="chapter-item expanded "><a href="../proptest-derive/errors.html" class="active"><strong aria-hidden="true">2.3.</strong> Error index</a></li></ol></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </div>
+
+                        <h1 class="menu-title">Proptest</h1>
+
+                        <div class="right-buttons">
+                            <a href="../print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="error-index"><a class="header" href="#error-index">Error Index</a></h1>
+<h2 id="e0001"><a class="header" href="#e0001">E0001</a></h2>
+<p>This error occurs when <code>#[derive(Arbitrary)]</code> is used on a type which has any
+<a href="https://doc.rust-lang.org/stable/book/second-edition/ch10-03-lifetime-syntax.html#lifetime-annotations-in-struct-definitions">lifetime parameters</a>. For example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo&lt;'a&gt; {
+    bar: &amp;'a str,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Due to the lack of <em><a href="https://github.com/rust-lang/rust/issues/44265">generic associated types (GATs)</a></em> on stable Rust,
+it is currently impossible to define a <code>Strategy</code> which generates a type
+that is lifetime-generic (e.g. <code>&amp;'a T</code>). Thus, proptest cannot implement
+<code>Arbitrary</code> for such types either and therefore you cannot <code>#[derive(Arbitrary)]</code>
+for such types. Once GATs are available, we will try to lift this restriction.
+To follow the progress, consult the <a href="https://github.com/proptest-rs/proptest/issues/9">tracking issue</a> on the matter.</p>
+<h2 id="e0002"><a class="header" href="#e0002">E0002</a></h2>
+<p>This error occurs when <code>#[derive(Arbitrary)]</code> is used on a <code>union</code> type.
+An example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+union IU32 {
+    signed: i32,
+    unsigned: u32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>There are two main reasons for the error.</p>
+<ol>
+<li>
+<p>It is not possible to <code>#[derive(Debug)]</code> on <code>union</code> types and manual
+implementations cannot know which variant is valid so there are not
+many valid implementations which are possible.</p>
+</li>
+<li>
+<p>Second, we cannot mechanically tell which variant out of <code>signed</code> and
+<code>unsigned</code> to generate. While we could allow you to tell the macro,
+with an attribute such as <code>#[proptest(select)]</code> on the variant,
+we have opted for a more conservative approach for the time being.
+If you have a use case for <code>#[derive(Arbitrary)]</code> on <code>union</code> types,
+please reach out on the <a href="https://github.com/proptest-rs/proptest">issue tracker</a>.</p>
+</li>
+</ol>
+<h2 id="e0003"><a class="header" href="#e0003">E0003</a></h2>
+<p>This error occurs when <code>#[derive(Arbitrary)]</code> is used on a struct which
+contains known <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html#empty-types">uninhabited
+types</a>. This
+in turn means the struct itself is uninhabited and so it there is no sensible
+<code>Arbitrary</code> implementation since values of the struct cannot be produced.</p>
+<p>A trivial example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Uninhabited {
+    inhabited: u32,
+    never: !,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Because there exist no values assignable to field <code>never</code>, it is also
+impossible to construct an instance of struct <code>Uninhabited</code>.</p>
+<p>Proptest’s ability to identify uninhabited types is limited. If it does not
+recognise a particular type as uninhabited, the type will instead be assumed to
+be inhabited and you will instead get an error about the type not implementing
+<code>Arbitrary</code> trait.</p>
+<h2 id="e0004"><a class="header" href="#e0004">E0004</a></h2>
+<p>This error occurs when <code>#[derive(Arbitrary)]</code> is used on an enum with no
+variants at all. For example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Uninhabited {}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Such an enum has no values at all, so it does not make sense to provide an
+<code>Arbitrary</code> implementation for it since no values can be generated.</p>
+<h2 id="e0005"><a class="header" href="#e0005">E0005</a></h2>
+<p>This error occurs if <code>#[derive(Arbitrary)]</code> is used on an enum whose variants
+are all uninhabited, using the same logic as described for <a href="#e0003"><code>E0003</code></a>.
+As a result, the enum itself is totally uninhabited.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Uninhabited {
+    Never(!),
+    NeverEver(!, !),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0006"><a class="header" href="#e0006">E0006</a></h2>
+<p>This error occurs if <code>#[derive(Arbitrary)]</code> is used on an enum where all
+inhabited variants are marked with [<code>#[proptest(skip)]</code>]. In other words,
+proptest is forbidden from generating any of the enum’s variants, and thus the
+enum itself cannot be generated.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum MyEnum {
+    // Ordinarily, proptest would be able to generate either of these variants,
+    // but both are forbidden, so in the end proptest isn't allowed to generate
+    // anything at all.
+    #[proptest(skip)]
+    UnitVariant,
+    #[proptest(skip)]
+    SimpleVariant(u32),
+    // This variant is implicitly skipped because proptest knows it is
+    // uninhabited.
+    Uninhabited(!),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0007"><a class="header" href="#e0007">E0007</a></h2>
+<p>This error happens if an attribute [<code>#[proptest(strategy = &quot;expr&quot;)]</code>] or
+[<code>#[proptest(value = &quot;expr&quot;)]</code>] is applied to the same item that has
+<code>#[derive(Arbitrary)]</code>.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(value = &quot;MyStruct(42)&quot;)]
+struct MyStruct(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<p>This is rejected since nothing is being “derived” <em>per se</em>. A written out
+implementation of <code>Arbitrary</code> should be used instead.</p>
+<h2 id="e0008"><a class="header" href="#e0008">E0008</a></h2>
+<p>This error happens if [<code>#[proptest(skip)]</code>] is applied to an unskippable item.
+For example, struct fields cannot be skipped because Rust requires every field
+of a struct to have a value.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct WidgetContainer {
+    desired_widget_count: usize,
+    #[proptest(skip)]
+    widgets: Vec&lt;Widget&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>In general, the appropriate way to request proptest to not generate a field
+value is to use [<code>#[proptest(value = &quot;expr&quot;)]</code>] to provide a fixed value
+yourself. For example, the above code could be properly written as follows:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct WidgetContainer {
+    desired_widget_count: usize,
+    #[proptest(value = &quot;vec![]&quot;)] // Always generate an empty widget vec
+    widgets: Vec&lt;Widget&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0009"><a class="header" href="#e0009">E0009</a></h2>
+<p>This error happens if [<code>#[proptest(weight = &lt;integer&gt;)]</code>] is applied to an item
+where this does not make sense, such as a struct field. For example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Point {
+    x: u32,
+    #[proptest(weight = 42)]
+    y: u32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The <code>weight</code> attribute only is sensible where proptest has a choice between
+multiple items, i.e., enum variants. In contrast, with struct fields proptest
+must provide a value for <em>every</em> field so there is no “this-or-that” choice.</p>
+<h2 id="e0010"><a class="header" href="#e0010">E0010</a></h2>
+<p>This error occurs if [<code>#[proptest(params = &quot;type&quot;)]</code>] and/or
+[<code>#[proptest(no_params)]</code>] are set on both an item and its parent.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(params = &quot;String&quot;)]
+struct Foo {
+    #[proptest(no_params)]
+    bar: String,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>If the parent item has any explicit parameter configuration, it totally defines
+the parameters for the whole <code>Arbitrary</code> implementation and the child items
+must work with that and cannot specify their own parameters.</p>
+<h2 id="e0011"><a class="header" href="#e0011">E0011</a></h2>
+<p>This error occurs if [<code>#[proptest(params = &quot;type&quot;)]</code>] is set on a field but no
+explicit strategy is configured with [<code>#[proptest(strategy = &quot;expr&quot;)]</code>] or
+another such modifier. For example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(param = &quot;u8&quot;)]
+    some_string: String,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>This example illustrates why both must be specified: <code>String</code>’s arbitrary
+implementation takes a <code>proptest::string::StringParam</code>, but here we try to pass
+it a <code>u8</code>.</p>
+<p>While the generated code could work if the type given by <code>param</code> is the same as
+that for the default strategy, there would be no purpose in specifying the
+parameter type by hand; therefore specifying only <code>param</code> is in all cases
+forbidden.</p>
+<h2 id="e0012"><a class="header" href="#e0012">E0012</a></h2>
+<p>This error occurs if [<code>#[proptest(filter = &quot;expr&quot;)]</code>] is set on an item, but the
+item containing it specifies a direct way to generate the whole value, which
+would thus occur without consulting the filter.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Foo {
+    #[proptest(value = &quot;Foo::Bar(42)&quot;)]
+    Bar {
+        #[proptest(filter = &quot;is_even&quot;)]
+        even_number: u32,
+    },
+    // ...
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>In this example, the entire <code>Bar</code> variant specifies how to generate itself
+wholesale. As a result, the <code>filter</code> clause on <code>even_number</code> has no opportunity
+to run.</p>
+<h2 id="e0013"><a class="header" href="#e0013">E0013</a></h2>
+<p>This error would occur if an outer attribute of the form <code>#![proptest(..)]</code>
+were applied to something underneath a <code>#[derive(Arbitrary)]</code>.</p>
+<p>As of Rust 1.30.0, there are no known ways to produce this error since the Rust
+compiler will reject the attribute first.</p>
+<h2 id="e0014"><a class="header" href="#e0014">E0014</a></h2>
+<p>This error occurs if a bare <code>#[proptest]</code> attribute is applied to anything,
+since it has no meaningful content.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest]
+    field: u8,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The only legal use of the attribute is the form <code>#[proptest(..)]</code>.</p>
+<h2 id="e0015"><a class="header" href="#e0015">E0015</a></h2>
+<p>This error occurs if an attribute of the form <code>#[proptest = value]</code> is
+encountered in any context.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest = 1234]
+    field: u8,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0016"><a class="header" href="#e0016">E0016</a></h2>
+<p>This error occurs if a literal (as opposed to <code>key = value</code>) is passed inside
+<code>#[proptest(..)]</code> in any context.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(1234)]
+    field: u8,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0017"><a class="header" href="#e0017">E0017</a></h2>
+<p>This error occurs if any modifier of <code>#[proptest(..)]</code> is set more than once on
+the same item.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(no_params, no_params)]
+struct Foo(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0018"><a class="header" href="#e0018">E0018</a></h2>
+<p>This error occurs if an unknown modifier is passed in <code>#[proptest(..)]</code>.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(frobnicate = &quot;true&quot;)]
+struct Foo(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<p>Please see the <a href="modifiers.html">modifiers reference</a> to see what modifiers are
+available.</p>
+<h2 id="e0019"><a class="header" href="#e0019">E0019</a></h2>
+<p>This error happens if anything extra is passed to [<code>#[proptest(no_params)]</code>].</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(no_params = &quot;true&quot;)]
+struct Foo(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<p><code>no_params</code> takes no configuration. The correct form is simply
+<code>#[proptest(no_params)]</code>.</p>
+<h2 id="e0020"><a class="header" href="#e0020">E0020</a></h2>
+<p>This error happens if anything extra is passed to [<code>#[proptest(skip)]</code>].</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Foo {
+    Small,
+    #[proptest(skip = &quot;yes&quot;)]
+    Huge(ExpensiveType),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p><code>skip</code> takes no configuration. The correct form is simply <code>#[proptest(skip)]</code>.</p>
+<h2 id="e0021"><a class="header" href="#e0021">E0021</a></h2>
+<p>This error happens if [<code>#[proptest(weight = &lt;integer&gt;)]</code>] is passed an invalid
+integer or passed nothing at all.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Foo {
+    #[proptest(weight)]
+    V1,
+    #[proptest(weight = heavy)]
+    V2,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The only acceptable form is <code>#[proptest(weight = &lt;integer&gt;)]</code>, where
+<code>&lt;integer&gt;</code> is either an integer literal which fits in a <code>u32</code> or the same but
+enclosed in quotation marks.</p>
+<h2 id="e0022"><a class="header" href="#e0022">E0022</a></h2>
+<p>This error occurs if more than one of [<code>#[proptest(no_params)]</code>] and
+[<code>#[proptest(params = &quot;type&quot;)]</code>] are applied to the same item.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(no_params, params = &quot;u8&quot;)]
+struct Foo(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<p>One attribute or the other must be picked depending on desired effect.</p>
+<h2 id="e0023"><a class="header" href="#e0023">E0023</a></h2>
+<p>This error happens if an invalid [<code>#[proptest(params = &quot;type&quot;)]</code>] attribute is
+applied to an item.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(params = &quot;Vec&lt;u8&quot;)] // Note missing '&gt;'
+struct Foo(u32);
+<span class="boring">}
+</span></code></pre></pre>
+<p>There are a few different ways to get this error:</p>
+<ul>
+<li>
+<p>Pass nothing at all. E.g., <code>#[proptest(params)]</code>.</p>
+</li>
+<li>
+<p>Pass something other than a string as the value. E.g.,
+<code>#[proptest(params = 42)]</code>.</p>
+</li>
+<li>
+<p>Pass a malformed type in the string, as in the example above. (See also
+<a href="#valid-rust-syntax">caveat on syntax</a>.)</p>
+</li>
+</ul>
+<h2 id="e0024"><a class="header" href="#e0024">E0024</a></h2>
+<p>This error happens if an invalid <code>#[proptest ..]</code> attribute is applied using a
+syntax the <code>proptest-derive</code> crate is not prepared to handle.</p>
+<p>Exactly what conditions can produce this error vary by Rust version.</p>
+<h2 id="e0025"><a class="header" href="#e0025">E0025</a></h2>
+<p>This error happens if more than one of [<code>#[proptest(strategy = &quot;expr&quot;)]</code>],
+[<code>#[proptest(value = &quot;expr&quot;)]</code>], or [<code>#[proptest(regex = &quot;string&quot;)]</code>] are applied
+to the same item.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(value = &quot;42&quot;, strategy = &quot;Just(56)&quot;)]
+    bar: u32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Each of these modifiers completely describe how to generate the value, so they
+cannot both be applied to the same thing. One or the other must be chosen
+depending on the desired effect.</p>
+<h2 id="e0026"><a class="header" href="#e0026">E0026</a></h2>
+<p>This error happens if an invalid form of [<code>#[proptest(strategy = &quot;expr&quot;)]</code>] or
+[<code>#[proptest(value = &quot;expr&quot;)]</code>] is used.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(value = &quot;3↑↑↑↑3&quot;)] // String content is not valid Rust syntax
+    g1: u128,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>There are a few different ways to get this error:</p>
+<ul>
+<li>
+<p>Pass nothing at all. E.g., <code>#[proptest(value)]</code>.</p>
+</li>
+<li>
+<p>Use another illegal form. E.g., <code>#[proptest(value(&quot;a&quot;, &quot;b&quot;))]</code>.</p>
+</li>
+<li>
+<p>Pass a string expression which is not valid Rust syntax, as in the above
+example. (See also <a href="#valid-rust-syntax">caveat on syntax</a>.)</p>
+</li>
+</ul>
+<h2 id="e0027"><a class="header" href="#e0027">E0027</a></h2>
+<p>This error happens if an invalid form of [<code>#[proptest(filter = &quot;expr&quot;)]</code>] is
+used.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(filter = &quot;&gt; 3&quot;)] // String content is not an expression
+    big_number: u128,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>There are a few different ways to get this error:</p>
+<ul>
+<li>
+<p>Pass nothing at all. E.g., <code>#[proptest(filter)]</code>.</p>
+</li>
+<li>
+<p>Use another illegal form. E.g., <code>#[proptest(filter(&quot;a&quot;, &quot;b&quot;))]</code>.</p>
+</li>
+<li>
+<p>Pass a string expression which is not valid Rust syntax, as in the above
+example. (See also <a href="#valid-rust-syntax">caveat on syntax</a>.)</p>
+</li>
+</ul>
+<h2 id="e0028"><a class="header" href="#e0028">E0028</a></h2>
+<p>This error occurs if a modifier which implies a value is to be generated is
+applied to an enum variant which is also marked [<code>#[proptest(skip)]</code>].</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Enum {
+    V1(u32),
+    #[proptest(skip, value = &quot;Enum::V2(42)&quot;)]
+    V2(u32),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Here, the [<code>#[proptest(value = &quot;expr&quot;)]</code>] modifier suggests the user intends
+some value to be generated for the enum variant, but at the same time
+[<code>#[proptest(skip)]</code>] indicates not to generate that variant.</p>
+<h2 id="e0029"><a class="header" href="#e0029">E0029</a></h2>
+<p>This error happens if a modifier which would constrain or control how the value
+of an enum variant is to be generated is applied to a unit variant.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Foo {
+    #[proptest(value = &quot;Foo::V1&quot;)]
+    UnitVariant,
+    // ...
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>Unit variants only have one possible value, so there is only one possible
+strategy. As a result, it is pointless to try to specify an alternate strategy
+or to filter such variants.</p>
+<h2 id="e0030"><a class="header" href="#e0030">E0030</a></h2>
+<p>This error happens if a modifier which would constrain or control how the value
+of a struct is to be generated is applied to a unit struct.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+#[proptest(params = &quot;u8&quot;)]
+struct UnitStruct;
+<span class="boring">}
+</span></code></pre></pre>
+<p>Unit structs only have one possible value, so there is only one possible
+strategy. As a result, it is pointless to try to specify an alternate strategy
+or to filter such structs.</p>
+<h2 id="e0031"><a class="header" href="#e0031">E0031</a></h2>
+<p>This error occurs if [<code>#[proptest(no_bound)]</code>] is applied to something that is
+not a type variable.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo {
+    #[proptest(no_bound)]
+    bar: u32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The <code>no_bound</code> modifier only makes sense on generic type variables, as in</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo&lt;#[proptest(no_bound)] T&gt; {
+    #[proptest(value = &quot;None&quot;)]
+    bar: Option&lt;T&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="e0032"><a class="header" href="#e0032">E0032</a></h2>
+<p>This error happens if [<code>#[proptest(no_bound)]</code>] is passed anything.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+struct Foo&lt;#[proptest(no_bound = &quot;yes&quot;)] T&gt; {
+    _bar: PhantomData&lt;T&gt;,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The only valid form for the modifier is <code>#[proptest(no_bound)]</code>.</p>
+<h2 id="e0033"><a class="header" href="#e0033">E0033</a></h2>
+<p>This error occurs if the sum of the weights on the variants of an enum overflow
+a <code>u32</code>.</p>
+<p>Example:</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Arbitrary)]
+enum Foo {
+    #[proptest(weight = 3_000_000_000)]
+    ThreeFifths,
+    #[proptest(weight = 2_000_000_000)]
+    TwoFifths,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>The only solution is to reduce the magnitude of the weights so that their sum
+fits in a <code>u32</code>. Keep in mind that variants without a <code>weight</code> modifier still
+effectively have <code>#[proptest(weight = 1)]</code>.</p>
+<h2 id="e0034"><a class="header" href="#e0034">E0034</a></h2>
+<p>This error occurs if [<code>#[proptest(regex = &quot;string&quot;)]</code>] is used with invalid
+syntax.</p>
+<p>The most common forms are <code>#[proptest(regex = &quot;string-regex&quot;)]</code> and
+<code>#[proptest(regex(&quot;string-regex&quot;))]</code>.</p>
+<h2 id="e0035"><a class="header" href="#e0035">E0035</a></h2>
+<p>This error occurs if both [<code>#[proptest(regex = &quot;string&quot;)]</code>] and
+[<code>#[proptest(params = &quot;type&quot;)]</code>] are applied to the same item.</p>
+<p>Values generated via regular expression take no parameters so the <code>params</code>
+modifier would be meaningless.</p>
+<h2 id="valid-rust-syntax"><a class="header" href="#valid-rust-syntax">“Valid Rust syntax”</a></h2>
+<p>The definition of “valid Rust syntax” in various string modifiers is determined
+by the <code>syn</code> crate. If valid syntax is rejected, you can work around it in a
+couple ways depending on what the syntax is describing:</p>
+<p>For types, simply define a type alias for the type in question. For example,</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>type RetroBox = ~str; // N.B. &quot;~str&quot; is not valid Rust 1.30 syntax
+
+//...
+#[derive(Debug, Arbitrary)]
+#[proptest(params = &quot;RetroBox&quot;)]
+struct MyStruct { /* ... */ }
+<span class="boring">}
+</span></code></pre></pre>
+<p>For values, you can generally factor the code into a constant or function. For
+example,</p>
+<pre><pre class="playground"><code class="language-rust">
+<span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// N.B. Rust 1.30 does not have an exponentiation operator.
+const PI_SQUARED: f64 = PI ** 2.0;
+
+//...
+#[derive(Debug, Arbitrary)]
+struct MyStruct {
+    #[proptest(value = &quot;PI_SQUARED&quot;)]
+    factor: f64,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>If you need to implement such a work around, consider also <a href="https://github.com/proptest-rs/proptest/issues">filing an
+issue</a>.</p>
+<p>[<code>#[proptest(filter = &quot;expr&quot;)]</code>]: modifiers.md#filter
+[<code>#[proptest(no_bound)]</code>]: modifiers.md#no_bound
+[<code>#[proptest(no_params)]</code>]: modifiers.md#no_params
+[<code>#[proptest(params = &quot;type&quot;)]</code>]: modifiers.md#params
+[<code>#[proptest(regex = &quot;string&quot;)]</code>]: modifiers.md#regex
+[<code>#[proptest(skip)]</code>]: modifiers.md#skip
+[<code>#[proptest(strategy = &quot;expr&quot;)]</code>]: modifiers.md#strategy
+[<code>#[proptest(value = &quot;expr&quot;)]</code>]: modifiers.md#value
+[<code>#[proptest(weight = &lt;integer&gt;)]</code>]: modifiers.md#weight</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../proptest-derive/modifiers.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a href="../proptest-derive/modifiers.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Proptest vs Quickcheck - Proptest</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Usage documentation for the proptest and proptest-derive crates">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="../">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body class="light">
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">var path_to_root = "../";</script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'visible';
+            if (document.body.clientWidth < 500) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li class="chapter-item expanded affix "><a href="../intro.html">Introduction</a></li><li class="chapter-item expanded "><a href="../proptest/index.html"><strong aria-hidden="true">1.</strong> proptest</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest/getting-started.html"><strong aria-hidden="true">1.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/index.html"><strong aria-hidden="true">1.2.</strong> Understanding Proptest from the Bottom Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest/tutorial/strategy-basics.html"><strong aria-hidden="true">1.2.1.</strong> Strategy Basics</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/shrinking-basics.html"><strong aria-hidden="true">1.2.2.</strong> Shrinking Basics</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/test-runner.html"><strong aria-hidden="true">1.2.3.</strong> Using the Test Runner</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/compound-strategies.html"><strong aria-hidden="true">1.2.4.</strong> Compound Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/macro-proptest.html"><strong aria-hidden="true">1.2.5.</strong> The proptest! macro</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/transforming-strategies.html"><strong aria-hidden="true">1.2.6.</strong> Transforming Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/macro-prop-compose.html"><strong aria-hidden="true">1.2.7.</strong> The prop_compose! macro</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/enums.html"><strong aria-hidden="true">1.2.8.</strong> Generating Enums</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/filtering.html"><strong aria-hidden="true">1.2.9.</strong> Filtering</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/recursive.html"><strong aria-hidden="true">1.2.10.</strong> Generating Recursive Data</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/higher-order.html"><strong aria-hidden="true">1.2.11.</strong> Higher-Order Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/arbitrary.html"><strong aria-hidden="true">1.2.12.</strong> Defining a Canonical Strategy for a Type</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/config.html"><strong aria-hidden="true">1.2.13.</strong> Configuring Proptest</a></li></ol></li><li class="chapter-item expanded "><a href="../proptest/failure-persistence.html"><strong aria-hidden="true">1.3.</strong> Failure Persistence</a></li><li class="chapter-item expanded "><a href="../proptest/forking.html"><strong aria-hidden="true">1.4.</strong> Test Timeouts and Forking</a></li><li class="chapter-item expanded "><a href="../proptest/no-std.html"><strong aria-hidden="true">1.5.</strong> no_std Support</a></li><li class="chapter-item expanded "><a href="../proptest/wasm.html"><strong aria-hidden="true">1.6.</strong> Web Assembly Support</a></li><li class="chapter-item expanded "><a href="../proptest/limitations.html"><strong aria-hidden="true">1.7.</strong> Limitations of Property Testing</a></li><li class="chapter-item expanded "><a href="../proptest/vs-quickcheck.html" class="active"><strong aria-hidden="true">1.8.</strong> Proptest vs Quickcheck</a></li><li class="chapter-item expanded "><a href="../proptest/reference-docs.html"><strong aria-hidden="true">1.9.</strong> Reference documentation</a></li></ol></li><li class="chapter-item expanded "><a href="../proptest-derive/index.html"><strong aria-hidden="true">2.</strong> proptest-derive</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest-derive/getting-started.html"><strong aria-hidden="true">2.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../proptest-derive/modifiers.html"><strong aria-hidden="true">2.2.</strong> Modifier reference</a></li><li class="chapter-item expanded "><a href="../proptest-derive/errors.html"><strong aria-hidden="true">2.3.</strong> Error index</a></li></ol></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </div>
+
+                        <h1 class="menu-title">Proptest</h1>
+
+                        <div class="right-buttons">
+                            <a href="../print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="differences-between-quickcheck-and-proptest"><a class="header" href="#differences-between-quickcheck-and-proptest">Differences between QuickCheck and Proptest</a></h1>
+<p>QuickCheck and Proptest are similar in many ways: both generate random
+inputs for a function to check certain properties, and automatically shrink
+inputs to minimal failing cases.</p>
+<p>The one big difference is that QuickCheck generates and shrinks values
+based on type alone, whereas Proptest uses explicit <code>Strategy</code> objects. The
+QuickCheck approach has a lot of disadvantages in comparison:</p>
+<ul>
+<li>
+<p>QuickCheck can only define one generator and shrinker per type. If you need a
+custom generation strategy, you need to wrap it in a newtype and implement
+traits on that by hand. In Proptest, you can define arbitrarily many
+different strategies for the same type, and there are plenty built-in.</p>
+</li>
+<li>
+<p>For the same reason, QuickCheck has a single “size” configuration that tries
+to define the range of values generated. If you need an integer between 0 and
+100 and another between 0 and 1000, you probably need to do another newtype.
+In Proptest, you can directly just express that you want a <code>0..100</code> integer
+and a <code>0..1000</code> integer.</p>
+</li>
+<li>
+<p>Types in QuickCheck are not easily composable. Defining <code>Arbitrary</code> and
+<code>Shrink</code> for a new struct which is simply produced by the composition of its
+fields requires implementing both by hand, including a bidirectional mapping
+between the struct and a tuple of its fields. In Proptest, you can make a
+tuple of the desired components and then <code>prop_map</code> it into the desired form.
+Shrinking happens automatically in terms of the input types.</p>
+</li>
+<li>
+<p>Because constraints on values cannot be expressed in QuickCheck, generation
+and shrinking may lead to a lot of input rejections. Strategies in Proptest
+are aware of simple constraints and do not generate or shrink to values that
+violate them.</p>
+</li>
+</ul>
+<p>The author of Hypothesis also has an <a href="http://hypothesis.works/articles/integrated-shrinking/">article on this
+topic</a>.</p>
+<p>Of course, there’s also some relative downsides that fall out of what
+Proptest does differently:</p>
+<ul>
+<li>Generating complex values in Proptest can be up to an order of magnitude
+slower than in QuickCheck. This is because QuickCheck performs stateless
+shrinking based on the output value, whereas Proptest must hold on to all the
+intermediate states and relationships in order for its richer shrinking model
+to work.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../proptest/limitations.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../proptest/reference-docs.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a href="../proptest/limitations.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a href="../proptest/reference-docs.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
