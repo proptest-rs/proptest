@@ -96,3 +96,6 @@ pub mod sample;
 pub mod string;
 
 pub mod prelude;
+
+#[cfg(feature = "attr-macro")]
+pub use proptest_macro::property_test; 

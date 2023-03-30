@@ -14,7 +14,6 @@ use std::ops::{Add, AddAssign};
 
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, TokenStreamExt};
-use syn;
 use syn::spanned::Spanned;
 
 use crate::error::{Ctx, DeriveResult};

@@ -23,6 +23,8 @@ default = ["std", "fork", "timeout", "bit-set"]
 # Everything in `default` that doesn't break code coverage builds
 default-code-coverage = ["std", "fork", "timeout", "bit-set"]
 
+attr-macro = ["proptest-macro"]
+
 # Enables unstable features of Rust.
 unstable = []
 
@@ -57,6 +59,7 @@ bit-set = [ "dep:bit-set", "dep:bit-vec" ]
 [dependencies]
 bitflags = "2"
 unarray = "0.1.4"
+proptest-macro = { path = "../proptest-macro", optional = true }
 
 # [dependencies.hashmap_core]
 # version = "0.1.5"
