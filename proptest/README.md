@@ -32,6 +32,12 @@ sees passive maintenance.
 See the [changelog](https://github.com/proptest-rs/proptest/blob/master/proptest/CHANGELOG.md)
 for a full list of substantial historical changes, breaking and otherwise.
 
+### MSRV
+
+The current MSRV of this crate is 1.60.
+The MSRV is guaranteed to not exceeed `<current stable release> - 7`, though in practice it may be lower than this - your mileage may vary.
+If we change this policy in a backwards incompatible way (e.g. changing it to `<current stable release> - 1`), this constitutes a breaking change, and would be a major version bump (e.g. 1.1 -> 2.0).
+
 ### What is property testing?
 
 _Property testing_ is a system of testing code by checking that certain
