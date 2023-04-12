@@ -5,7 +5,7 @@ the code above is a bit verbose, as well as hard to read for similar
 reasons to writing test functions by hand.
 
 To simplify this task, proptest includes the
-[`prop_compose!`](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.prop_compose.html)
+[`prop_compose!`](https://docs.rs/proptest/latest/proptest/macro.prop_compose.html)
 macro. Before going into details, here's our code from above rewritten to use
 it.
 

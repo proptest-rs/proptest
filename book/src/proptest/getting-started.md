@@ -271,5 +271,5 @@ the test passes.
 
 The `proptest!` macro has some additional syntax, including for setting
 configuration for things like the number of test cases to generate. See its
-[documentation](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.proptest.html)
+[documentation](https://docs.rs/proptest/latest/proptest/macro.proptest.html)
 for more details.

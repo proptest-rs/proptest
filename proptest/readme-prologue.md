@@ -7,4 +7,4 @@
 [![](https://docs.rs/proptest/badge.svg)][api-docs]
 
 [book]: https://proptest-rs.github.io/proptest/intro.html
-[api-docs]: https://altsysrq.github.io/rustdoc/proptest/latest/proptest/
+[api-docs]: https://docs.rs/proptest/latest/proptest/

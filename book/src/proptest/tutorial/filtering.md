@@ -56,7 +56,7 @@ proptest! {
 
 Global filtering results when a test itself returns
 `Err(TestCaseError::Reject)`. The
-[`prop_assume!`](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.prop_assume.html)
+[`prop_assume!`](https://docs.rs/proptest/latest/proptest/macro.prop_assume.html)
 macro provides an easy way to do this.
 
 ```rust

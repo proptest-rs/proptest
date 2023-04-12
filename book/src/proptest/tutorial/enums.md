@@ -46,7 +46,7 @@ the list.
 
 For particularly complex enum cases, it can be helpful to extract the strategy
 for that case to a separate strategy. Here,
-[`prop_compose!`](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.prop_compose.html)
+[`prop_compose!`](https://docs.rs/proptest/latest/proptest/macro.prop_compose.html)
 can be of use.
 
 ```rust,no_run

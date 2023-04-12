@@ -75,7 +75,7 @@ struct GoodExample {
 }
 ```
 
-[`prop_filter`]: https://altsysrq.github.io/rustdoc/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter
+[`prop_filter`]: https://docs.rs/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter
 
 ## `no_bound`
 
@@ -210,7 +210,7 @@ proptest! {
 }
 ```
 
-[`Arbitrary` trait]: https://altsysrq.github.io/rustdoc/proptest/latest/proptest/arbitrary/trait.Arbitrary.html
+[`Arbitrary` trait]: https://docs.rs/proptest/latest/proptest/arbitrary/trait.Arbitrary.html
 
 ## `regex`
 
@@ -240,8 +240,8 @@ struct FileContent {
 }
 ```
 
-[`string_regex`]: https://altsysrq.github.io/rustdoc/proptest/latest/proptest/string/fn.string_regex.html
-[`bytes_regex`]: https://altsysrq.github.io/rustdoc/proptest/latest/proptest/string/fn.bytes_regex.html
+[`string_regex`]: https://docs.rs/proptest/latest/proptest/string/fn.string_regex.html
+[`bytes_regex`]: https://docs.rs/proptest/latest/proptest/string/fn.bytes_regex.html
 
 ## `skip`
 

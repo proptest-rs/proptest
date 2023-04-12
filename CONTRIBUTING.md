@@ -4,7 +4,7 @@ Bug reports and questions are always welcome, though before asking whether a
 feature exists, please glance through the [Proptest
 book](https://proptest-rs.github.io/proptest/intro.html) and try the search
 feature built in to the [API
-docs](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/) to see if
+docs](https://docs.rs/proptest/latest/proptest/) to see if
 they answer your question already.
 
 Please include your rust version and proptest version in any reports. Also
