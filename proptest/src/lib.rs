@@ -12,7 +12,7 @@
 //! This is the reference documentation for the proptest API.
 //!
 //! For documentation on how to get started with proptest and general usage
-//! advice, please refer to the [Proptest Book](https://altsysrq.github.io/proptest-book/intro.html).
+//! advice, please refer to the [Proptest Book](https://proptest-rs.github.io/proptest/intro.html).
 
 #![forbid(future_incompatible)]
 #![deny(missing_docs, bare_trait_objects)]

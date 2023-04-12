@@ -3,15 +3,15 @@
 [![Build Status](https://github.com/proptest-rs/proptest/workflows/Rust/badge.svg?branch=master)](https://github.com/proptest-rs/proptest/actions)
 [![Build status](https://ci.appveyor.com/api/projects/status/ofe98xfthbx1m608/branch/master?svg=true)](https://ci.appveyor.com/project/AltSysrq/proptest/branch/master)
 [![](https://img.shields.io/crates/v/proptest.svg)](https://crates.io/crates/proptest)
-[![](https://img.shields.io/website/https/altsysrq.github.io/proptest-book.svg)][book]
+[![](https://img.shields.io/website/https/proptest-rs.github.io/proptest.svg)][book]
 [![](https://docs.rs/proptest/badge.svg)][api-docs]
 
-[book]: https://altsysrq.github.io/proptest-book/intro.html
+[book]: https://proptest-rs.github.io/proptest/intro.html
 [api-docs]: https://altsysrq.github.io/rustdoc/proptest/latest/proptest/
 
 ## Book
 
-A detailed introduction to proptest can be found in the [book](https://altsysrq.github.io/proptest-book/)
+A detailed introduction to proptest can be found in the [book](https://proptest-rs.github.io/proptest/)
 
 ## Introduction
 
@@ -135,7 +135,7 @@ thread 'main' panicked at 'Test failed: byte index 4 is not a char boundary; it 
 If we look at the top directory after the test fails, we'll see a new
 `proptest-regressions` directory, which contains some files corresponding to
 source files containing failing test cases. These are [_failure
-persistence_](https://altsysrq.github.io/proptest-book/proptest/failure-persistence.html)
+persistence_](https://proptest-rs.github.io/proptest/proptest/failure-persistence.html)
 files. The first thing we should do is add these to source control.
 
 ```text

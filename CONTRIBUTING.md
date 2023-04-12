@@ -2,7 +2,7 @@
 
 Bug reports and questions are always welcome, though before asking whether a
 feature exists, please glance through the [Proptest
-book](https://altsysrq.github.io/proptest-book/intro.html) and try the search
+book](https://proptest-rs.github.io/proptest/intro.html) and try the search
 feature built in to the [API
 docs](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/) to see if
 they answer your question already.
