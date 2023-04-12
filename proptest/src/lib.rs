@@ -31,6 +31,7 @@
     all(feature = "alloc", not(feature = "std")),
     feature(core_intrinsics)
 )]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 // std_facade is used in a few macros, so it needs to be public.
 #[macro_use]
@@ -92,6 +93,7 @@ pub mod option;
 pub mod result;
 pub mod sample;
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub mod string;
 
 pub mod prelude;

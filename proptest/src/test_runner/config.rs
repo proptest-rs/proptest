@@ -271,6 +271,7 @@ pub struct Config {
     /// only considered when the `std` feature is enabled, which it is by
     /// default.)
     #[cfg(feature = "fork")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "fork")))]
     pub fork: bool,
 
     /// If non-zero, tests are run in a subprocess and each generated case
@@ -292,6 +293,7 @@ pub struct Config {
     /// only considered when the `std` feature is enabled, which it is by
     /// default.)
     #[cfg(feature = "timeout")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "timeout")))]
     pub timeout: u32,
 
     /// If non-zero, give up the shrinking process after this many milliseconds
@@ -307,6 +309,7 @@ pub struct Config {
     /// only considered when the `std` feature is enabled, which it is by
     /// default.)
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub max_shrink_time: u32,
 
     /// Give up on shrinking if more than this number of iterations of the test
@@ -360,6 +363,7 @@ pub struct Config {
     /// `PROPTEST_VERBOSE` environment variable. (The variable is only considered
     /// when the `std` feature is enabled, which it is by default.)
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub verbose: u32,
 
     /// The RNG algorithm to use when not using a user-provided RNG.

@@ -117,3 +117,7 @@ optional = true
 
 [dev-dependencies]
 regex = "1.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

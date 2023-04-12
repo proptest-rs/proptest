@@ -95,6 +95,7 @@ int_bitset!(i64);
 int_bitset!(isize);
 
 #[cfg(feature = "bit-set")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bit-set")))]
 impl BitSetLike for BitSet {
     fn new_bitset(max: usize) -> Self {
         BitSet::with_capacity(max)
@@ -430,6 +431,7 @@ macro_rules! minimal_api {
 minimal_api!(usize, usize);
 minimal_api!(isize, isize);
 #[cfg(feature = "bit-set")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bit-set")))]
 minimal_api!(bitset, BitSet);
 minimal_api!(bool_vec, Vec<bool>);
 
