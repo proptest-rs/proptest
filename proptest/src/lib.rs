@@ -66,11 +66,6 @@ extern crate bit_set;
 #[macro_use]
 extern crate lazy_static;
 
-// Only required for the string module.
-#[cfg(feature = "std")]
-#[macro_use]
-extern crate quick_error;
-
 #[cfg(feature = "fork")]
 #[macro_use]
 extern crate rusty_fork;
