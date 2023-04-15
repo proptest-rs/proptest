@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use syn::{self, BinOp as B, Expr as E, IntSuffix as IS, Lit as L, UnOp as U};
+use syn::{self, BinOp as B, Expr as E, Lit as L, UnOp as U};
 
 /// Adapted from https://docs.rs/syn/0.14.2/src/syn/lit.rs.html#943 to accept
 /// u128.
@@ -69,62 +69,53 @@ fn parse_lit_int(mut s: &str) -> Option<u128> {
 }
 
 /// Parse a suffix of an integer literal.
-fn parse_suffix(lit: &str) -> IS {
+fn parse_suffix(lit: &str) -> Option<&'static str> {
     [
-        ("i8", IS::I8),
-        ("i16", IS::I16),
-        ("i32", IS::I32),
-        ("i64", IS::I64),
-        ("i128", IS::I128),
-        ("isize", IS::Isize),
-        ("u8", IS::U8),
-        ("u16", IS::U16),
-        ("u32", IS::U32),
-        ("u64", IS::U64),
-        ("u128", IS::U128),
-        ("usize", IS::Usize),
+        "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64",
+        "u128", "usize",
     ]
     .iter()
-    .find(|&(s, _)| lit.ends_with(s))
-    .map(|(_, suffix)| suffix.clone())
-    .unwrap_or(IS::None)
+    .find(|s| lit.ends_with(*s))
+    .copied()
 }
 
 /// Interprets an integer literal in a string.
 fn eval_str_int(lit: &str) -> Option<u128> {
-    use std::{i128, i16, i32, i64, i8, u16, u32, u64, u8};
-    use syn::IntSuffix::*;
-
     let val = parse_lit_int(lit)?;
-    Some(match parse_suffix(lit) {
-        None => val,
-        I8 if val <= i8::MAX as u128 => val,
-        I16 if val <= i16::MAX as u128 => val,
-        I32 if val <= i32::MAX as u128 => val,
-        I64 if val <= i64::MAX as u128 => val,
-        U8 if val <= u128::from(u8::MAX) => val,
-        U16 if val <= u128::from(u16::MAX) => val,
-        U32 if val <= u128::from(u32::MAX) => val,
-        U64 if val <= u128::from(u64::MAX) => val,
-        Usize if val <= u128::max_value() => val,
-        Isize if val <= i128::max_value() as u128 => val,
-        U128 => val,
-        I128 if val <= i128::MAX as u128 => val,
+    let checked_val = if let Some(suffix) = parse_suffix(lit) {
+        match suffix {
+            "i8" if val <= i8::MAX as u128 => val,
+            "i16" if val <= i16::MAX as u128 => val,
+            "i32" if val <= i32::MAX as u128 => val,
+            "i64" if val <= i64::MAX as u128 => val,
+            "u8" if val <= u128::from(u8::MAX) => val,
+            "u16" if val <= u128::from(u16::MAX) => val,
+            "u32" if val <= u128::from(u32::MAX) => val,
+            "u64" if val <= u128::from(u64::MAX) => val,
+            "usize" if val <= usize::MAX as u128 => val,
+            "isize" if val <= isize::MAX as u128 => val,
+            "u128" => val,
+            "i128" if val <= i128::MAX as u128 => val,
 
-        // Does not fit in suffix:
-        _ => return Option::None,
-    })
+            // Does not fit in suffix:
+            _ => return None,
+        }
+    } else {
+        val
+    };
+
+    Some(checked_val)
 }
 
 /// Interprets an integer literal.
 fn eval_lit_int(lit: &syn::LitInt) -> Option<u128> {
-    use quote::ToTokens;
-    eval_str_int(&lit.into_token_stream().to_string())
+    let lit = lit.to_string();
+    eval_str_int(&lit)
 }
 
 /// Interprets a verbatim literal.
-fn eval_lit_verbatim(lit: &syn::LitVerbatim) -> Option<u128> {
-    let lit = lit.token.to_string();
+fn eval_lit_verbatim(lit: &proc_macro2::Literal) -> Option<u128> {
+    let lit = lit.to_string();
     eval_str_int(&lit)
 }
 
