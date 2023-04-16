@@ -50,7 +50,7 @@ mod tests {
             "fn foo(self: Rc<Self>) {}",
             "fn foo(self: Arc<Self>) {}",
         ];
-        
+
         for invalid in invalids {
             let f: ItemFn = parse_str(invalid).unwrap();
             assert!(validate(&f).is_err());

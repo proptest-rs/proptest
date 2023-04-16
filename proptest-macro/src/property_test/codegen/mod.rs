@@ -1,10 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{spanned::Spanned, FnArg, Ident, ItemFn, PatType};
+use syn::{parse_str, spanned::Spanned, Attribute, Ident, ItemFn, PatType};
 
-use self::test_body::test_body;
-
-use super::utils::strip_args;
+use super::{utils::strip_args, options::Options};
 
 mod test_body;
 
@@ -18,7 +16,7 @@ mod test_body;
 ///
 ///  Currently, any attributes on fields are ignored - in the future, we probably want to read
 ///  these for things like customizing strategies
-pub fn generate(item_fn: ItemFn) -> TokenStream {
+pub(super) fn generate(item_fn: ItemFn, options: Options) -> TokenStream {
     let (mut argless_fn, args) = strip_args(item_fn);
 
     let struct_tokens = generate_struct(&argless_fn.sig.ident, &args);
@@ -29,7 +27,19 @@ pub fn generate(item_fn: ItemFn) -> TokenStream {
         #arb_tokens
     };
 
-    *argless_fn.block = test_body(*argless_fn.block, &args, struct_and_tokens);
+
+    let new_body = test_body::body(
+        *argless_fn.block,
+        &args,
+        struct_and_tokens,
+        &argless_fn.sig.ident,
+        &argless_fn.sig.output,
+        &options,
+    );
+
+    *argless_fn.block = new_body;
+
+    argless_fn.attrs.push(test_attr());
 
     argless_fn.to_token_stream()
 }
@@ -46,6 +56,7 @@ fn generate_struct(fn_name: &Ident, args: &[PatType]) -> TokenStream {
     });
 
     quote! {
+        #[derive(Debug)]
         struct #struct_name {
             #(#fields)*
         }
@@ -77,8 +88,7 @@ fn generate_arbitrary_impl(fn_name: &Ident, args: &[PatType]) -> TokenStream {
 
             fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
                 use ::proptest::strategy::Strategy;
-
-                ::proptest::strategy::any::<(#arg_types)>().prop_map(|(#arg_names)| Self { #arg_names })
+                ::proptest::prelude::any::<(#arg_types)>().prop_map(|(#arg_names)| Self { #arg_names })
             }
         }
     }
@@ -101,6 +111,13 @@ fn struct_name(fn_name: &Ident) -> Ident {
 /// test body
 fn nth_field_name(span: impl Spanned, index: usize) -> Ident {
     Ident::new(&format!("field{index}"), span.span())
+}
+
+/// I couldn't find a better way to get just the `#[test]` attribute since [`syn::Attribute`]
+/// doesn't implement `Parse`
+fn test_attr() -> Attribute {
+    let mut f: ItemFn = parse_str("#[test] fn foo() {}").unwrap();
+    f.attrs.pop().unwrap()
 }
 
 #[cfg(test)]
@@ -143,6 +160,16 @@ mod tests {
     }
 
     #[test]
+    fn derives_debug() {
+        let f: ItemFn = parse_str("fn foo(x: i32) {}").unwrap();
+        let (f, args) = strip_args(f);
+        let string = generate_struct(&f.sig.ident, &args).to_string();
+
+        assert!(string.contains("derive"));
+        assert!(string.contains("Debug"));
+    }
+
+    #[test]
     fn generates_correct_struct() {
         check_struct("fn foo() {}", "FooArgs", []);
         check_struct("fn foo(x: i32) {}", "FooArgs", [("field0", "i32")]);
@@ -167,7 +194,7 @@ mod tests {
                 fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
                     use ::proptest::strategy::Strategy;
 
-                    ::proptest::strategy::any::<(i32, u8,)>().prop_map(|(field0, field1,)| Self { field0, field1, })
+                    ::proptest::prelude::any::<(i32, u8,)>().prop_map(|(field0, field1,)| Self { field0, field1, })
                 }
 
             }

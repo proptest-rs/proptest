@@ -20,10 +20,12 @@
         {
           devShells.default = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
-              rust-bin.stable.latest.default
+              rust-bin.nightly.latest.default
 
               cargo-insta
             ];
+
+            TRYBUILD_CARGO_CMD = "test";
           };
         }
       );
