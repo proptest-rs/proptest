@@ -1,5 +1,5 @@
 {
-  description = "Flake providing proptest development environment";
+  description = "proptest development environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
@@ -7,7 +7,7 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, ... } @ inputs:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
     flake-utils.lib.eachDefaultSystem
       (
         system:
