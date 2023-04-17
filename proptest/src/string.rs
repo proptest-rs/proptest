@@ -54,33 +54,40 @@ impl Default for StringParam {
     }
 }
 
-// quick_error! uses bare trait objects, so we enclose its invocation here in a
-// module so the lint can be disabled just for it.
-#[allow(bare_trait_objects)]
-mod error_container {
-    use super::*;
+/// Errors which may occur when preparing a regular expression for use with
+/// string generation.
+#[derive(Debug)]
+pub enum Error {
+    /// The string passed as the regex was not syntactically valid.
+    RegexSyntax(ParseError),
+    /// The regex was syntactically valid, but contains elements not
+    /// supported by proptest.
+    UnsupportedRegex(&'static str),
+}
 
-    quick_error! {
-        /// Errors which may occur when preparing a regular expression for use with
-        /// string generation.
-        #[derive(Debug)]
-        pub enum Error {
-            /// The string passed as the regex was not syntactically valid.
-            RegexSyntax(err: ParseError) {
-                from()
-                    source(err)
-                    display("{}", err)
-            }
-            /// The regex was syntactically valid, but contains elements not
-            /// supported by proptest.
-            UnsupportedRegex(message: &'static str) {
-                display("{}", message)
-            }
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::RegexSyntax(err) => write!(f, "{}", err),
+            Error::UnsupportedRegex(message) => write!(f, "{}", message),
         }
     }
 }
 
-pub use self::error_container::Error;
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::RegexSyntax(err) => Some(err),
+            Error::UnsupportedRegex(_) => None,
+        }
+    }
+}
+
+impl From<ParseError> for Error {
+    fn from(err: ParseError) -> Error {
+        Error::RegexSyntax(err)
+    }
+}
 
 opaque_strategy_wrapper! {
     /// Strategy which generates values (i.e., `String` or `Vec<u8>`) matching
@@ -113,7 +120,7 @@ type ParseResult<T> = Result<RegexGeneratorStrategy<T>, Error>;
 /// This trait exists for the benefit of `#[proptest(regex = "...")]`.
 /// It is semver exempt, so use at your own risk.
 /// If you found a use for the trait beyond `Vec<u8>` and `String`,
-/// please file an issue at https://github.com/AltSysrq/proptest.
+/// please file an issue at https://github.com/proptest-rs/proptest.
 pub trait StrategyFromRegex: Sized + fmt::Debug {
     type Strategy: Strategy<Value = Self>;
 

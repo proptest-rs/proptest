@@ -5,8 +5,8 @@ authors       = ["Mazdak Farrokhzad <twingoow@gmail.com>"]
 license       = "MIT/Apache-2.0"
 readme        = "README.md"
 
-repository    = "https://github.com/AltSysrq/proptest"
-documentation = "https://altsysrq.github.io/proptest-book/proptest-derive/index.html"
+repository    = "https://github.com/proptest-rs/proptest"
+documentation = "https://proptest-rs.github.io/proptest/proptest-derive/index.html"
 
 keywords      = ["derive", "arbitrary", "proptest", "testing", "quickcheck"]
 categories    = ["development-tools::testing"]
@@ -15,7 +15,7 @@ description = """
 Custom-derive for the Arbitrary trait of proptest.
 """
 
-homepage = "https://altsysrq.github.io/proptest-book/proptest-derive/index.html"
+homepage = "https://proptest-rs.github.io/proptest/proptest-derive/index.html"
 edition = "2018"
 
 [lib]
@@ -27,15 +27,15 @@ proptest = { version = "1.0.0", path = "../proptest" }
 # features. However, due to
 # https://github.com/laumann/compiletest-rs/issues/166, the default features of
 # compiletest-rs fail to compile, but the stable fallback works fine.
-compiletest_rs = { version = "0.3.19", features = ["tmp", "stable"] }
+compiletest_rs = { version = "0.9", features = ["tmp", "stable"] }
 # criterion is used for benchmarks.
 criterion = "0.2"
 
 [dependencies]
-proc-macro2 = "0.4"
+proc-macro2 = "1.0"
 
-syn = { version = "0.15.17", features = ["visit", "extra-traits", "full"] }
-quote = "0.6"
+syn = { version = "1.0.0", features = ["visit", "extra-traits", "full"] }
+quote = "1.0"
 
 [[bench]]
 name = "large_enum"

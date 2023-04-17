@@ -54,7 +54,7 @@ mod test {
 In order to use `proptest-derive` on a type _not_ in a test module without also
 depending on proptest for your main build, you must currently manually gate off
 the related annotations. This is something we plan to [improve in the
-future](https://github.com/AltSysrq/proptest/pull/106).
+future](https://github.com/proptest-rs/proptest/pull/106).
 
 
 ```rust

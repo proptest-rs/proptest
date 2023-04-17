@@ -328,6 +328,7 @@ impl<T: Eq + Hash> statics::FilterFn<HashSet<T>> for MinSize {
 
 opaque_strategy_wrapper! {
     {#[cfg(feature = "std")]}
+    {#[cfg_attr(docsrs, doc(cfg(feature = "std")))]}
     /// Strategy to create `HashSet`s with a length in a certain range.
     ///
     /// Created by the `hash_set()` function in the same module.
@@ -349,6 +350,7 @@ opaque_strategy_wrapper! {
 /// has at least the minimum number of elements, in case `element` should
 /// produce duplicate values.
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub fn hash_set<T: Strategy>(
     element: T,
     size: impl Into<SizeRange>,
@@ -431,6 +433,7 @@ impl<K: Hash + Eq, V> statics::FilterFn<HashMap<K, V>> for MinSize {
 
 opaque_strategy_wrapper! {
     {#[cfg(feature = "std")]}
+    {#[cfg_attr(docsrs, doc(cfg(feature = "std")))]}
     /// Strategy to create `HashMap`s with a length in a certain range.
     ///
     /// Created by the `hash_map()` function in the same module.
@@ -457,6 +460,7 @@ opaque_strategy_wrapper! {
 /// has at least the minimum number of elements, in case `key` should produce
 /// duplicate values.
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub fn hash_map<K: Strategy, V: Strategy>(
     key: K,
     value: V,

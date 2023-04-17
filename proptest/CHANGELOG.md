@@ -1,3 +1,43 @@
+## Unreleased
+
+### Bug Fixes
+
+### New Features
+
+### Other Notes
+- Minimal failing input is now printed using debug pretty-printing
+
+## 1.1.0
+
+### Bug Fixes
+
+- Sampling from large ranges of floats such as `(0f32)..` no longer panics
+  with newer versions of the `rand` crate
+- [dependencies.x86] was bumped to latest current version. x86 crate does
+  was on a very old version 0.33.0 which used a removed macro from rust.
+- The calculation for the arbitrary impl of Layout was using a max_size that
+  was too large and overflowing Layout. This has been fixed.
+- Test for arbitrary AllocError was referring to AllocErr which
+  does not exist, this was fixed.
+- NoneError has been removed from rust so it was subsequently
+  removed from proptest. It was blocking compilation. evidence:
+  https://github.com/rust-lang/rust/issues/85614
+- `try_reserve` is stable so removed from unstable features
+- `try_trait` has been changed to `try_trait_v2` so that was adjusted
+  in `Cargo.toml`.
+- `prop_assert_ne!` now uses fully qualified `prop_assert_eq!`
+- Persisted tests are not counted against the number of cases to run
+
+### New Features
+
+- Add `Arbitrary` impls for arrays of all sizes using const generics
+- Add `Arbitrary` impls for `core::num::NonZero*`
+- Adds ability to disable failure persistence via env var `PROPTEST_DISABLE_FAILURE_PERSISTENCE`
+
+### Other Notes
+
+- `proptest` no longer depends on the `quick-error` crate.
+
 ## 1.0.0
 
 ### Breaking Changes
@@ -67,7 +107,7 @@
 
 ### Bug Fixes
 
-- Fixed [#186](https://github.com/AltSysrq/proptest/issues/186),
+- Fixed [#186](https://github.com/proptest-rs/proptest/issues/186),
   a Rust future-compatibility issue.
 
 ## 0.9.5
@@ -182,7 +222,7 @@ makes it possible to use an external source of entropy with Proptest.
 - There is now a work-around for a [compiler
   bug](https://github.com/rust-lang/rust/issues/52478) which prevents building
   with `-C link-dead-code`. Please see this issue for details:
-  https://github.com/AltSysrq/proptest/issues/124
+  https://github.com/proptest-rs/proptest/issues/124
 
 ### Deprecations
 
@@ -497,7 +537,7 @@ features.
 
 - Fix that failure persistence file would be written to the incorrect location
   in projects using workspaces. See
-  [#24](https://github.com/AltSysrq/proptest/issues/24) for more details and
+  [#24](https://github.com/proptest-rs/proptest/issues/24) for more details and
   instructions on how to migrate any persistence files that had been written to
   the wrong location.
 
@@ -629,7 +669,7 @@ features.
   These are "higher order" `Arbitrary` traits that correspond to the `Arbitrary1`
   and `Arbitrary2` type classes in Haskell's QuickCheck. They are mainly provided
   to support a common set of container-like types in custom deriving self-recursive
-  types in  `proptest_derive`. More on this later releases.
+  types in `proptest_derive`. More on this later releases.
 
 - The strategies in `proptest::option` and `proptest::result` now accept a type
   `Probability` which is a wrapper around `f64`. Conversions from types such as
@@ -717,7 +757,7 @@ features.
 
 - Cases where `file!()` returns a relative path, such as on Windows, are now
   handled more reasonably. See
-  [#24](https://github.com/AltSysrq/proptest/issues/24) for more details and
+  [#24](https://github.com/proptest-rs/proptest/issues/24) for more details and
   instructions on how to migrate any persistence files that had been written to
   the wrong location.
 

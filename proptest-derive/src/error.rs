@@ -11,6 +11,7 @@
 use std::fmt::Display;
 
 use proc_macro2::TokenStream;
+use quote::ToTokens;
 
 use crate::attr::ParsedAttributes;
 use syn;
@@ -165,7 +166,7 @@ impl Context {
         self.errors.push(msg.to_string());
     }
 
-    /// Add an error to the context and procuce and produce an erroring
+    /// Add an error to the context and produce an erroring
     /// computation that will halt the macro.
     pub fn fatal<T: Display, A>(&mut self, msg: T) -> DeriveResult<A> {
         self.error(msg);
@@ -428,7 +429,7 @@ error!(
     E0017,
     "The attribute modifier `{}` inside `#[proptest(..)]` has already been \
      set. To fix the error, please remove at least one such modifier.",
-    meta.name()
+    meta.path().into_token_stream()
 );
 
 // Happens when `<modifier>` in `#[proptest(<modifier>)]` is unknown to
@@ -442,6 +443,7 @@ error!(
     expected
 );
 
+// TODO: `unkown_modifier` is misspelled
 // Happens when `<modifier>` in `#[proptest(<modifier>)]` is unknown to us.
 error!(
     unkown_modifier(modifier: &str),
@@ -476,7 +478,7 @@ error!(
     format `#[proptest({0} = <integer>)]` where `<integer>` is an integer that \
     fits within a `u32`. An example: `#[proptest({0} = 2)]` to set a relative \
     weight of 2.",
-    meta.name()
+    meta.path().into_token_stream()
 );
 
 // Happens when both `#[proptest(params = "<type>")]` and
@@ -529,7 +531,7 @@ error!(
     "The attribute modifier `{0}` inside `#[proptest(..)]` must have the \
      format `#[proptest({0} = \"<expr>\")]` where `<expr>` is a valid Rust \
      expression.",
-    meta.name()
+    meta.path().into_token_stream()
 );
 
 // Happens when `#[proptest(filter..)]` is malformed.
@@ -541,7 +543,7 @@ error!(
     "The attribute modifier `{0}` inside `#[proptest(..)]` must have the \
      format `#[proptest({0} = \"<expr>\")]` where `<expr>` is a valid Rust \
      expression.",
-    meta.name()
+    meta.path().into_token_stream()
 );
 
 // Any attributes on a skipped variant has no effect - so we emit this error

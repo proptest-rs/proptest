@@ -8,6 +8,7 @@
 
 //! Provides a parser from syn attributes to our logical model.
 
+use quote::ToTokens;
 use syn::{self, Attribute, Expr, Ident, Lit, Meta, NestedMeta, Type};
 
 use crate::error::{self, Ctx, DeriveResult};
@@ -221,7 +222,7 @@ fn extract_modifiers(ctx: Ctx, attr: &Attribute) -> Vec<Meta> {
         error::inner_attr(ctx);
     }
 
-    match attr.interpret_meta() {
+    match attr.parse_meta().ok() {
         Some(Meta::List(list)) => {
             return list
                 .nested
@@ -229,7 +230,7 @@ fn extract_modifiers(ctx: Ctx, attr: &Attribute) -> Vec<Meta> {
                 .filter_map(|nm| extract_metas(ctx, nm))
                 .collect()
         }
-        Some(Meta::Word(_)) => error::bare_proptest_attr(ctx),
+        Some(Meta::Path(_)) => error::bare_proptest_attr(ctx),
         Some(Meta::NameValue(_)) => error::literal_set_proptest(ctx),
         None => error::no_interp_meta(ctx),
     }
@@ -239,7 +240,7 @@ fn extract_modifiers(ctx: Ctx, attr: &Attribute) -> Vec<Meta> {
 
 fn extract_metas(ctx: Ctx, nested: NestedMeta) -> Option<Meta> {
     match nested {
-        NestedMeta::Literal(_) => {
+        NestedMeta::Lit(_) => {
             error::immediate_literals(ctx);
             None
         }
@@ -263,21 +264,25 @@ fn is_outer_attr(attr: &Attribute) -> bool {
 /// let's them add stuff into our accumulartor.
 fn dispatch_attribute(ctx: Ctx, mut acc: ParseAcc, meta: Meta) -> ParseAcc {
     // Dispatch table for attributes:
-    let name = meta.name().to_string();
-    let name = name.as_ref();
-    match name {
-        // Valid modifiers:
-        "skip" => parse_skip(ctx, &mut acc, meta),
-        "w" | "weight" => parse_weight(ctx, &mut acc, &meta),
-        "no_params" => parse_no_params(ctx, &mut acc, meta),
-        "params" => parse_params(ctx, &mut acc, meta),
-        "strategy" => parse_strategy(ctx, &mut acc, &meta),
-        "value" => parse_value(ctx, &mut acc, &meta),
-        "regex" => parse_regex(ctx, &mut acc, &meta),
-        "filter" => parse_filter(ctx, &mut acc, &meta),
-        "no_bound" => parse_no_bound(ctx, &mut acc, meta),
-        // Invalid modifiers:
-        name => dispatch_unknown_mod(ctx, name),
+    let path = meta.path();
+    if let Some(name) = path.get_ident().map(ToString::to_string) {
+        match name.as_ref() {
+            // Valid modifiers:
+            "skip" => parse_skip(ctx, &mut acc, meta),
+            "w" | "weight" => parse_weight(ctx, &mut acc, &meta),
+            "no_params" => parse_no_params(ctx, &mut acc, meta),
+            "params" => parse_params(ctx, &mut acc, meta),
+            "strategy" => parse_strategy(ctx, &mut acc, &meta),
+            "value" => parse_value(ctx, &mut acc, &meta),
+            "regex" => parse_regex(ctx, &mut acc, &meta),
+            "filter" => parse_filter(ctx, &mut acc, &meta),
+            "no_bound" => parse_no_bound(ctx, &mut acc, meta),
+            // Invalid modifiers:
+            name => dispatch_unknown_mod(ctx, name),
+        }
+    } else {
+        // Occurs when passed path is something other than a single ident
+        error::unkown_modifier(ctx, &path.into_token_stream().to_string());
     }
     acc
 }
@@ -597,13 +602,18 @@ enum NormMeta {
 /// Normalize a `meta: Meta` into the forms accepted in `#[proptest(<meta>)]`.
 fn normalize_meta(meta: Meta) -> Option<NormMeta> {
     Some(match meta {
-        Meta::Word(_) => NormMeta::Plain,
+        Meta::Path(_) => NormMeta::Plain,
         Meta::NameValue(nv) => NormMeta::Lit(nv.lit),
         Meta::List(ml) => {
             if let Some(nm) = util::match_singleton(ml.nested) {
                 match nm {
-                    NestedMeta::Literal(lit) => NormMeta::Lit(lit),
-                    NestedMeta::Meta(Meta::Word(word)) => NormMeta::Word(word),
+                    NestedMeta::Lit(lit) => NormMeta::Lit(lit),
+                    NestedMeta::Meta(Meta::Path(path)) => {
+                        match path.get_ident() {
+                            Some(word) => NormMeta::Word(word.to_owned()),
+                            None => return None,
+                        }
+                    }
                     _ => return None,
                 }
             } else {

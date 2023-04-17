@@ -1,15 +1,16 @@
 [package]
 name = "proptest"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Jason Lingle"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/altsysrq/proptest"
-homepage = "https://altsysrq.github.io/proptest-book/proptest/index.html"
-documentation = "https://altsysrq.github.io/rustdoc/proptest/1.0.0/proptest/"
+repository = "https://github.com/proptest-rs/proptest"
+homepage = "https://proptest-rs.github.io/proptest/proptest/index.html"
+documentation = "https://docs.rs/proptest/latest/proptest/"
 keywords = ["property", "testing", "quickcheck", "fuzz", "hypothesis"]
 categories = ["development-tools::testing"]
 edition = "2018"
+rust-version = "1.60"
 exclude = ["/gen-*.sh", "/readme-*.md"]
 
 description = """
@@ -27,7 +28,7 @@ unstable = []
 
 # Enables the use of standard-library dependent features
 std = ["rand/std", "byteorder/std", "lazy_static",
-       "quick-error", "regex-syntax", "num-traits/std"]
+       "regex-syntax", "num-traits/std"]
 
 # For use in no_std environments with access to an allocator
 #alloc = ["hashmap_core"]
@@ -52,11 +53,12 @@ timeout = ["fork", "rusty-fork/timeout"]
 atomic64bit = []
 
 # Include features which break the Rust compiler when `-C link-dead-code` is
-# passed (see https://github.com/AltSysrq/proptest/issues/124).
+# passed (see https://github.com/proptest-rs/proptest/issues/124).
 break-dead-code = []
 
 [dependencies]
 bitflags = "1.0.1"
+unarray = "0.1.4"
 
 # [dependencies.hashmap_core]
 # version = "0.1.5"
@@ -67,12 +69,10 @@ version = "1.2"
 optional = true
 
 [dependencies.num-traits]
-version = "0.2.2"
+version = "0.2.15"
 default-features = false
-
-[dependencies.quick-error]
-version = "2.0.0"
-optional = true
+# std or libm required for mul_add.
+features = ["libm"]
 
 [dependencies.regex-syntax]
 # If you change this, make sure to also bump the `regex` dependency to a
@@ -112,8 +112,12 @@ version = "3.0"
 optional = true
 
 [dependencies.x86]
-version = "0.33.0"
+version = "0.52.0"
 optional = true
 
 [dev-dependencies]
 regex = "1.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

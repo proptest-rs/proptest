@@ -29,7 +29,9 @@ arbitrary!(self::alloc::Layout, SFnPtrMap<(Range<u8>, StrategyFor<usize>), Self>
     // 2. "when rounded up to the nearest multiple of align, must not overflow".
     static_map((0u8..32u8, any::<usize>()), |(align_power, size)| {
         let align = 1usize << align_power;
-        let max_size = 0usize.wrapping_sub(align);
+        // TODO: This may only work on 64 bit processors, but previously it was broken
+        // even on 64 bit so still an improvement. 63 -> uint size - 1.
+        let max_size = (1usize << 63) - (1 << usize::from(align_power));
         // Not quite a uniform distribution due to clamping,
         // but probably good enough
         self::alloc::Layout::from_size_align(cmp::min(max_size, size), align).unwrap()
@@ -51,7 +53,7 @@ mod test {
 
     no_panic_test!(
         layout => self::alloc::Layout,
-        alloc_err => self::alloc::AllocErr
+        alloc_err => self::alloc::AllocError
         //collection_alloc_err => alloc::collections::CollectionAllocErr
     );
 }

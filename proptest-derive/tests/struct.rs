@@ -11,7 +11,7 @@ use proptest_derive::Arbitrary;
 
 #[derive(Debug, Arbitrary)]
 struct T1 {
-    f1: u8
+    f1: u8,
 }
 
 #[derive(Debug, Arbitrary)]
@@ -104,7 +104,7 @@ struct T20 {
     f17: u128,
     f18: f32,
     f19: f64,
-    f20: bool
+    f20: bool,
 }
 
 #[test]

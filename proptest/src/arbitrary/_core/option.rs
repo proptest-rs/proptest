@@ -46,9 +46,6 @@ lift1!(['static] opt::IntoIter<A>, Probability;
     base, prob => weighted(prob, base).prop_map(Option::into_iter)
 );
 
-#[cfg(feature = "unstable")]
-arbitrary!(opt::NoneError; opt::NoneError);
-
 #[cfg(test)]
 mod test {
     no_panic_test!(
