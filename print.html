@@ -154,7 +154,7 @@ that cause problems.</p>
 strategies and the testing framework itself.</p>
 <p>This part of the book is dedicated to introductory material, such as tutorials,
 and general usage suggestions. It does <em>not</em> contain reference documentation;
-for that, please see the <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/">rustdoc
+for that, please see the <a href="https://docs.rs/proptest/latest/proptest/">rustdoc
 documentation</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
 <p>Let’s say we want to make a function that parses dates of the form
@@ -225,7 +225,7 @@ with</p>
 </code></pre>
 <p>If we look at the top directory after the test fails, we’ll see a new
 <code>proptest-regressions</code> directory, which contains some files corresponding to
-source files containing failing test cases. These are <a href="https://altsysrq.github.io/proptest-book/proptest/failure-persistence.html"><em>failure
+source files containing failing test cases. These are <a href="https://proptest-rs.github.io/proptest/proptest/failure-persistence.html"><em>failure
 persistence</em></a>
 files. The first thing we should do is add these to source control.</p>
 <pre><code class="language-text">$ git add proptest-regressions
@@ -380,7 +380,7 @@ wide. In our code:</p>
 the test passes.</p>
 <p>The <code>proptest!</code> macro has some additional syntax, including for setting
 configuration for things like the number of test cases to generate. See its
-<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.proptest.html">documentation</a>
+<a href="https://docs.rs/proptest/latest/proptest/macro.proptest.html">documentation</a>
 for more details.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="proptest-from-the-bottom-up"><a class="header" href="#proptest-from-the-bottom-up">Proptest from the Bottom Up</a></h1>
 <p>This tutorial will introduce proptest from the bottom up, starting from the
@@ -683,10 +683,10 @@ fn test_add() {
 <p>Other compound strategies include fixed-sizes arrays of strategies and
 <code>Vec</code>s of strategies (which produce arrays or <code>Vec</code>s of values parallel to
 the strategy collection), as well as the various strategies provided in the
-<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/collection/index.html">collection</a> module.</p>
+<a href="https://docs.rs/proptest/latest/proptest/collection/index.html">collection</a> module.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="syntax-sugar-proptest"><a class="header" href="#syntax-sugar-proptest">Syntax Sugar: <code>proptest!</code></a></h1>
 <p>Now that we know about compound strategies, we can understand how the
-<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.proptest.html"><code>proptest!</code></a>
+<a href="https://docs.rs/proptest/latest/proptest/macro.proptest.html"><code>proptest!</code></a>
 macro works. Our example from the prior section can be rewritten using that
 macro like so:</p>
 <pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
@@ -891,7 +891,7 @@ proptest! {
 the code above is a bit verbose, as well as hard to read for similar
 reasons to writing test functions by hand.</p>
 <p>To simplify this task, proptest includes the
-<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.prop_compose.html"><code>prop_compose!</code></a>
+<a href="https://docs.rs/proptest/latest/proptest/macro.prop_compose.html"><code>prop_compose!</code></a>
 macro. Before going into details, here’s our code from above rewritten to use
 it.</p>
 <pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
@@ -984,7 +984,7 @@ fn my_enum_strategy() -&gt; impl Strategy&lt;Value = MyEnum&gt; {
 the list.</p>
 <p>For particularly complex enum cases, it can be helpful to extract the strategy
 for that case to a separate strategy. Here,
-<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.prop_compose.html"><code>prop_compose!</code></a>
+<a href="https://docs.rs/proptest/latest/proptest/macro.prop_compose.html"><code>prop_compose!</code></a>
 can be of use.</p>
 <pre><pre class="playground"><code class="language-rust no_run">use proptest::prelude::*;
 
@@ -1071,7 +1071,7 @@ proptest! {
 </span></code></pre></pre>
 <p>Global filtering results when a test itself returns
 <code>Err(TestCaseError::Reject)</code>. The
-<a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.prop_assume.html"><code>prop_assume!</code></a>
+<a href="https://docs.rs/proptest/latest/proptest/macro.prop_assume.html"><code>prop_assume!</code></a>
 macro provides an easy way to do this.</p>
 <pre><pre class="playground"><code class="language-rust">use proptest::prelude::*;
 
@@ -1438,10 +1438,6 @@ macro) uses a single hard-coded seed. For complex inputs, it may be a good idea
 to increase the number of test cases to compensate. The hard-coded seed is not
 contractually guaranteed and may change between Proptest releases without
 notice.</p>
-<p>To see an accurate representation of what APIs are available in a <code>no_std</code>
-environment, refer to <a href="https://altsysrq.github.io/rustdoc/proptest-nostd/latest/proptest/">the rustdocs for the <code>no_std</code>
-build</a>
-instead of the usual reference.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="web-assembly-support"><a class="header" href="#web-assembly-support">Web Assembly support</a></h1>
 <p>As of 0.9.2, it is possible to compile proptest on <code>wasm</code> targets. Please note
 that this is <strong>highly experimental</strong> and has not been subject to any
@@ -1538,7 +1534,7 @@ intermediate states and relationships in order for its richer shrinking model
 to work.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="reference-documentation"><a class="header" href="#reference-documentation">Reference documentation</a></h1>
-<p>For the API reference documentation, please see the <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/">rustdoc documentation for
+<p>For the API reference documentation, please see the <a href="https://docs.rs/proptest/latest/proptest/">rustdoc documentation for
 the <code>proptest</code>
 crate</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="the-proptest-derive-crate"><a class="header" href="#the-proptest-derive-crate">The <code>proptest-derive</code> crate</a></h1>
@@ -1635,9 +1631,9 @@ rejection sampling. Since rejection sampling is inefficient and interferes with
 shrinking, it should only be used for conditions that are very rare or are
 unfeasible to express otherwise. In many cases, <a href="proptest-derive/modifiers.html#strategy"><code>strategy</code></a> can be
 used to more directly express the desired behaviour without rejection sampling.
-See the documentation for <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter"><code>prop_filter</code></a> for more details.</p>
+See the documentation for <a href="https://docs.rs/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter"><code>prop_filter</code></a> for more details.</p>
 <p>The argument to the modifier must be a valid argument for the second parameter
-of <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter"><code>prop_filter</code></a>.</p>
+of <a href="https://docs.rs/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter"><code>prop_filter</code></a>.</p>
 <p>Example:</p>
 <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
@@ -1762,7 +1758,7 @@ call uses <code>Default::default()</code> for its own parameter.</p>
 either a bare identifier or Rust code inside a string. In either case, the
 value must name a concrete Rust type which implements <code>Default</code>.</p>
 <p>Usable on: structs, enums, enum variants, fields</p>
-<p>The <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/arbitrary/trait.Arbitrary.html"><code>Arbitrary</code> trait</a> specifies a <code>Parameters</code> type which is used to control
+<p>The <a href="https://docs.rs/proptest/latest/proptest/arbitrary/trait.Arbitrary.html"><code>Arbitrary</code> trait</a> specifies a <code>Parameters</code> type which is used to control
 generation. By default, the <code>Parameters</code> type is a tuple of the parameters
 which are automatically passed to other <code>Arbitrary</code> implementations.</p>
 <p>If applied to a struct or enum, <code>params</code> completely replaces the <code>Parameters</code>
@@ -1817,7 +1813,7 @@ function that returns an <code>&amp;'static str</code>.</p>
 <p>This modifier specifies to generate character or byte strings for a field which
 match a particular regular expression.</p>
 <p>The <code>regex</code> modifier is equivalent to using the <a href="proptest-derive/modifiers.html#strategy"><code>strategy</code></a> modifier and
-enclosing the string in <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/string/fn.string_regex.html"><code>string_regex</code></a> or <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/string/fn.bytes_regex.html"><code>bytes_regex</code></a>. It can only be
+enclosing the string in <a href="https://docs.rs/proptest/latest/proptest/string/fn.string_regex.html"><code>string_regex</code></a> or <a href="https://docs.rs/proptest/latest/proptest/string/fn.bytes_regex.html"><code>bytes_regex</code></a>. It can only be
 applied to fields of type <code>String</code> or <code>Vec&lt;u8&gt;</code>.</p>
 <p>Example:</p>
 <pre><pre class="playground"><code class="language-rust">

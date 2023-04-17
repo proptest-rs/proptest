@@ -145,9 +145,9 @@ rejection sampling. Since rejection sampling is inefficient and interferes with
 shrinking, it should only be used for conditions that are very rare or are
 unfeasible to express otherwise. In many cases, <a href="#strategy"><code>strategy</code></a> can be
 used to more directly express the desired behaviour without rejection sampling.
-See the documentation for <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter"><code>prop_filter</code></a> for more details.</p>
+See the documentation for <a href="https://docs.rs/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter"><code>prop_filter</code></a> for more details.</p>
 <p>The argument to the modifier must be a valid argument for the second parameter
-of <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter"><code>prop_filter</code></a>.</p>
+of <a href="https://docs.rs/proptest/latest/proptest/strategy/trait.Strategy.html#method.prop_filter"><code>prop_filter</code></a>.</p>
 <p>Example:</p>
 <pre><pre class="playground"><code class="language-rust">
 <span class="boring">#![allow(unused)]
@@ -272,7 +272,7 @@ call uses <code>Default::default()</code> for its own parameter.</p>
 either a bare identifier or Rust code inside a string. In either case, the
 value must name a concrete Rust type which implements <code>Default</code>.</p>
 <p>Usable on: structs, enums, enum variants, fields</p>
-<p>The <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/arbitrary/trait.Arbitrary.html"><code>Arbitrary</code> trait</a> specifies a <code>Parameters</code> type which is used to control
+<p>The <a href="https://docs.rs/proptest/latest/proptest/arbitrary/trait.Arbitrary.html"><code>Arbitrary</code> trait</a> specifies a <code>Parameters</code> type which is used to control
 generation. By default, the <code>Parameters</code> type is a tuple of the parameters
 which are automatically passed to other <code>Arbitrary</code> implementations.</p>
 <p>If applied to a struct or enum, <code>params</code> completely replaces the <code>Parameters</code>
@@ -327,7 +327,7 @@ function that returns an <code>&amp;'static str</code>.</p>
 <p>This modifier specifies to generate character or byte strings for a field which
 match a particular regular expression.</p>
 <p>The <code>regex</code> modifier is equivalent to using the <a href="#strategy"><code>strategy</code></a> modifier and
-enclosing the string in <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/string/fn.string_regex.html"><code>string_regex</code></a> or <a href="https://altsysrq.github.io/rustdoc/proptest/latest/proptest/string/fn.bytes_regex.html"><code>bytes_regex</code></a>. It can only be
+enclosing the string in <a href="https://docs.rs/proptest/latest/proptest/string/fn.string_regex.html"><code>string_regex</code></a> or <a href="https://docs.rs/proptest/latest/proptest/string/fn.bytes_regex.html"><code>bytes_regex</code></a>. It can only be
 applied to fields of type <code>String</code> or <code>Vec&lt;u8&gt;</code>.</p>
 <p>Example:</p>
 <pre><pre class="playground"><code class="language-rust">
