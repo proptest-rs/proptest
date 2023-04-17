@@ -10,7 +10,7 @@
 //! crate does not have an API _per se_, there isn't much to see here.
 //!
 //! You are probably looking for the [`proptest-derive` section of the Proptest
-//! Book](https://altsysrq.github.io/proptest-book/proptest-derive/index.html).
+//! Book](https://proptest-rs.github.io/proptest/proptest-derive/index.html).
 
 // # Known issues
 //

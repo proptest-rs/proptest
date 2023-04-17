@@ -60,4 +60,4 @@ fn test_add() {
 Other compound strategies include fixed-sizes arrays of strategies and
 `Vec`s of strategies (which produce arrays or `Vec`s of values parallel to
 the strategy collection), as well as the various strategies provided in the
-[collection](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/collection/index.html) module.
+[collection](https://docs.rs/proptest/latest/proptest/collection/index.html) module.

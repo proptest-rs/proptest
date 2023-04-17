@@ -1,7 +1,7 @@
 # Syntax Sugar: `proptest!`
 
 Now that we know about compound strategies, we can understand how the
-[`proptest!`](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.proptest.html)
+[`proptest!`](https://docs.rs/proptest/latest/proptest/macro.proptest.html)
 macro works. Our example from the prior section can be rewritten using that
 macro like so:
 

@@ -5,8 +5,8 @@ authors = ["Jason Lingle"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/proptest-rs/proptest"
-homepage = "https://altsysrq.github.io/proptest-book/proptest/index.html"
-documentation = "https://altsysrq.github.io/rustdoc/proptest/1.0.0/proptest/"
+homepage = "https://proptest-rs.github.io/proptest/proptest/index.html"
+documentation = "https://docs.rs/proptest/latest/proptest/"
 keywords = ["property", "testing", "quickcheck", "fuzz", "hypothesis"]
 categories = ["development-tools::testing"]
 edition = "2018"
@@ -117,3 +117,7 @@ optional = true
 
 [dev-dependencies]
 regex = "1.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
