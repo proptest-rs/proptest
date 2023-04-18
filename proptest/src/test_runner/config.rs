@@ -49,8 +49,10 @@ const RNG_ALGORITHM: &str = "PROPTEST_RNG_ALGORITHM";
 const DISABLE_FAILURE_PERSISTENCE: &str =
     "PROPTEST_DISABLE_FAILURE_PERSISTENCE";
 
+/// Override the config fields from environment variables, if any are set.
+/// Without the `std` feature this function returns config unchanged.
 #[cfg(feature = "std")]
-fn contextualize_config(mut result: Config) -> Config {
+pub fn contextualize_config(mut result: Config) -> Config {
     fn parse_or_warn<T: FromStr + fmt::Display>(
         src: &OsString,
         dst: &mut T,
@@ -141,8 +143,9 @@ fn contextualize_config(mut result: Config) -> Config {
     result
 }
 
+/// Without the `std` feature this function returns config unchanged.
 #[cfg(not(feature = "std"))]
-fn contextualize_config(result: Config) -> Config {
+pub fn contextualize_config(result: Config) -> Config {
     result
 }
 
