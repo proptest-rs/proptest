@@ -157,7 +157,7 @@ macro_rules! proptest {
         $(
             $(#[$meta])*
             fn $test_name() {
-                let mut config = $config.clone();
+                let mut config = $crate::test_runner::contextualize_config($config.clone());
                 config.test_name = Some(
                     concat!(module_path!(), "::", stringify!($test_name)));
                 $crate::proptest_helper!(@_BODY config ($($parm in $strategy),+) [] $body);
@@ -172,7 +172,7 @@ macro_rules! proptest {
         $(
             $(#[$meta])*
             fn $test_name() {
-                let mut config = $config.clone();
+                let mut config = $crate::test_runner::contextualize_config($config.clone());
                 config.test_name = Some(
                     concat!(module_path!(), "::", stringify!($test_name)));
                 $crate::proptest_helper!(@_BODY2 config ($($arg)+) [] $body);
@@ -223,25 +223,25 @@ macro_rules! proptest {
     };
 
     ($config:expr, |($($parm:pat in $strategy:expr),+ $(,)?)| $body:expr) => { {
-        let mut config = $config.__sugar_to_owned();
+        let mut config = $crate::test_runner::contextualize_config($config.__sugar_to_owned());
         $crate::sugar::force_no_fork(&mut config);
         $crate::proptest_helper!(@_BODY config ($($parm in $strategy),+) [] $body)
     } };
 
     ($config:expr, move |($($parm:pat in $strategy:expr),+ $(,)?)| $body:expr) => { {
-        let mut config = $config.__sugar_to_owned();
+        let mut config = $crate::test_runner::contextualize_config($config.__sugar_to_owned());
         $crate::sugar::force_no_fork(&mut config);
         $crate::proptest_helper!(@_BODY config ($($parm in $strategy),+) [move] $body)
     } };
 
     ($config:expr, |($($arg:tt)+)| $body:expr) => { {
-        let mut config = $config.__sugar_to_owned();
+        let mut config = $crate::test_runner::contextualize_config($config.__sugar_to_owned());
         $crate::sugar::force_no_fork(&mut config);
         $crate::proptest_helper!(@_BODY2 config ($($arg)+) [] $body);
     } };
 
     ($config:expr, move |($($arg:tt)+)| $body:expr) => { {
-        let mut config = $config.__sugar_to_owned();
+        let mut config = $crate::test_runner::contextualize_config($config.__sugar_to_owned());
         $crate::sugar::force_no_fork(&mut config);
         $crate::proptest_helper!(@_BODY2 config ($($arg)+) [move] $body);
     } };
