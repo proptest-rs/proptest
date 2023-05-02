@@ -1,5 +1,10 @@
 ## Unreleased
 
+### Breaking Changes
+
+- `PROPTEST_` environment variables now take precedence over tests' non-default
+  configuration.
+
 ### Bug Fixes
 
 ### New Features
