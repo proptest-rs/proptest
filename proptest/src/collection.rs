@@ -77,20 +77,23 @@ impl SizeRange {
         self.with(Default::default())
     }
 
-    pub(crate) fn start(&self) -> usize {
+    /// The lower bound of the range (inclusive).
+    pub fn start(&self) -> usize {
         self.0.start
     }
 
     /// Extract the ends `[low, high]` of a `SizeRange`.
-    pub(crate) fn start_end_incl(&self) -> (usize, usize) {
+    pub fn start_end_incl(&self) -> (usize, usize) {
         (self.start(), self.end_incl())
     }
 
-    pub(crate) fn end_incl(&self) -> usize {
+    /// The upper bound of the range (inclusive).
+    pub fn end_incl(&self) -> usize {
         self.0.end - 1
     }
 
-    pub(crate) fn end_excl(&self) -> usize {
+    /// The upper bound of the range (exclusive).
+    pub fn end_excl(&self) -> usize {
         self.0.end
     }
 
