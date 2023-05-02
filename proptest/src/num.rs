@@ -18,6 +18,8 @@ use crate::test_runner::TestRunner;
 use rand::distributions::uniform::{SampleUniform, Uniform};
 use rand::distributions::{Distribution, Standard};
 
+/// Generate a random value of `X`, sampled uniformly from the half
+/// open range `[low, high)` (excluding `high`). Panics if `low >= high`.
 pub(crate) fn sample_uniform<X: SampleUniform>(
     run: &mut TestRunner,
     start: X,
@@ -26,7 +28,9 @@ pub(crate) fn sample_uniform<X: SampleUniform>(
     Uniform::new(start, end).sample(run.rng())
 }
 
-pub(crate) fn sample_uniform_incl<X: SampleUniform>(
+/// Generate a random value of `X`, sampled uniformly from the closed
+/// range `[low, high]` (inclusive). Panics if `low > high`.
+pub fn sample_uniform_incl<X: SampleUniform>(
     run: &mut TestRunner,
     start: X,
     end: X,
