@@ -6,6 +6,8 @@
 
 ### Other Notes
 - Minimal failing input is now printed using debug pretty-printing
+- Made public `VarBitSet`, `SizeRange` read-only methods and num sampling
+  functions in preparation for release of a `proptest-state-machine` crate.
 
 ## 1.1.0
 
