@@ -117,7 +117,7 @@ impl<T: fmt::Debug> fmt::Display for TestError<T> {
             TestError::Fail(ref why, ref what) => {
                 writeln!(f, "Test failed: {}.", why)?;
                 write!(f, "minimal failing input: {:#?}", what)
-            },
+            }
         }
     }
 }
