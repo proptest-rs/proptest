@@ -2,6 +2,9 @@
 
 ### Bug Fixes
 
+- Don't implement Arbitrary for NonZeroU128 and NonZeroI128 on wasm targets where
+  u128 and i128 Arbitrary impls don't exist
+
 ### New Features
 
 ### Other Notes

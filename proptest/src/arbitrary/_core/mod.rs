@@ -17,6 +17,7 @@ mod fmt;
 mod iter;
 mod marker;
 mod mem;
+mod non_zero;
 mod num;
 mod option;
 mod result;
