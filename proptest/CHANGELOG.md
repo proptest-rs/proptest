@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 1.2.0
+
 ### Breaking Changes
 
 - `PROPTEST_` environment variables now take precedence over tests' non-default
@@ -13,6 +15,7 @@
 ### New Features
 
 ### Other Notes
+
 - Minimal failing input is now printed using debug pretty-printing
 - Made public `VarBitSet`, `SizeRange` read-only methods and num sampling
   functions in preparation for release of a `proptest-state-machine` crate.
