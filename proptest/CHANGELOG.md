@@ -1,5 +1,10 @@
 ## Unreleased
 
+### Breaking Changes
+
+- `PROPTEST_` environment variables now take precedence over tests' non-default
+  configuration.
+
 ### Bug Fixes
 
 - Don't implement Arbitrary for NonZeroU128 and NonZeroI128 on wasm targets where
