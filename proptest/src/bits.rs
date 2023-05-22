@@ -444,11 +444,13 @@ pub(crate) mod varsize {
     #[cfg(not(feature = "bit-set"))]
     type Inner = Vec<bool>;
 
+    /// A bit set is a set of bit flags.
     #[derive(Debug, Clone)]
-    pub(crate) struct VarBitSet(Inner);
+    pub struct VarBitSet(Inner);
 
     impl VarBitSet {
-        pub(crate) fn saturated(len: usize) -> Self {
+        /// Create a bit set of `len` set values.
+        pub fn saturated(len: usize) -> Self {
             (0..len).collect::<VarBitSet>()
         }
 
@@ -517,7 +519,7 @@ pub(crate) mod varsize {
     }
 }
 
-pub(crate) use self::varsize::VarBitSet;
+pub use self::varsize::VarBitSet;
 
 #[cfg(test)]
 mod test {
