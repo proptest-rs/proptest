@@ -39,7 +39,9 @@ use crate::test_runner::rng::TestRng;
 const ENV_FORK_FILE: &'static str = "_PROPTEST_FORKFILE";
 
 const ALWAYS: u32 = 0;
-const SHOW_FALURES: u32 = 1;
+/// Verbose level 1 to show failures. In state machine tests this level is used
+/// to print transitions.
+pub const INFO_LOG: u32 = 1;
 const TRACE: u32 = 2;
 
 #[cfg(feature = "std")]
@@ -279,18 +281,12 @@ where
 
     match result {
         Ok(()) => verbose_message!(runner, TRACE, "Test case passed"),
-        Err(TestCaseError::Reject(ref reason)) => verbose_message!(
-            runner,
-            SHOW_FALURES,
-            "Test case rejected: {}",
-            reason
-        ),
-        Err(TestCaseError::Fail(ref reason)) => verbose_message!(
-            runner,
-            SHOW_FALURES,
-            "Test case failed: {}",
-            reason
-        ),
+        Err(TestCaseError::Reject(ref reason)) => {
+            verbose_message!(runner, INFO_LOG, "Test case rejected: {}", reason)
+        }
+        Err(TestCaseError::Fail(ref reason)) => {
+            verbose_message!(runner, INFO_LOG, "Test case failed: {}", reason)
+        }
     }
 
     result.map(|_| {
