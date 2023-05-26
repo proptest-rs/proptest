@@ -1,5 +1,7 @@
 # State Machine testing
 
+The state machine testing support is available in the `proptest-state-machine` crate.
+
 ## When to use State Machine testing?
 
 State machine testing automates the checking of properties of a system under test (SUT) against an abstract reference state machine definition. It does this by trying to discover a counter-example that breaks the defined properties of the system and attempts to shrink it to a minimal sequence of transitions that still reproduce the issue.
