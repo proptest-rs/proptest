@@ -1538,6 +1538,7 @@ to work.</li>
 the <code>proptest</code>
 crate</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="state-machine-testing"><a class="header" href="#state-machine-testing">State Machine testing</a></h1>
+<p>The state machine testing support is available in the <code>proptest-state-machine</code> crate.</p>
 <h2 id="when-to-use-state-machine-testing"><a class="header" href="#when-to-use-state-machine-testing">When to use State Machine testing?</a></h2>
 <p>State machine testing automates the checking of properties of a system under test (SUT) against an abstract reference state machine definition. It does this by trying to discover a counter-example that breaks the defined properties of the system and attempts to shrink it to a minimal sequence of transitions that still reproduce the issue.</p>
 <p>State machines are a very useful abstraction for reasoning about code. Many things from low-level to high-level logic and anywhere in between can be modelled as a state machine. They are very effective for modelling effectful code, that is code that performs some state changes that can be too hard to test thoroughly with a more manual approach or too complex to verify formally.</p>
