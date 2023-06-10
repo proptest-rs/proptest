@@ -31,6 +31,7 @@
     all(feature = "alloc", not(feature = "std")),
     feature(core_intrinsics)
 )]
+#![cfg_attr(all(feature = "unstable", feature = "never-arbitrary"), feature(negative_impls))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 // std_facade is used in a few macros, so it needs to be public.
