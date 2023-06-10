@@ -56,6 +56,8 @@ atomic64bit = []
 # passed (see https://github.com/proptest-rs/proptest/issues/124).
 break-dead-code = []
 
+never-arbitrary = []
+
 [dependencies]
 bitflags = "1.0.1"
 unarray = "0.1.4"

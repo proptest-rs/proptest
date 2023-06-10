@@ -33,6 +33,9 @@ arbitrary!(f64, f64::Any; {
 
 arbitrary!(char, char::CharStrategy<'static>; char::any());
 
+#[cfg(all(feature = "unstable", feature = "never-arbitrary"))]
+impl !crate::arbitrary::Arbitrary for ! {}
+
 #[cfg(test)]
 mod test {
     no_panic_test!(
@@ -43,4 +46,63 @@ mod test {
         i8 => i8, i16 => i16, i32 => i32, i64 => i64, i128 => i128,
         u8 => u8, u16 => u16, u32 => u32, u64 => u64, u128 => u128
     );
+}
+
+#[cfg(all(feature = "unstable", feature = "never-arbitrary"))]
+mod never_arbitrary_tests {
+    use super::*;
+    use crate::prelude::*;
+
+    #[derive(Clone)]
+    enum Wrapper<T: Clone> {
+        A(T),
+        B,
+        C,
+    }
+
+    impl<T: Clone> std::fmt::Debug for Wrapper<T> {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            match self {
+                Self::A(_) => write!(f, "Wrapper::A(_)"),
+                Self::B => write!(f, "Wrapper::B"),
+                Self::C => write!(f, "Wrapper::C"),
+            }
+        }
+    }
+
+    impl<T: Arbitrary + Clone + 'static> Arbitrary for Wrapper<T> {
+        type Parameters = T::Parameters;
+        type Strategy = BoxedStrategy<Self>;
+    
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                any::<T>().prop_map(Wrapper::A),
+                Just(Wrapper::B),
+                Just(Wrapper::C),
+            ].boxed()
+        }
+    }
+    
+    impl Arbitrary for Wrapper<!> {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+    
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                Just(Wrapper::B),
+                Just(Wrapper::C),
+            ].boxed()
+        }
+    }
+
+
+    proptest! {
+        #[test]
+        fn wrapper_any_u32(w in any::<Wrapper<u32>>()) {
+        }
+
+        #[test]
+        fn wrapper_any_never(w in any::<Wrapper<!>>()) {
+        }
+    }
 }
