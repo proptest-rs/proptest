@@ -16,13 +16,7 @@ use core::mem;
 use core::ops::RangeInclusive;
 use core::u32;
 
-use regex_syntax::hir::{
-    self, Hir,
-    HirKind::*,
-    Literal::*,
-    RepetitionKind::{self, *},
-    RepetitionRange::*,
-};
+use regex_syntax::hir::{self, Hir, HirKind::*, Repetition};
 use regex_syntax::{Error as ParseError, Parser};
 
 use crate::bool;
@@ -176,11 +170,7 @@ pub fn bytes_regex_parsed(expr: &Hir) -> ParseResult<Vec<u8>> {
     match expr.kind() {
         Empty => Ok(Just(vec![]).sboxed()),
 
-        Literal(lit) => Ok(Just(match lit {
-            Unicode(scalar) => to_bytes(*scalar),
-            Byte(byte) => vec![*byte],
-        })
-        .sboxed()),
+        Literal(lit) => Ok(Just(lit.0.to_vec()).sboxed()),
 
         Class(class) => Ok(match class {
             hir::Class::Unicode(class) => {
@@ -192,19 +182,13 @@ pub fn bytes_regex_parsed(expr: &Hir) -> ParseResult<Vec<u8>> {
             }
         }),
 
-        Repetition(rep) => Ok(vec(
-            bytes_regex_parsed(&rep.hir)?,
-            to_range(rep.kind.clone())?,
-        )
-        .prop_map(|parts| {
-            parts.into_iter().fold(vec![], |mut acc, child| {
-                acc.extend(child);
-                acc
-            })
-        })
-        .sboxed()),
+        Repetition(rep) => {
+            Ok(vec(bytes_regex_parsed(&rep.sub)?, to_range(rep)?)
+                .prop_map(|parts| parts.concat())
+                .sboxed())
+        }
 
-        Group(group) => bytes_regex_parsed(&group.hir).map(|v| v.0),
+        Capture(capture) => bytes_regex_parsed(&capture.sub).map(|v| v.0),
 
         Concat(subs) => {
             let subs = ConcatIter {
@@ -232,12 +216,8 @@ pub fn bytes_regex_parsed(expr: &Hir) -> ParseResult<Vec<u8>> {
             Ok(Union::try_new(subs.iter().map(bytes_regex_parsed))?.sboxed())
         }
 
-        Anchor(_) => {
-            unsupported("line/text anchors not supported for string generation")
-        }
-
-        WordBoundary(_) => unsupported(
-            "word boundary tests not supported for string generation",
+        Look(_) => unsupported(
+            "anchors/boundaries not supported for string generation",
         ),
     }
     .map(RegexGeneratorStrategy)
@@ -298,8 +278,7 @@ impl<'a, I: Iterator<Item = &'a Hir>> Iterator for ConcatIter<'a, I> {
         while let Some(next) = self.iter.next() {
             match next.kind() {
                 // A literal. Accumulate:
-                Literal(Unicode(scalar)) => self.buf.extend(to_bytes(*scalar)),
-                Literal(Byte(byte)) => self.buf.push(*byte),
+                Literal(literal) => self.buf.extend_from_slice(&literal.0),
                 // Encountered a non-literal.
                 _ => {
                     return if !self.buf.is_empty() {
@@ -324,31 +303,35 @@ impl<'a, I: Iterator<Item = &'a Hir>> Iterator for ConcatIter<'a, I> {
     }
 }
 
-fn to_range(kind: RepetitionKind) -> Result<SizeRange, Error> {
-    Ok(match kind {
-        ZeroOrOne => size_range(0..=1),
-        ZeroOrMore => size_range(0..=32),
-        OneOrMore => size_range(1..=32),
-        Range(range) => match range {
-            Exactly(count) if u32::MAX == count => {
-                return unsupported(
-                    "Cannot have repetition of exactly u32::MAX",
-                )
-            }
-            Exactly(count) => size_range(count as usize),
-            AtLeast(min) => {
-                let max = if min < u32::MAX as u32 / 2 {
-                    min as usize * 2
-                } else {
-                    u32::MAX as usize
-                };
-                size_range((min as usize)..max)
-            }
-            Bounded(_, max) if u32::MAX == max => {
-                return unsupported("Cannot have repetition max of u32::MAX")
-            }
-            Bounded(min, max) => size_range((min as usize)..(max as usize + 1)),
-        },
+fn to_range(rep: &Repetition) -> Result<SizeRange, Error> {
+    Ok(match (rep.min, rep.max) {
+        // Zero or one
+        (0, Some(1)) => size_range(0..=1),
+        // Zero or more
+        (0, None) => size_range(0..=32),
+        // One or more
+        (1, None) => size_range(1..=32),
+        // Exact count of u32::MAX
+        (u32::MAX, Some(u32::MAX)) => {
+            return unsupported("Cannot have repetition of exactly u32::MAX");
+        }
+        // Exact count
+        (min, Some(max)) if min == max => size_range(min as usize),
+        // At least min
+        (min, None) => {
+            let max = if min < u32::MAX as u32 / 2 {
+                min as usize * 2
+            } else {
+                u32::MAX as usize
+            };
+            size_range((min as usize)..max)
+        }
+        // Bounded range with max of u32::MAX
+        (_, Some(u32::MAX)) => {
+            return unsupported("Cannot have repetition max of u32::MAX")
+        }
+        // Bounded range
+        (min, Some(max)) => size_range((min as usize)..(max as usize + 1)),
     })
 }
 

@@ -2,6 +2,8 @@
 
 ## 1.2.0
 
+- `regex-syntax` version 0.7 is now used.
+
 ### Breaking Changes
 
 - `PROPTEST_` environment variables now take precedence over tests' non-default
