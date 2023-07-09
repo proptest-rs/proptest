@@ -3,7 +3,7 @@
 Please make sure to read the [introduction to this tutorial](index.md) before
 starting this section.
 
-The [_Strategy_](strategy/trait.Strategy.html) is the most fundamental
+The [_Strategy_](https://docs.rs/proptest/latest/proptest/strategy/trait.Strategy.html) is the most fundamental
 concept in proptest. A strategy defines two things:
 
 - How to generate random values of a particular type from a random number
