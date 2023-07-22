@@ -5,6 +5,8 @@ Let's say we want to make a function that parses dates of the form
 triple of integers is fine. So let's bang something out real quick.
 
 ```rust,no_run
+fn main() {}
+
 fn parse_date(s: &str) -> Option<(u32, u32, u32)> {
     if 10 != s.len() { return None; }
     if "-" != &s[4..5] || "-" != &s[7..8] { return None; }
