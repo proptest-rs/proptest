@@ -160,10 +160,9 @@ documentation</a>.</p>
 <p>Let’s say we want to make a function that parses dates of the form
 <code>YYYY-MM-DD</code>. We’re not going to worry about <em>validating</em> the date, any
 triple of integers is fine. So let’s bang something out real quick.</p>
-<pre><pre class="playground"><code class="language-rust no_run">
-<span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
+<pre><pre class="playground"><code class="language-rust no_run">fn main() {}
+
+fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
     if 10 != s.len() { return None; }
     if &quot;-&quot; != &amp;s[4..5] || &quot;-&quot; != &amp;s[7..8] { return None; }
 
@@ -176,8 +175,7 @@ triple of integers is fine. So let’s bang something out real quick.</p>
             |m| day.parse::&lt;u32&gt;().ok().map(
                 |d| (y, m, d))))
 }
-<span class="boring">}
-</span></code></pre></pre>
+</code></pre></pre>
 <p>It compiles, that means it works, right? Maybe not, let’s add some tests.</p>
 <pre><code class="language-rust ignore">#[test]
 fn test_parse_date() {
