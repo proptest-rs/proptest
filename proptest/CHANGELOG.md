@@ -1,8 +1,10 @@
 ## Unreleased
 
-## 1.2.0
+### Other Notes
 
 - `regex-syntax` version 0.7 is now used.
+
+## 1.2.0
 
 ### Breaking Changes
 
