@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Breaking Changes
+
+- The minimum supported Rust version has been increased to 1.64.0.
+
 ## 1.2.0
 
 - `regex-syntax` version 0.7 is now used.
