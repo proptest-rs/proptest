@@ -17,5 +17,4 @@ State machine based testing support for proptest.
 proptest = { version = "1.2.0", path = "../proptest" }
 
 [dev-dependencies]
-# NOTE: message-io 0.15.0 requires MSRV 1.63.0 (in its socket2 dep)
-message-io = "0.14.8"
+message-io = "0.17.0"
