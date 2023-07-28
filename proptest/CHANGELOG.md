@@ -4,9 +4,11 @@
 
 - The minimum supported Rust version has been increased to 1.64.0.
 
-## 1.2.0
+### Other Notes
 
 - `regex-syntax` version 0.7 is now used.
+
+## 1.2.0
 
 ### Breaking Changes
 
