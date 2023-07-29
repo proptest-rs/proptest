@@ -63,7 +63,7 @@ enum Quux {
     E(u32),
     F {
         #[proptest(strategy = "10usize..20usize")]
-        foo: usize,
+        _foo: usize,
     },
 }
 

@@ -50,12 +50,12 @@ struct T0 {
 
 #[derive(Debug, Arbitrary)]
 struct T1 {
-    field: Vec<u8>,
+    _field: Vec<u8>,
 }
 
 #[derive(Debug, Arbitrary)]
 struct T2 {
-    field: Vec<Vec<u8>>,
+    _field: Vec<Vec<u8>>,
 }
 
 #[derive(Debug, Arbitrary)]
