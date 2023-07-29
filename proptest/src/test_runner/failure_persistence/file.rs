@@ -150,7 +150,7 @@ impl FailurePersistence for FileFailurePersistence {
                     path.display(),
                     e
                 );
-            } else if is_new {
+            } else {
                 eprintln!(
                     "proptest: Saving this and future failures in {}\n\
                      proptest: If this test was run on a CI system, you may \
