@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![allow(unused_variables)]
+#![allow(dead_code, unused_variables)]
 
 use proptest::prelude::Arbitrary;
 use proptest::strategy::Just;

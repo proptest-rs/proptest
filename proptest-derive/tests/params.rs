@@ -6,6 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![allow(dead_code)]
+
 use proptest::prelude::{
     any_with, prop_assert, prop_assert_eq, proptest, Arbitrary,
 };

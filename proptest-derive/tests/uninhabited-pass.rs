@@ -7,7 +7,7 @@
 // except according to those terms.
 
 #![feature(never_type)]
-#![allow(dead_code, unreachable_code)]
+#![allow(dead_code, unreachable_code, unused_parens)]
 
 use proptest::prelude::{prop_assert_eq, proptest, Arbitrary};
 use proptest_derive::Arbitrary;
