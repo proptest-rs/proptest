@@ -57,7 +57,7 @@ atomic64bit = []
 break-dead-code = []
 
 [dependencies]
-bitflags = "1.0.1"
+bitflags = "2"
 unarray = "0.1.4"
 
 # [dependencies.hashmap_core]
