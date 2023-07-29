@@ -105,7 +105,7 @@
 
 ### New Features
 
-- Enabling the `hardware-rng` optional depndency (disabled by default) allows
+- Enabling the `hardware-rng` optional dependency (disabled by default) allows
   obtaining non-deterministic random seeds even in `no_std` environments
   provided the architecture is x86 or AMD64.
 
@@ -181,7 +181,7 @@
 
 ## 0.9.3
 
-This is a minor release to correct some packaging errors. The licence files are
+This is a minor release to correct some packaging errors. The license files are
 now included in the files published to crates.io, and some unneeded files are
 now excluded.
 

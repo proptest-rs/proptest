@@ -60,7 +60,7 @@ jobs:
       - name: Build rng no-default-features
         if: ${{ matrix.build == 'nightly' }}
         run: cd proptest && cargo build --no-default-features --features "alloc unstable hardware-rng"
-      - name: Run presisrnce tests
+      - name: Run persistence tests
         if: ${{ matrix.build == 'nightly' }}
         run: cd proptest/test-persistence-location && ./run-tests.sh
       - name: Clean
