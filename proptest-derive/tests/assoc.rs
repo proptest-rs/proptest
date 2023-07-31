@@ -6,8 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![allow(unused_variables)]
-
 use proptest::prelude::{prop_assert_eq, proptest, Arbitrary};
 use proptest_derive::Arbitrary;
 
@@ -50,12 +48,12 @@ struct T0 {
 
 #[derive(Debug, Arbitrary)]
 struct T1 {
-    field: Vec<u8>,
+    _field: Vec<u8>,
 }
 
 #[derive(Debug, Arbitrary)]
 struct T2 {
-    field: Vec<Vec<u8>>,
+    _field: Vec<Vec<u8>>,
 }
 
 #[derive(Debug, Arbitrary)]

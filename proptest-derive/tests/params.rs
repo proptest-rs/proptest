@@ -24,7 +24,7 @@ impl Default for ComplexType {
 #[derive(Debug, Arbitrary)]
 #[proptest(params(ComplexType))]
 struct TopHasParams {
-    string: usize,
+    _string: usize,
     #[proptest(strategy = "0..params.max")]
     int: u64,
 }
@@ -32,7 +32,7 @@ struct TopHasParams {
 #[derive(Debug, Arbitrary)]
 #[proptest(no_params)]
 struct TopNoParams {
-    stuff: usize,
+    _stuff: usize,
 }
 
 #[derive(Debug, Arbitrary)]
@@ -62,9 +62,9 @@ struct Parallel {
 #[derive(Debug, Arbitrary)]
 struct Parallel2 {
     #[proptest(params("&'static str"), strategy = "params")]
-    string: String,
+    _string: String,
     #[proptest(params("u8"), strategy = "0i64..params as i64")]
-    int: i64,
+    _int: i64,
 }
 
 const MAX: ComplexType = ComplexType { max: 5 };
