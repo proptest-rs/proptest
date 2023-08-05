@@ -2,7 +2,7 @@
 name = "proptest-state-machine"
 version = "0.1.0"
 authors = ["Tomáš Zemanovič"]
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 edition = "2018"
 repository = "https://github.com/proptest-rs/proptest"
 homepage = "https://proptest-rs.github.io/proptest/proptest/state-machine.html"
