@@ -27,7 +27,7 @@ default-code-coverage = ["std", "fork", "timeout", "bit-set"]
 unstable = []
 
 # Enables the use of standard-library dependent features
-std = ["rand/std", "byteorder/std", "lazy_static",
+std = ["rand/std", "lazy_static",
        "regex-syntax", "num-traits/std"]
 
 # For use in no_std environments with access to an allocator
@@ -96,10 +96,6 @@ version = "0.3"
 
 [dependencies.rand_chacha]
 version = "0.3"
-default-features = false
-
-[dependencies.byteorder]
-version = "1.2.3"
 default-features = false
 
 [dependencies.rusty-fork]
