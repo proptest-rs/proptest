@@ -9,15 +9,22 @@
 
 //! Arbitrary implementations for `std::path`.
 
-use std::path::*;
+use std::{ffi::OsString, path::*};
+
+use crate::{arbitrary::StrategyFor, prelude::Strategy, strategy::MapInto};
 
 // TODO: Figure out PathBuf and then Box/Rc/Box<Path>.
 
 arbitrary!(StripPrefixError; Path::new("").strip_prefix("a").unwrap_err());
 
+arbitrary!(PathBuf, MapInto<StrategyFor<OsString>, Self>;
+    OsString::arbitrary().prop_map_into()
+);
+
 #[cfg(test)]
 mod test {
     no_panic_test!(
-        strip_prefix_error => StripPrefixError
+        strip_prefix_error => StripPrefixError,
+        path_buf => PathBuf
     );
 }
