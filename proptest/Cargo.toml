@@ -56,6 +56,8 @@ atomic64bit = []
 # passed (see https://github.com/proptest-rs/proptest/issues/124).
 break-dead-code = []
 
+bit-set = [ "dep:bit-set", "dep:bit-vec" ]
+
 [dependencies]
 bitflags = "2"
 unarray = "0.1.4"
@@ -82,8 +84,10 @@ optional = true
 
 [dependencies.bit-set]
 version = "0.5.0"
-# It doesn't currently work with no_std
-# default-features = false
+optional = true
+
+[dependencies.bit-vec]
+version = "0.6.0"
 optional = true
 
 [dependencies.rand]
