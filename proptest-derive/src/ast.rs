@@ -108,8 +108,15 @@ impl Impl {
         let _const = call_site_ident(&format!("_IMPL_ARBITRARY_FOR_{}", typ));
 
         // Linearise everything. We're done after this.
+        //
+        // NOTE: The clippy::arc_with_non_send_sync lint is disabled here because the strategies
+        // generated are often not Send or Sync, such as BoxedStrategy.
+        //
+        // The double-curly-braces are not strictly required, but allow the expression to be
+        // annotated with an attribute.
         let q = quote! {
             #[allow(non_upper_case_globals)]
+            #[allow(clippy::arc_with_non_send_sync)]
             const #_const: () = {
             extern crate proptest as _proptest;
 
