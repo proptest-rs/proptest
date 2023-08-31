@@ -9,6 +9,7 @@ space. The `tutorial-simplify-play.rs` example shows how repeated calls to
 and in characters used.
 
 ```rust
+# extern crate proptest;
 use proptest::test_runner::TestRunner;
 use proptest::strategy::{Strategy, ValueTree};
 
@@ -88,6 +89,7 @@ the minimum value.
 test to actually find the boundary condition.
 
 ```rust
+# extern crate proptest;
 use proptest::test_runner::TestRunner;
 use proptest::strategy::{Strategy, ValueTree};
 

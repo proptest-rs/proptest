@@ -26,6 +26,7 @@
   - [Proptest vs Quickcheck](proptest/vs-quickcheck.md)
   - [Reference documentation](proptest/reference-docs.md)
   - [State Machine testing](proptest/state-machine.md)
+  - [Tips and Best Practices](proptest/tips-and-best-practices.md)
 
 - [proptest-derive](proptest-derive/index.md)
   - [Getting started](proptest-derive/getting-started.md)

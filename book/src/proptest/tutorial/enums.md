@@ -13,7 +13,8 @@ the data in a tuple and then using `prop_map` to map it into the enum case.
 
 Here is a simple example:
 
-```rust,no_run
+```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 #[derive(Debug, Clone)]
@@ -36,8 +37,6 @@ fn my_enum_strategy() -> impl Strategy<Value = MyEnum> {
       |(a, b)| MyEnum::CaseWithMultipleData(a, b)),
   ]
 }
-#
-# fn main() { }
 ```
 
 In general, it is best to list the enum cases in order from "simplest" to
@@ -49,7 +48,8 @@ for that case to a separate strategy. Here,
 [`prop_compose!`](https://docs.rs/proptest/latest/proptest/macro.prop_compose.html)
 can be of use.
 
-```rust,no_run
+```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 #[derive(Debug, Clone)]
@@ -80,6 +80,4 @@ fn my_enum_strategy() -> BoxedStrategy<MyComplexEnum> {
     my_complex_enum_complex_case(),
   ].boxed()
 }
-#
-# fn main() { }
 ```

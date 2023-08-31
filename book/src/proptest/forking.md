@@ -19,7 +19,8 @@ To use these features, simply set the `fork` and/or `timeout` fields on the
 
 Here is a simple example of using both features:
 
-```rust
+```rust,should_panic
+# extern crate proptest;
 use proptest::prelude::*;
 
 // The worst possible way to calculate Fibonacci numbers
@@ -36,19 +37,19 @@ proptest! {
         // Setting both fork and timeout is redundant since timeout implies
         // fork, but both are shown for clarity.
         fork: true,
-        timeout: 1000,
+        timeout: 100,
+        # cases: 1, // Need to set this to 1 to avoid doctest running forever
         .. ProptestConfig::default()
     })]
-
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_fib(n: u64) {
         // For large n, this will variously run for an extremely long time,
         // overflow the stack, or panic due to integer overflow.
         assert!(fib(n) >= n);
     }
 }
-# //NOREADME
-# fn main() { } //NOREADME
+# fn main() { test_fib(); }
 ```
 
 The exact value of the test failure depends heavily on the performance of

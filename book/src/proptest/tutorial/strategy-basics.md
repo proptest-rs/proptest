@@ -25,6 +25,7 @@ put the pieces together and generate values. The below is the
 `tutorial-strategy-play.rs` example:
 
 ```rust
+# extern crate proptest;
 use proptest::test_runner::TestRunner;
 use proptest::strategy::{Strategy, ValueTree};
 
@@ -51,7 +52,8 @@ int_val = 5, str_val = oegiᴫᵸӈᵸὛΉ
 
 This knowledge is sufficient to build an extremely primitive fuzzing test.
 
-```rust,no_run
+```rust
+# extern crate proptest;
 use proptest::test_runner::TestRunner;
 use proptest::strategy::{Strategy, ValueTree};
 
@@ -68,7 +70,6 @@ fn some_function_doesnt_crash() {
         some_function(val.current());
     }
 }
-# fn main() { }
 ```
 
 This _works_, but when the test fails, we don't get much context, and even

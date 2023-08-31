@@ -20,20 +20,22 @@ Sometimes you may want to reuse mutable resources across individual cases. For e
 to reuse a database connection or a file handle to avoid the overhead of opening and closing it for
 each case. Because the `proptest!` macro (when used with closure-style invocation) requires a `Fn`, you need to wrap your state in a `RefCell`:
 
-```rust,mdbook-runnable
+```rust
+# extern crate proptest;
 use std::cell::RefCell;
+use proptest::proptest;
 
-# struct MyState {};
+# struct ConnectionPool {};
 # struct MyConnection {};
-# impl MyState {
+# impl ConnectionPool {
 #    fn new() -> Self { Self {} }
 #    fn connect(&mut self) -> MyConnection { MyConnection {} }
 # }
-#
 #[test]
+# fn dummy() {}; // This is here to make the doctest work
 fn test_with_shared_connection() {
-    let mut my_conn = RefCell::new(MyConnection::new().connect());
-    proptest!(|(x in 0u32..42u) {
+    let mut my_conn = RefCell::new(ConnectionPool::new().connect());
+    proptest!(|(x in 0..42)| {
         let mut conn = my_conn.borrow_mut();
         // Use state
     });
