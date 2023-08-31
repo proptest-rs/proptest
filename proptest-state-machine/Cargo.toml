@@ -13,8 +13,18 @@ description = """
 State machine based testing support for proptest.
 """
 
+[features]
+default = ["std"]
+
+# Enables the use of standard-library dependent features
+std = ["proptest/std"]
+
 [dependencies]
-proptest = { version = "1.2.0", path = "../proptest" }
+proptest = { version = "1.2.0", path = "../proptest", default-features = true, features = [
+    "fork",
+    "timeout",
+    "bit-set",
+] }
 
 [dev-dependencies]
 message-io = "0.17.0"
