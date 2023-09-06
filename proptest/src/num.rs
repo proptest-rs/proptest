@@ -38,6 +38,193 @@ pub fn sample_uniform_incl<X: SampleUniform>(
     Uniform::new_inclusive(start, end).sample(run.rng())
 }
 
+trait SampleEdgeCase<T> {
+    fn sample_edge_case(runner: &mut TestRunner, epsilon: T) -> Self;
+}
+
+macro_rules! impl_sample_edge_case_signed_impl {
+    ($typ: ty) => {
+        impl SampleEdgeCase<$typ> for $typ {
+            fn sample_edge_case(
+                runner: &mut TestRunner,
+                epsilon: $typ,
+            ) -> $typ {
+                match sample_uniform(runner, 0, 7) {
+                    0 => 0,
+                    1 => epsilon,
+                    2 => -epsilon,
+                    3 => <$typ>::MIN,
+                    4 => <$typ>::MAX,
+                    5 => <$typ>::MIN + epsilon,
+                    6 => <$typ>::MAX - epsilon,
+                    _ => unreachable!(),
+                }
+            }
+        }
+    };
+}
+
+macro_rules! impl_sample_edge_case_signed {
+    ($($typ: ty),*) => {
+        $(impl_sample_edge_case_signed_impl!($typ);)*
+    };
+}
+
+macro_rules! impl_sample_edge_case_unsigned_impl {
+    ($typ: ty) => {
+        impl SampleEdgeCase<$typ> for $typ {
+            fn sample_edge_case(
+                runner: &mut TestRunner,
+                epsilon: $typ,
+            ) -> $typ {
+                match sample_uniform(runner, 0, 4) {
+                    0 => 0,
+                    1 => epsilon,
+                    2 => <$typ>::MAX,
+                    3 => <$typ>::MAX - epsilon,
+                    _ => unreachable!(),
+                }
+            }
+        }
+    };
+}
+
+macro_rules! impl_sample_edge_case_unsigned {
+    ($($typ: ty),*) => {
+        $(impl_sample_edge_case_unsigned_impl!($typ);)*
+    };
+}
+
+impl_sample_edge_case_signed!(i8, i16, i32, i64, i128, isize);
+impl_sample_edge_case_unsigned!(u8, u16, u32, u64, u128, usize);
+
+trait SampleEdgeCaseRangeExclusive<T> {
+    fn sample_edge_case_range_exclusive(
+        runner: &mut TestRunner,
+        start: T,
+        end: T,
+        epsilon: T,
+    ) -> Self;
+}
+
+macro_rules! impl_sample_edge_case_range_exclusive_impl {
+    ($typ: ty) => {
+        impl SampleEdgeCaseRangeExclusive<$typ> for $typ {
+            fn sample_edge_case_range_exclusive(
+                runner: &mut TestRunner,
+                start: $typ,
+                end: $typ,
+                epsilon: $typ,
+            ) -> $typ {
+                match sample_uniform(runner, 0, 4) {
+                    0 => start,
+                    1 => {
+                        num_traits::clamp(start + epsilon, start, end - epsilon)
+                    }
+                    2 => {
+                        if start < end - epsilon {
+                            end - epsilon * 2 as $typ
+                        } else {
+                            start
+                        }
+                    }
+                    3 => end - epsilon,
+                    _ => unreachable!(),
+                }
+            }
+        }
+    };
+}
+
+macro_rules! impl_sample_edge_case_range_exclusive {
+    ($($typ: ty),*) => {
+        $(impl_sample_edge_case_range_exclusive_impl!($typ);)*
+    };
+}
+
+impl_sample_edge_case_range_exclusive!(
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
+);
+
+trait SampleEdgeCaseRangeInclusive<T> {
+    fn sample_edge_case_range_inclusive(
+        runner: &mut TestRunner,
+        start: T,
+        end: T,
+        epsilon: T,
+    ) -> Self;
+}
+
+macro_rules! impl_sample_edge_case_range_inclusive_impl {
+    ($typ: ty) => {
+        impl SampleEdgeCaseRangeInclusive<$typ> for $typ {
+            fn sample_edge_case_range_inclusive(
+                runner: &mut TestRunner,
+                start: $typ,
+                end: $typ,
+                epsilon: $typ,
+            ) -> $typ {
+                match sample_uniform(runner, 0, 4) {
+                    0 => start,
+                    1 => num_traits::clamp(start + epsilon, start, end),
+                    2 => num_traits::clamp(end - epsilon, start, end),
+                    3 => end,
+                    _ => unreachable!(),
+                }
+            }
+        }
+    };
+}
+
+macro_rules! impl_sample_edge_case_range_inclusive {
+    ($($typ: ty),*) => {
+        $(impl_sample_edge_case_range_inclusive_impl!($typ);)*
+    };
+}
+
+impl_sample_edge_case_range_inclusive!(
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
+);
+
+trait SampleEdgeCaseFloat<T> {
+    fn sample_edge_case_float(runner: &mut TestRunner) -> Self;
+}
+
+macro_rules! impl_sample_edge_case_float_impl {
+    ($typ: ty) => {
+        impl SampleEdgeCaseFloat<$typ> for $typ {
+            fn sample_edge_case_float(runner: &mut TestRunner) -> $typ {
+                match sample_uniform(runner, 0, 11) {
+                    0 => 0.0,
+                    1 => -0.0,
+                    2 => 1.0,
+                    3 => -1.0,
+                    4 => <$typ>::MIN,
+                    5 => <$typ>::MAX,
+                    6 => <$typ>::MIN_POSITIVE,
+                    7 => -<$typ>::MIN_POSITIVE,
+                    8 => <$typ>::EPSILON,
+                    // One ULP from MIN and MAX
+                    9 => <$typ>::from_bits(<$typ>::MIN.to_bits() - 1),
+                    10 => <$typ>::from_bits(<$typ>::MAX.to_bits() - 1),
+                    // 11 => <$typ>::NAN,
+                    // 12 => <$typ>::NEG_INFINITY,
+                    // 13 => <$typ>::INFINITY,
+                    _ => unreachable!(),
+                }
+            }
+        }
+    };
+}
+
+macro_rules! impl_sample_edge_case_float {
+    ($($typ: ty),*) => {
+        $(impl_sample_edge_case_float_impl!($typ);)*
+    };
+}
+
+impl_sample_edge_case_float!(f32, f64);
+
 macro_rules! int_any {
     ($typ: ident) => {
         /// Type of the `ANY` constant.
@@ -53,6 +240,14 @@ macro_rules! int_any {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if runner.eval_edge_bias() {
+                    return Ok(BinarySearch::new(
+                        $crate::num::SampleEdgeCase::sample_edge_case(
+                            runner, 1,
+                        ),
+                    ));
+                }
+
                 Ok(BinarySearch::new(runner.rng().gen()))
             }
         }
@@ -69,6 +264,13 @@ macro_rules! numeric_api {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if runner.eval_edge_bias() {
+                    return Ok(BinarySearch::new(
+                        $crate::num::SampleEdgeCaseRangeExclusive::sample_edge_case_range_exclusive(
+                            runner, self.start, self.end, $epsilon,
+                        ),
+                    ));
+                }
                 Ok(BinarySearch::new_clamped(
                     self.start,
                     $crate::num::sample_uniform::<$sample_typ>(
@@ -87,6 +289,13 @@ macro_rules! numeric_api {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if runner.eval_edge_bias() {
+                    return Ok(BinarySearch::new(
+                        $crate::num::SampleEdgeCaseRangeInclusive::sample_edge_case_range_inclusive(
+                            runner, (*self.start()), (*self.end()), $epsilon,
+                        ),
+                    ));
+                }
                 Ok(BinarySearch::new_clamped(
                     *self.start(),
                     $crate::num::sample_uniform_incl::<$sample_typ>(
@@ -105,6 +314,13 @@ macro_rules! numeric_api {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if runner.eval_edge_bias() {
+                    return Ok(BinarySearch::new(
+                        $crate::num::SampleEdgeCaseRangeInclusive::sample_edge_case_range_inclusive(
+                            runner, self.start, ::core::$typ::MAX, $epsilon,
+                        ),
+                    ));
+                }
                 Ok(BinarySearch::new_clamped(
                     self.start,
                     $crate::num::sample_uniform_incl::<$sample_typ>(
@@ -123,6 +339,13 @@ macro_rules! numeric_api {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if runner.eval_edge_bias() {
+                    return Ok(BinarySearch::new(
+                        $crate::num::SampleEdgeCaseRangeExclusive::sample_edge_case_range_exclusive(
+                            runner, ::core::$typ::MIN, self.end, $epsilon,
+                        ),
+                    ));
+                }
                 Ok(BinarySearch::new_clamped(
                     ::core::$typ::MIN,
                     $crate::num::sample_uniform::<$sample_typ>(
@@ -141,6 +364,13 @@ macro_rules! numeric_api {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if runner.eval_edge_bias() {
+                    return Ok(BinarySearch::new(
+                        $crate::num::SampleEdgeCaseRangeInclusive::sample_edge_case_range_inclusive(
+                            runner, ::core::$typ::MIN, self.end, $epsilon,
+                        ),
+                    ));
+                }
                 Ok(BinarySearch::new_clamped(
                     ::core::$typ::MIN,
                     $crate::num::sample_uniform_incl::<$sample_typ>(
@@ -612,6 +842,12 @@ macro_rules! float_any {
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 let flags = self.0.normalise();
+
+                if runner.eval_edge_bias() {
+                    return Ok(BinarySearch::new_with_types(
+                        $crate::num::SampleEdgeCaseFloat::sample_edge_case_float(runner), flags))
+                }
+
                 let sign_mask = if flags.contains(FloatTypes::NEGATIVE) {
                     $typ::SIGN_MASK
                 } else {

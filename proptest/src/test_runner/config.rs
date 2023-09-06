@@ -28,6 +28,8 @@ use crate::test_runner::FileFailurePersistence;
 #[cfg(feature = "std")]
 const CASES: &str = "PROPTEST_CASES";
 #[cfg(feature = "std")]
+const EDGE_BIAS: &str = "PROPTEST_EDGE_BIAS";
+#[cfg(feature = "std")]
 const MAX_LOCAL_REJECTS: &str = "PROPTEST_MAX_LOCAL_REJECTS";
 #[cfg(feature = "std")]
 const MAX_GLOBAL_REJECTS: &str = "PROPTEST_MAX_GLOBAL_REJECTS";
@@ -85,6 +87,9 @@ pub fn contextualize_config(mut result: Config) -> Config {
     {
         match var.as_str() {
             CASES => parse_or_warn(&value, &mut result.cases, "u32", CASES),
+            EDGE_BIAS => {
+                parse_or_warn(&value, &mut result.edge_bias, "f32", EDGE_BIAS)
+            }
             MAX_LOCAL_REJECTS => parse_or_warn(
                 &value,
                 &mut result.max_local_rejects,
@@ -152,6 +157,7 @@ pub fn contextualize_config(result: Config) -> Config {
 fn default_default_config() -> Config {
     Config {
         cases: 256,
+        edge_bias: 0.25f32,
         max_local_rejects: 65_536,
         max_global_rejects: 1024,
         max_flat_map_regens: 1_000_000,
@@ -193,6 +199,30 @@ pub struct Config {
     /// `PROPTEST_CASES` environment variable. (The variable is only considered
     /// when the `std` feature is enabled, which it is by default.)
     pub cases: u32,
+
+    /// Bias towards edge cases of the input domain, meaning things like
+    /// MIN, MIN + 1, -1, 0, 1, MAX - 1, MAX. And in case of floats, NaN's and
+    /// infinity.
+    ///
+    /// This only applies to integers, floats and ranges of those.
+    ///
+    /// The number indicates the fraction of the cases on average that will be
+    /// edge cases.
+    ///
+    /// 0.0 would mean no bias towards edge cases at any point.
+    ///
+    /// 1.0 means only edge cases.
+    ///
+    /// 0.5 means that chance of edge cases reaches 50% at half-way through.
+    ///
+    /// Any non-zero value means edge cases start at 100% chance and then
+    /// smoothly decreases to 0% chance at the end. It decreases in a two-part
+    /// linear function whose area is edge_bias, so there is always a
+    /// combination of edge cases with other edge cases, edge cases with random
+    /// values, and random values with random values.
+    ///
+    /// The default is 0.25.
+    pub edge_bias: f32,
 
     /// The maximum number of individual inputs that may be rejected before the
     /// test as a whole aborts.
@@ -404,6 +434,47 @@ impl Config {
     pub fn with_cases(cases: u32) -> Self {
         Self {
             cases,
+            ..Config::default()
+        }
+    }
+
+    /// Constructs a `Config` only differing from the `default()` in the
+    /// edge_bias.
+    ///
+    /// This is simply a more concise alternative to using field-record update
+    /// syntax:
+    ///
+    /// ```
+    /// # use proptest::test_runner::Config;
+    /// assert_eq!(
+    ///     Config::with_edge_bias(0.5f32),
+    ///     Config { edge_bias: 0.5f32, .. Config::default() }
+    /// );
+    /// ```
+    pub fn with_edge_bias(edge_bias: f32) -> Self {
+        Self {
+            edge_bias,
+            ..Config::default()
+        }
+    }
+
+    /// Constructs a `Config` only differing from the `default()` in the
+    /// number of test cases and edge_bias.
+    ///
+    /// This is simply a more concise alternative to using field-record update
+    /// syntax:
+    ///
+    /// ```
+    /// # use proptest::test_runner::Config;
+    /// assert_eq!(
+    ///     Config::with_cases_and_edge_bias(1000, 0.5),
+    ///     Config { cases: 1000, edge_bias: 0.5, .. Config::default() }
+    /// );
+    /// ```
+    pub fn with_cases_and_edge_bias(cases: u32, edge_bias: f32) -> Self {
+        Self {
+            cases,
+            edge_bias,
             ..Config::default()
         }
     }

@@ -21,7 +21,8 @@ use std::vec::Vec;
 
 use self::FileFailurePersistence::*;
 use crate::test_runner::failure_persistence::{
-    FailurePersistence, PersistedSeed,
+    from_base16, to_base16, FailurePersistence, PersistedEdgeBias,
+    PersistedSeed,
 };
 
 /// Describes how failing test cases are persisted.
@@ -84,7 +85,7 @@ impl FailurePersistence for FileFailurePersistence {
     fn load_persisted_failures2(
         &self,
         source_file: Option<&'static str>,
-    ) -> Vec<PersistedSeed> {
+    ) -> Vec<(PersistedSeed, PersistedEdgeBias)> {
         let p = self.resolve(
             source_file
                 .and_then(|s| absolutize_source_file(Path::new(s)))
@@ -93,21 +94,25 @@ impl FailurePersistence for FileFailurePersistence {
         );
 
         let path: Option<&PathBuf> = p.as_ref();
-        let result: io::Result<Vec<PersistedSeed>> = path.map_or_else(
-            || Ok(vec![]),
-            |path| {
-                // .ok() instead of .unwrap() so we don't propagate panics here
-                let _lock = PERSISTENCE_LOCK.read().ok();
-                io::BufReader::new(fs::File::open(path)?)
-                    .lines()
-                    .enumerate()
-                    .filter_map(|(lineno, line)| match line {
-                        Err(err) => Some(Err(err)),
-                        Ok(line) => parse_seed_line(line, path, lineno).map(Ok),
-                    })
-                    .collect()
-            },
-        );
+        let result: io::Result<Vec<(PersistedSeed, PersistedEdgeBias)>> = path
+            .map_or_else(
+                || Ok(vec![]),
+                |path| {
+                    // .ok() instead of .unwrap() so we don't propagate panics here
+                    let _lock = PERSISTENCE_LOCK.read().ok();
+                    io::BufReader::new(fs::File::open(path)?)
+                        .lines()
+                        .enumerate()
+                        .filter_map(|(lineno, line)| match line {
+                            Err(err) => Some(Err(err)),
+                            Ok(line) => parse_seed_line(line, path, lineno)
+                                .map({
+                                    |(seed, edge_bias)| Ok((seed, edge_bias))
+                                }),
+                        })
+                        .collect()
+                },
+            );
 
         unwrap_or!(result, err => {
             if io::ErrorKind::NotFound != err.kind() {
@@ -127,6 +132,7 @@ impl FailurePersistence for FileFailurePersistence {
         &mut self,
         source_file: Option<&'static str>,
         seed: PersistedSeed,
+        current_edge_bias: PersistedEdgeBias,
         shrunken_value: &dyn Debug,
     ) {
         let path = self.resolve(source_file.map(Path::new));
@@ -141,8 +147,13 @@ impl FailurePersistence for FileFailurePersistence {
                     .expect("proptest: couldn't write header.");
             }
 
-            write_seed_line(&mut to_write, &seed, shrunken_value)
-                .expect("proptest: couldn't write seed line.");
+            write_seed_line(
+                &mut to_write,
+                &seed,
+                current_edge_bias,
+                shrunken_value,
+            )
+            .expect("proptest: couldn't write seed line.");
 
             if let Err(e) = write_seed_data_to_file(&path, &to_write) {
                 eprintln!(
@@ -151,14 +162,17 @@ impl FailurePersistence for FileFailurePersistence {
                     e
                 );
             } else {
+                let mut edge_string = String::new();
+                to_base16(&mut edge_string, &current_edge_bias);
+
                 eprintln!(
                     "proptest: Saving this and future failures in {}\n\
                      proptest: If this test was run on a CI system, you may \
                      wish to add the following line to your copy of the file.{}\n\
-                     {}",
+                     {},{}",
                     path.display(),
                     if is_new { " (You may need to create it.)" } else { "" },
-                    seed);
+                    seed, edge_string);
             }
         }
     }
@@ -253,36 +267,60 @@ fn parse_seed_line(
     mut line: String,
     path: &Path,
     lineno: usize,
-) -> Option<PersistedSeed> {
+) -> Option<(PersistedSeed, PersistedEdgeBias)> {
     // Remove anything after and including '#':
     if let Some(comment_start) = line.find('#') {
         line.truncate(comment_start);
     }
 
     if line.len() > 0 {
-        let ret = line.parse::<PersistedSeed>().ok();
-        if !ret.is_some() {
-            eprintln!(
-                "proptest: {}:{}: unparsable line, ignoring",
-                path.display(),
-                lineno + 1
-            );
+        let seed;
+        let mut edge_bias: PersistedEdgeBias = 0f32.to_le_bytes();
+        if let Some(comma_position) = line.find(',') {
+            seed = line[0..comma_position].parse::<PersistedSeed>().ok();
+            // The result is safe to ignore to not spam the log in case old
+            // cases exist, in which case edge_bias will be 0 to match old
+            // behaviour.
+            // We read 8 characters for 4 bytes.
+            if line.len() >= comma_position + 9 {
+                from_base16(
+                    &mut edge_bias,
+                    &line[comma_position + 1..comma_position + 9],
+                );
+            }
+        } else {
+            seed = line.parse::<PersistedSeed>().ok();
+            edge_bias = 0f32.to_le_bytes();
         }
-        return ret;
+        match seed {
+            Some(seed) => {
+                return Some((seed, edge_bias));
+            }
+            None => {
+                eprintln!(
+                    "proptest: {}:{}: unparsable line, ignoring",
+                    path.display(),
+                    lineno + 1
+                );
+            }
+        }
     }
-
     None
 }
 
 fn write_seed_line(
     buf: &mut Vec<u8>,
     seed: &PersistedSeed,
+    current_edge_bias: PersistedEdgeBias,
     shrunken_value: &dyn Debug,
 ) -> io::Result<()> {
-    // Write the seed itself
-    write!(buf, "{}", seed.to_string())?;
+    // Write the seed and edge bias. Note: f32 should be roundtrip-safe:
+    // https://github.com/rust-lang/rust/pull/27307
+    let mut edge_string = String::new();
+    to_base16(&mut edge_string, &current_edge_bias);
+    write!(buf, "{},{}", seed.to_string(), edge_string)?;
 
-    // Write out comment:
+    // Write out comment
     let debug_start = buf.len();
     write!(buf, " # shrinks to {:?}", shrunken_value)?;
 

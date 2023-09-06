@@ -7,7 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::std_facade::{fmt, Box, Vec};
+use crate::std_facade::{fmt, Box, String, Vec};
 use core::any::Any;
 use core::fmt::Display;
 use core::result::Result;
@@ -32,6 +32,9 @@ use crate::test_runner::Seed;
 /// Proptest uses for its persistence file.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PersistedSeed(pub(crate) Seed);
+
+/// Floating point edge bias as bytes to be put inside BTreeMap/set.
+pub type PersistedEdgeBias = [u8; 4];
 
 impl Display for PersistedSeed {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -65,10 +68,12 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
     fn load_persisted_failures2(
         &self,
         source_file: Option<&'static str>,
-    ) -> Vec<PersistedSeed> {
+    ) -> Vec<(PersistedSeed, PersistedEdgeBias)> {
         self.load_persisted_failures(source_file)
             .into_iter()
-            .map(|seed| PersistedSeed(Seed::XorShift(seed)))
+            .map(|(seed, edge_bias)| {
+                (PersistedSeed(Seed::XorShift(seed)), edge_bias)
+            })
             .collect()
     }
 
@@ -81,7 +86,7 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
     fn load_persisted_failures(
         &self,
         source_file: Option<&'static str>,
-    ) -> Vec<[u8; 16]> {
+    ) -> Vec<([u8; 16], PersistedEdgeBias)> {
         panic!("load_persisted_failures2 not implemented");
     }
 
@@ -94,12 +99,16 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
         &mut self,
         source_file: Option<&'static str>,
         seed: PersistedSeed,
+        current_edge_bias: PersistedEdgeBias,
         shrunken_value: &dyn fmt::Debug,
     ) {
         match seed.0 {
-            Seed::XorShift(seed) => {
-                self.save_persisted_failure(source_file, seed, shrunken_value)
-            }
+            Seed::XorShift(seed) => self.save_persisted_failure(
+                source_file,
+                seed,
+                current_edge_bias,
+                shrunken_value,
+            ),
             _ => (),
         }
     }
@@ -114,6 +123,7 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
         &mut self,
         source_file: Option<&'static str>,
         seed: [u8; 16],
+        current_edge_bias: PersistedEdgeBias,
         shrunken_value: &dyn fmt::Debug,
     ) {
         panic!("save_persisted_failure2 not implemented");
@@ -143,14 +153,35 @@ impl Clone for Box<dyn FailurePersistence> {
     }
 }
 
+pub(crate) fn to_base16(dst: &mut String, src: &[u8]) {
+    for byte in src {
+        dst.push_str(&format!("{:02x}", byte));
+    }
+}
+
+pub(crate) fn from_base16(dst: &mut [u8], src: &str) -> Option<()> {
+    if dst.len() * 2 != src.len() {
+        return None;
+    }
+
+    for (dst_byte, src_pair) in dst.into_iter().zip(src.as_bytes().chunks(2)) {
+        *dst_byte =
+            u8::from_str_radix(std::str::from_utf8(src_pair).ok()?, 16).ok()?;
+    }
+
+    Some(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::PersistedSeed;
+    use super::{PersistedEdgeBias, PersistedSeed};
     use crate::test_runner::rng::Seed;
 
     pub const INC_SEED: PersistedSeed = PersistedSeed(Seed::XorShift([
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
     ]));
+
+    pub const INC_EDGE_BIAS: PersistedEdgeBias = [0, 0, 0, 0];
 
     pub const HI_PATH: Option<&str> = Some("hi");
     pub const UNREL_PATH: Option<&str> = Some("unrelated");
