@@ -10,6 +10,7 @@ macro. Before going into details, here's our code from above rewritten to use
 it.
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 // snip
@@ -27,7 +28,6 @@ use proptest::prelude::*;
 #     let s = i.to_string();
 #     assert_eq!(s, order.id);
 # }
-
 prop_compose! {
     fn arb_order_id()(id in any::<u32>()) -> String {
         id.to_string()
@@ -43,9 +43,8 @@ prop_compose! {
 }
 
 proptest! {
-    # /*
     #[test]
-    # */
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_do_stuff(order in arb_order(1000)) {
         do_stuff(order);
     }
