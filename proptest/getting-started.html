@@ -1,15 +1,19 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js">
+<html lang="en" class="sidebar-visible no-js light">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>Getting started - Proptest</title>
-        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+
+
+        <!-- Custom HTML head -->
+        
         <meta name="description" content="Usage documentation for the proptest and proptest-derive crates">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
-        <link rel="shortcut icon" href="../">
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
         <link rel="stylesheet" href="../css/variables.css">
         <link rel="stylesheet" href="../css/general.css">
         <link rel="stylesheet" href="../css/chrome.css">
@@ -17,6 +21,7 @@
 
         <!-- Fonts -->
         <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
         <link rel="stylesheet" href="../highlight.css">
@@ -24,13 +29,18 @@
         <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+
     </head>
-    <body class="light">
+    <body>
+    <div id="body-container">
         <!-- Provide site root to javascript -->
-        <script type="text/javascript">var path_to_root = "../";</script>
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
-        <script type="text/javascript">
+        <script>
             try {
                 var theme = localStorage.getItem('mdbook-theme');
                 var sidebar = localStorage.getItem('mdbook-sidebar');
@@ -46,67 +56,97 @@
         </script>
 
         <!-- Set the theme before any content is loaded, prevents flash -->
-        <script type="text/javascript">
+        <script>
             var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
-            if (theme === null || theme === undefined) { theme = 'light'; }
-            document.body.className = theme;
-            document.querySelector('html').className = theme + ' js';
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
         </script>
 
         <!-- Hide / unhide sidebar before it is displayed -->
-        <script type="text/javascript">
+        <script>
             var html = document.querySelector('html');
-            var sidebar = 'visible';
-            if (document.body.clientWidth < 500) {
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
-                sidebar = sidebar || 'hidden';
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
             }
             html.classList.remove('sidebar-visible');
             html.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li class="chapter-item expanded affix "><a href="../intro.html">Introduction</a></li><li class="chapter-item expanded "><a href="../proptest/index.html"><strong aria-hidden="true">1.</strong> proptest</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest/getting-started.html" class="active"><strong aria-hidden="true">1.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/index.html"><strong aria-hidden="true">1.2.</strong> Understanding Proptest from the Bottom Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest/tutorial/strategy-basics.html"><strong aria-hidden="true">1.2.1.</strong> Strategy Basics</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/shrinking-basics.html"><strong aria-hidden="true">1.2.2.</strong> Shrinking Basics</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/test-runner.html"><strong aria-hidden="true">1.2.3.</strong> Using the Test Runner</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/compound-strategies.html"><strong aria-hidden="true">1.2.4.</strong> Compound Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/macro-proptest.html"><strong aria-hidden="true">1.2.5.</strong> The proptest! macro</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/transforming-strategies.html"><strong aria-hidden="true">1.2.6.</strong> Transforming Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/macro-prop-compose.html"><strong aria-hidden="true">1.2.7.</strong> The prop_compose! macro</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/enums.html"><strong aria-hidden="true">1.2.8.</strong> Generating Enums</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/filtering.html"><strong aria-hidden="true">1.2.9.</strong> Filtering</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/recursive.html"><strong aria-hidden="true">1.2.10.</strong> Generating Recursive Data</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/higher-order.html"><strong aria-hidden="true">1.2.11.</strong> Higher-Order Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/arbitrary.html"><strong aria-hidden="true">1.2.12.</strong> Defining a Canonical Strategy for a Type</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/config.html"><strong aria-hidden="true">1.2.13.</strong> Configuring Proptest</a></li></ol></li><li class="chapter-item expanded "><a href="../proptest/failure-persistence.html"><strong aria-hidden="true">1.3.</strong> Failure Persistence</a></li><li class="chapter-item expanded "><a href="../proptest/forking.html"><strong aria-hidden="true">1.4.</strong> Test Timeouts and Forking</a></li><li class="chapter-item expanded "><a href="../proptest/no-std.html"><strong aria-hidden="true">1.5.</strong> no_std Support</a></li><li class="chapter-item expanded "><a href="../proptest/wasm.html"><strong aria-hidden="true">1.6.</strong> Web Assembly Support</a></li><li class="chapter-item expanded "><a href="../proptest/limitations.html"><strong aria-hidden="true">1.7.</strong> Limitations of Property Testing</a></li><li class="chapter-item expanded "><a href="../proptest/vs-quickcheck.html"><strong aria-hidden="true">1.8.</strong> Proptest vs Quickcheck</a></li><li class="chapter-item expanded "><a href="../proptest/reference-docs.html"><strong aria-hidden="true">1.9.</strong> Reference documentation</a></li><li class="chapter-item expanded "><a href="../proptest/state-machine.html"><strong aria-hidden="true">1.10.</strong> State Machine testing</a></li></ol></li><li class="chapter-item expanded "><a href="../proptest-derive/index.html"><strong aria-hidden="true">2.</strong> proptest-derive</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest-derive/getting-started.html"><strong aria-hidden="true">2.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../proptest-derive/modifiers.html"><strong aria-hidden="true">2.2.</strong> Modifier reference</a></li><li class="chapter-item expanded "><a href="../proptest-derive/errors.html"><strong aria-hidden="true">2.3.</strong> Error index</a></li></ol></li></ol>
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../intro.html">Introduction</a></li><li class="chapter-item expanded "><a href="../proptest/index.html"><strong aria-hidden="true">1.</strong> proptest</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest/getting-started.html" class="active"><strong aria-hidden="true">1.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/index.html"><strong aria-hidden="true">1.2.</strong> Understanding Proptest from the Bottom Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest/tutorial/strategy-basics.html"><strong aria-hidden="true">1.2.1.</strong> Strategy Basics</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/shrinking-basics.html"><strong aria-hidden="true">1.2.2.</strong> Shrinking Basics</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/test-runner.html"><strong aria-hidden="true">1.2.3.</strong> Using the Test Runner</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/compound-strategies.html"><strong aria-hidden="true">1.2.4.</strong> Compound Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/macro-proptest.html"><strong aria-hidden="true">1.2.5.</strong> The proptest! macro</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/transforming-strategies.html"><strong aria-hidden="true">1.2.6.</strong> Transforming Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/macro-prop-compose.html"><strong aria-hidden="true">1.2.7.</strong> The prop_compose! macro</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/enums.html"><strong aria-hidden="true">1.2.8.</strong> Generating Enums</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/filtering.html"><strong aria-hidden="true">1.2.9.</strong> Filtering</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/recursive.html"><strong aria-hidden="true">1.2.10.</strong> Generating Recursive Data</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/higher-order.html"><strong aria-hidden="true">1.2.11.</strong> Higher-Order Strategies</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/arbitrary.html"><strong aria-hidden="true">1.2.12.</strong> Defining a Canonical Strategy for a Type</a></li><li class="chapter-item expanded "><a href="../proptest/tutorial/config.html"><strong aria-hidden="true">1.2.13.</strong> Configuring Proptest</a></li></ol></li><li class="chapter-item expanded "><a href="../proptest/failure-persistence.html"><strong aria-hidden="true">1.3.</strong> Failure Persistence</a></li><li class="chapter-item expanded "><a href="../proptest/forking.html"><strong aria-hidden="true">1.4.</strong> Test Timeouts and Forking</a></li><li class="chapter-item expanded "><a href="../proptest/no-std.html"><strong aria-hidden="true">1.5.</strong> no_std Support</a></li><li class="chapter-item expanded "><a href="../proptest/wasm.html"><strong aria-hidden="true">1.6.</strong> Web Assembly Support</a></li><li class="chapter-item expanded "><a href="../proptest/limitations.html"><strong aria-hidden="true">1.7.</strong> Limitations of Property Testing</a></li><li class="chapter-item expanded "><a href="../proptest/vs-quickcheck.html"><strong aria-hidden="true">1.8.</strong> Proptest vs Quickcheck</a></li><li class="chapter-item expanded "><a href="../proptest/reference-docs.html"><strong aria-hidden="true">1.9.</strong> Reference documentation</a></li><li class="chapter-item expanded "><a href="../proptest/state-machine.html"><strong aria-hidden="true">1.10.</strong> State Machine testing</a></li><li class="chapter-item expanded "><a href="../proptest/tips-and-best-practices.html"><strong aria-hidden="true">1.11.</strong> Tips and Best Practices</a></li></ol></li><li class="chapter-item expanded "><a href="../proptest-derive/index.html"><strong aria-hidden="true">2.</strong> proptest-derive</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../proptest-derive/getting-started.html"><strong aria-hidden="true">2.1.</strong> Getting started</a></li><li class="chapter-item expanded "><a href="../proptest-derive/modifiers.html"><strong aria-hidden="true">2.2.</strong> Modifier reference</a></li><li class="chapter-item expanded "><a href="../proptest-derive/errors.html"><strong aria-hidden="true">2.3.</strong> Error index</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
 
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                <div id="menu-bar" class="menu-bar">
-                    <div id="menu-bar-sticky-container">
-                        <div class="left-buttons">
-                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
-                                <i class="fa fa-bars"></i>
-                            </button>
-                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
-                                <i class="fa fa-paint-brush"></i>
-                            </button>
-                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
-                            </ul>
-                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
-                                <i class="fa fa-search"></i>
-                            </button>
-                        </div>
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
 
-                        <h1 class="menu-title">Proptest</h1>
+                    <h1 class="menu-title">Proptest</h1>
 
-                        <div class="right-buttons">
-                            <a href="../print.html" title="Print this book" aria-label="Print this book">
-                                <i id="print-button" class="fa fa-print"></i>
-                            </a>
-                        </div>
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
                     </div>
                 </div>
 
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -114,8 +154,9 @@
                         </ul>
                     </div>
                 </div>
+
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
-                <script type="text/javascript">
+                <script>
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
                     document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
                     Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
@@ -129,9 +170,9 @@
 <p>Let’s say we want to make a function that parses dates of the form
 <code>YYYY-MM-DD</code>. We’re not going to worry about <em>validating</em> the date, any
 triple of integers is fine. So let’s bang something out real quick.</p>
-<pre><pre class="playground"><code class="language-rust no_run">fn main() {}
-
-fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
     if 10 != s.len() { return None; }
     if &quot;-&quot; != &amp;s[4..5] || &quot;-&quot; != &amp;s[7..8] { return None; }
 
@@ -144,17 +185,31 @@ fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
             |m| day.parse::&lt;u32&gt;().ok().map(
                 |d| (y, m, d))))
 }
-</code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>It compiles, that means it works, right? Maybe not, let’s add some tests.</p>
-<pre><code class="language-rust ignore">#[test]
-fn test_parse_date() {
+<pre><code class="language-rust ignore"><span class="boring">fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
+</span><span class="boring">    if 10 != s.len() { return None; }
+</span><span class="boring">    if &quot;-&quot; != &amp;s[4..5] || &quot;-&quot; != &amp;s[7..8] { return None; }
+</span><span class="boring">
+</span><span class="boring">    let year = &amp;s[0..4];
+</span><span class="boring">    let month = &amp;s[6..7];
+</span><span class="boring">    let day = &amp;s[8..10];
+</span><span class="boring">
+</span><span class="boring">    year.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">        |y| month.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">            |m| day.parse::&lt;u32&gt;().ok().map(
+</span><span class="boring">                |d| (y, m, d))))
+</span><span class="boring">}
+</span>#[test]
+<span class="boring">fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
+</span>fn test_parse_date() {
     assert_eq!(None, parse_date(&quot;2017-06-1&quot;));
     assert_eq!(None, parse_date(&quot;2017-06-170&quot;));
     assert_eq!(None, parse_date(&quot;2017006-17&quot;));
     assert_eq!(None, parse_date(&quot;2017-06017&quot;));
     assert_eq!(Some((2017, 06, 17)), parse_date(&quot;2017-06-17&quot;));
 }
-</code></pre>
+<span class="boring">fn main() { test_parse_date(); }</span></code></pre>
 <p>Tests pass, deploy to production! But now your application starts crashing,
 and people are upset that you moved Christmas to February. Maybe we need to
 be a bit more thorough.</p>
@@ -168,16 +223,30 @@ the test to validate it? We won’t need to as long as we choose our inputs
 and properties correctly. But before correctness, there’s actually an even
 simpler property to test: <em>The function should not crash.</em> Let’s start
 there.</p>
-<pre><code class="language-rust ignore">// Bring the macros and other important things into scope.
+<pre><pre class="playground"><code class="language-rust should_panic"><span class="boring">extern crate proptest;
+</span>// Bring the macros and other important things into scope.
 use proptest::prelude::*;
-
-proptest! {
+<span class="boring">fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
+</span><span class="boring">    if 10 != s.len() { return None; }
+</span><span class="boring">    if &quot;-&quot; != &amp;s[4..5] || &quot;-&quot; != &amp;s[7..8] { return None; }
+</span><span class="boring">
+</span><span class="boring">    let year = &amp;s[0..4];
+</span><span class="boring">    let month = &amp;s[6..7];
+</span><span class="boring">    let day = &amp;s[8..10];
+</span><span class="boring">
+</span><span class="boring">    year.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">        |y| month.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">            |m| day.parse::&lt;u32&gt;().ok().map(
+</span><span class="boring">                |d| (y, m, d))))
+</span><span class="boring">}
+</span>proptest! {
     #[test]
-    fn doesnt_crash(s in &quot;\\PC*&quot;) {
+<span class="boring">    fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
+</span>    fn doesnt_crash(s in &quot;\\PC*&quot;) {
         parse_date(&amp;s);
     }
 }
-</code></pre>
+<span class="boring">fn main() { doesnt_crash(); }</span></code></pre></pre>
 <p>What this does is take a literally random <code>&amp;String</code> (ignore <code>\\PC*</code> for the
 moment, we’ll get back to that — if you’ve already figured it out, contain
 your excitement for a bit) and give it to <code>parse_date()</code> and then throw the
@@ -200,21 +269,34 @@ files. The first thing we should do is add these to source control.</p>
 <p>The next thing we should do is copy the failing case to a traditional unit
 test since it has exposed a bug not similar to what we’ve tested in the
 past.</p>
-<pre><code class="language-rust ignore">#[test]
-fn test_unicode_gibberish() {
+<pre><pre class="playground"><code class="language-rust should_panic"><span class="boring">fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
+</span><span class="boring">    if 10 != s.len() { return None; }
+</span><span class="boring">    if &quot;-&quot; != &amp;s[4..5] || &quot;-&quot; != &amp;s[7..8] { return None; }
+</span><span class="boring">
+</span><span class="boring">    let year = &amp;s[0..4];
+</span><span class="boring">    let month = &amp;s[6..7];
+</span><span class="boring">    let day = &amp;s[8..10];
+</span><span class="boring">
+</span><span class="boring">    year.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">        |y| month.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">            |m| day.parse::&lt;u32&gt;().ok().map(
+</span><span class="boring">                |d| (y, m, d))))
+</span><span class="boring">}
+</span>#[test]
+<span class="boring">fn dummy() {} // Doctests don't build `#[test]` functions, so we need this
+</span>fn test_unicode_gibberish() {
     assert_eq!(None, parse_date(&quot;aAௗ0㌀0&quot;));
 }
-</code></pre>
+<span class="boring">fn main() { test_unicode_gibberish(); }</span></code></pre></pre>
 <p>Now, let’s see what happened… we forgot about UTF-8! You can’t just
 blindly slice strings since you could split a character, in this case that
 Tamil diacritic placed atop other characters in the string.</p>
 <p>In the interest of making the code changes as small as possible, we’ll just
 check that the string is ASCII and reject anything that isn’t.</p>
-<pre><pre class="playground"><code class="language-rust no_run">
-<span class="boring">#![allow(unused)]
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span><span class="boring">use std::ascii::AsciiExt; //NOREADME
-</span><span class="boring">// NOREADME
+</span><span class="boring">use std::ascii::AsciiExt;
+</span><span class="boring">
 </span>fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
     if 10 != s.len() { return None; }
 
@@ -232,21 +314,38 @@ check that the string is ASCII and reject anything that isn’t.</p>
             |m| day.parse::&lt;u32&gt;().ok().map(
                 |d| (y, m, d))))
 }
-<span class="boring">}
-</span></code></pre></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>The tests pass now! But we know there are still more problems, so let’s
 test more properties.</p>
 <p>Another property we want from our code is that it parses every valid date.
 We can add another test to the <code>proptest!</code> section:</p>
-<pre><code class="language-rust ignore">proptest! {
-    // snip...
-
+<pre><pre class="playground"><code class="language-rust"><span class="boring">extern crate proptest;
+</span><span class="boring">use proptest::prelude::*;
+</span><span class="boring">fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
+</span><span class="boring">    if 10 != s.len() { return None; }
+</span><span class="boring">
+</span><span class="boring">    // NEW: Ignore non-ASCII strings so we don't need to deal with Unicode.
+</span><span class="boring">    if !s.is_ascii() { return None; }
+</span><span class="boring">
+</span><span class="boring">    if &quot;-&quot; != &amp;s[4..5] || &quot;-&quot; != &amp;s[7..8] { return None; }
+</span><span class="boring">
+</span><span class="boring">    let year = &amp;s[0..4];
+</span><span class="boring">    let month = &amp;s[6..7];
+</span><span class="boring">    let day = &amp;s[8..10];
+</span><span class="boring">
+</span><span class="boring">    year.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">        |y| month.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">            |m| day.parse::&lt;u32&gt;().ok().map(
+</span><span class="boring">                |d| (y, m, d))))
+</span><span class="boring">}
+</span>proptest! {
     #[test]
-    fn parses_all_valid_dates(s in &quot;[0-9]{4}-[0-9]{2}-[0-9]{2}&quot;) {
+<span class="boring">    fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
+</span>    fn parses_all_valid_dates(s in &quot;[0-9]{4}-[0-9]{2}-[0-9]{2}&quot;) {
         parse_date(&amp;s).unwrap();
     }
 }
-</code></pre>
+<span class="boring">fn main() { parses_all_valid_dates(); }</span></code></pre></pre>
 <p>The thing to the right-hand side of <code>in</code> is actually a <em>regular
 expression</em>, and <code>s</code> is chosen from strings which match it. So in our
 previous test, <code>&quot;\\PC*&quot;</code> was generating arbitrary strings composed of
@@ -257,11 +356,31 @@ format.</p>
 <em>correctly</em>. Now, we can’t do this by generating strings — we’d end up just
 reimplementing the date parser in the test! Instead, we start from the
 expected output, generate the string, and check that it gets parsed back.</p>
-<pre><code class="language-rust ignore">proptest! {
-    // snip...
-
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">extern crate proptest;
+</span><span class="boring">use proptest::prelude::*;
+</span><span class="boring">fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
+</span><span class="boring">    if 10 != s.len() { return None; }
+</span><span class="boring">
+</span><span class="boring">    // NEW: Ignore non-ASCII strings so we don't need to deal with Unicode.
+</span><span class="boring">    if !s.is_ascii() { return None; }
+</span><span class="boring">
+</span><span class="boring">    if &quot;-&quot; != &amp;s[4..5] || &quot;-&quot; != &amp;s[7..8] { return None; }
+</span><span class="boring">
+</span><span class="boring">    let year = &amp;s[0..4];
+</span><span class="boring">    let month = &amp;s[6..7];
+</span><span class="boring">    let day = &amp;s[8..10];
+</span><span class="boring">
+</span><span class="boring">    year.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">        |y| month.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">            |m| day.parse::&lt;u32&gt;().ok().map(
+</span><span class="boring">                |d| (y, m, d))))
+</span><span class="boring">}
+</span>proptest! {
     #[test]
-    fn parses_date_back_to_original(y in 0u32..10000,
+<span class="boring">    fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
+</span>    fn parses_date_back_to_original(y in 0u32..10000,
                                     m in 1u32..13, d in 1u32..32) {
         let (y2, m2, d2) = parse_date(
             &amp;format!(&quot;{:04}-{:02}-{:02}&quot;, y, m, d)).unwrap();
@@ -271,7 +390,7 @@ expected output, generate the string, and check that it gets parsed back.</p>
         prop_assert_eq!((y, m, d), (y2, m2, d2));
     }
 }
-</code></pre>
+<span class="boring">}</span></code></pre></pre>
 <p>Here, we see that besides regexes, we can use any expression which is a
 <code>proptest::strategy::Strategy</code>, in this case, integer ranges.</p>
 <p>The test fails when we run it. Though there’s not much output this time.</p>
@@ -286,8 +405,11 @@ note: Run with `RUST_BACKTRACE=1` for a backtrace.
 output. Before thinking about why this breaks the code, let’s look at what
 proptest did to arrive at this value. At the start of our test function,
 insert</p>
-<pre><code class="language-rust ignore">    println!(&quot;y = {}, m = {}, d = {}&quot;, y, m, d);
-</code></pre>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">    let (y, m, d) = (0, 10, 1);
+</span>    println!(&quot;y = {}, m = {}, d = {}&quot;, y, m, d);
+<span class="boring">}</span></code></pre></pre>
 <p>Running the test again, we get something like this:</p>
 <pre><code class="language-text">y = 2497, m = 8, d = 27
 y = 9641, m = 8, d = 18
@@ -329,11 +451,29 @@ the <code>0000-06-20</code> and <code>0000-09-20</code> test cases <em>passed</e
 file, and we should add this as its own unit test:</p>
 <pre><code class="language-text">$ git add proptest-regressions
 </code></pre>
-<pre><code class="language-rust ignore">#[test]
-fn test_october_first() {
+<pre><pre class="playground"><code class="language-rust should_panic"><span class="boring">fn parse_date(s: &amp;str) -&gt; Option&lt;(u32, u32, u32)&gt; {
+</span><span class="boring">    if 10 != s.len() { return None; }
+</span><span class="boring">
+</span><span class="boring">    // NEW: Ignore non-ASCII strings so we don't need to deal with Unicode.
+</span><span class="boring">    if !s.is_ascii() { return None; }
+</span><span class="boring">
+</span><span class="boring">    if &quot;-&quot; != &amp;s[4..5] || &quot;-&quot; != &amp;s[7..8] { return None; }
+</span><span class="boring">
+</span><span class="boring">    let year = &amp;s[0..4];
+</span><span class="boring">    let month = &amp;s[6..7];
+</span><span class="boring">    let day = &amp;s[8..10];
+</span><span class="boring">
+</span><span class="boring">    year.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">        |y| month.parse::&lt;u32&gt;().ok().and_then(
+</span><span class="boring">            |m| day.parse::&lt;u32&gt;().ok().map(
+</span><span class="boring">                |d| (y, m, d))))
+</span><span class="boring">}
+</span>#[test]
+<span class="boring">fn dummy() {} // Doctests don't build `#[test]` functions, so we need this
+</span>fn test_october_first() {
     assert_eq!(Some((0, 10, 1)), parse_date(&quot;0000-10-01&quot;));
 }
-</code></pre>
+<span class="boring">fn main() { test_october_first(); }</span></code></pre></pre>
 <p>Now to figure out what’s broken in the code. Even without the intermediate
 input, we can say with reasonable confidence that the year and day parts
 don’t come into the picture since both were reduced to the minimum
@@ -341,8 +481,7 @@ allowable input. The month input was <em>not</em>, but was reduced to <code>10</
 means we can infer that there’s something special about <code>10</code> that doesn’t
 hold for <code>9</code>. In this case, that “special something” is being two digits
 wide. In our code:</p>
-<pre><code class="language-rust ignore">    let month = &amp;s[6..7];
-</code></pre>
+<pre><code class="language-rust ignore">    let month = &amp;s[6..7];</code></pre>
 <p>We were off by one, and need to use the range <code>5..7</code>. After fixing this,
 the test passes.</p>
 <p>The <code>proptest!</code> macro has some additional syntax, including for setting
@@ -357,32 +496,47 @@ for more details.</p>
                             <a rel="prev" href="../proptest/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
+
                             <a rel="next" href="../proptest/tutorial/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
+
                         <div style="clear: both"></div>
                     </nav>
                 </div>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a href="../proptest/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../proptest/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
-                    <a href="../proptest/tutorial/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+
+                    <a rel="next" href="../proptest/tutorial/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
         </div>
 
-        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
 
         <!-- Custom JS scripts -->
+
+
+    </div>
     </body>
 </html>
