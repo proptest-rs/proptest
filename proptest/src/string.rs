@@ -27,7 +27,7 @@ use crate::test_runner::*;
 
 /// Wraps the regex that forms the `Strategy` for `String` so that a sensible
 /// `Default` can be given. The default is a string of non-control characters.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StringParam(&'static str);
 
 impl From<StringParam> for &'static str {
