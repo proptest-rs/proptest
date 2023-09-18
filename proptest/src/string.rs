@@ -172,7 +172,7 @@ pub fn string_regex_parsed(expr: &Hir) -> ParseResult<String> {
 /// for more information.
 pub fn bytes_regex(regex: &str) -> ParseResult<Vec<u8>> {
     let hir = ParserBuilder::new()
-        .allow_invalid_utf8(true)
+        .utf8(false)
         .build()
         .parse(regex)?;
     bytes_regex_parsed(&hir)
