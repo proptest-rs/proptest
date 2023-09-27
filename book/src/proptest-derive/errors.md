@@ -9,7 +9,7 @@
 This error occurs when `#[derive(Arbitrary)]` is used on a type which has any
 [lifetime parameters]. For example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo<'a> {
     bar: &'a str,
@@ -31,7 +31,7 @@ To follow the progress, consult the [tracking issue][issue#9] on the matter.
 This error occurs when `#[derive(Arbitrary)]` is used on a `union` type.
 An example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 union IU32 {
     signed: i32,
@@ -62,7 +62,7 @@ in turn means the struct itself is uninhabited and so it there is no sensible
 
 A trivial example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Uninhabited {
     inhabited: u32,
@@ -83,7 +83,7 @@ be inhabited and you will instead get an error about the type not implementing
 This error occurs when `#[derive(Arbitrary)]` is used on an enum with no
 variants at all. For example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 enum Uninhabited {}
 ```
@@ -99,7 +99,7 @@ As a result, the enum itself is totally uninhabited.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 enum Uninhabited {
     Never(!),
@@ -116,7 +116,7 @@ enum itself cannot be generated.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 enum MyEnum {
     // Ordinarily, proptest would be able to generate either of these variants,
@@ -140,7 +140,7 @@ This error happens if an attribute [`#[proptest(strategy = "expr")]`] or
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 #[proptest(value = "MyStruct(42)")]
 struct MyStruct(u32);
@@ -157,7 +157,7 @@ of a struct to have a value.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct WidgetContainer {
     desired_widget_count: usize,
@@ -170,7 +170,7 @@ In general, the appropriate way to request proptest to not generate a field
 value is to use [`#[proptest(value = "expr")]`] to provide a fixed value
 yourself. For example, the above code could be properly written as follows:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct WidgetContainer {
     desired_widget_count: usize,
@@ -184,7 +184,7 @@ struct WidgetContainer {
 This error happens if [`#[proptest(weight = <integer>)]`] is applied to an item
 where this does not make sense, such as a struct field. For example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Point {
     x: u32,
@@ -204,7 +204,7 @@ This error occurs if [`#[proptest(params = "type")]`] and/or
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 #[proptest(params = "String")]
 struct Foo {
@@ -223,7 +223,7 @@ This error occurs if [`#[proptest(params = "type")]`] is set on a field but no
 explicit strategy is configured with [`#[proptest(strategy = "expr")]`] or
 another such modifier. For example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo {
     #[proptest(param = "u8")]
@@ -248,7 +248,7 @@ would thus occur without consulting the filter.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 enum Foo {
     #[proptest(value = "Foo::Bar(42)")]
@@ -279,7 +279,7 @@ since it has no meaningful content.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo {
     #[proptest]
@@ -296,7 +296,7 @@ encountered in any context.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo {
     #[proptest = 1234]
@@ -311,7 +311,7 @@ This error occurs if a literal (as opposed to `key = value`) is passed inside
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo {
     #[proptest(1234)]
@@ -326,7 +326,7 @@ the same item.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 #[proptest(no_params, no_params)]
 struct Foo(u32);
@@ -338,7 +338,7 @@ This error occurs if an unknown modifier is passed in `#[proptest(..)]`.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 #[proptest(frobnicate = "true")]
 struct Foo(u32);
@@ -353,7 +353,7 @@ This error happens if anything extra is passed to [`#[proptest(no_params)]`].
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 #[proptest(no_params = "true")]
 struct Foo(u32);
@@ -368,7 +368,7 @@ This error happens if anything extra is passed to [`#[proptest(skip)]`].
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 enum Foo {
     Small,
@@ -386,7 +386,7 @@ integer or passed nothing at all.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 enum Foo {
     #[proptest(weight)]
@@ -407,7 +407,7 @@ This error occurs if more than one of [`#[proptest(no_params)]`] and
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 #[proptest(no_params, params = "u8")]
 struct Foo(u32);
@@ -422,7 +422,7 @@ applied to an item.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 #[proptest(params = "Vec<u8")] // Note missing '>'
 struct Foo(u32);
@@ -453,7 +453,7 @@ to the same item.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo {
     #[proptest(value = "42", strategy = "Just(56)")]
@@ -472,7 +472,7 @@ This error happens if an invalid form of [`#[proptest(strategy = "expr")]`] or
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo {
     #[proptest(value = "3↑↑↑↑3")] // String content is not valid Rust syntax
@@ -496,7 +496,7 @@ used.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo {
     #[proptest(filter = "> 3")] // String content is not an expression
@@ -520,7 +520,8 @@ applied to an enum variant which is also marked [`#[proptest(skip)]`].
 
 Example:
 
-```rust
+```rust,compile_fail
+
 #[derive(Debug, Arbitrary)]
 enum Enum {
     V1(u32),
@@ -540,7 +541,7 @@ of an enum variant is to be generated is applied to a unit variant.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 enum Foo {
     #[proptest(value = "Foo::V1")]
@@ -560,7 +561,7 @@ of a struct is to be generated is applied to a unit struct.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 #[proptest(params = "u8")]
 struct UnitStruct;
@@ -577,7 +578,7 @@ not a type variable.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo {
     #[proptest(no_bound)]
@@ -587,7 +588,7 @@ struct Foo {
 
 The `no_bound` modifier only makes sense on generic type variables, as in
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo<#[proptest(no_bound)] T> {
     #[proptest(value = "None")]
@@ -601,7 +602,7 @@ This error happens if [`#[proptest(no_bound)]`] is passed anything.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 struct Foo<#[proptest(no_bound = "yes")] T> {
     _bar: PhantomData<T>,
@@ -617,7 +618,7 @@ a `u32`.
 
 Example:
 
-```rust
+```rust,compile_fail
 #[derive(Debug, Arbitrary)]
 enum Foo {
     #[proptest(weight = 3_000_000_000)]
@@ -655,7 +656,7 @@ couple ways depending on what the syntax is describing:
 
 For types, simply define a type alias for the type in question. For example,
 
-```rust
+```rust,compile_fail
 type RetroBox = ~str; // N.B. "~str" is not valid Rust 1.30 syntax
 
 //...
@@ -667,7 +668,7 @@ struct MyStruct { /* ... */ }
 For values, you can generally factor the code into a constant or function. For
 example,
 
-```rust
+```rust,compile_fail
 // N.B. Rust 1.30 does not have an exponentiation operator.
 const PI_SQUARED: f64 = PI ** 2.0;
 

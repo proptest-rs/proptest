@@ -333,52 +333,64 @@ macro_rules! prop_oneof {
 
     ($_weight0:expr => $item0:expr $(,)?) => { $item0 };
 
+    // NOTE: The clippy::arc_with_non_send_sync lint is disabled here because
+    // the strategies passed into prop_oneof! are often not Send or Sync, such
+    // as BoxedStrategy.
+    //
+    // The double-curly-braces are not strictly required, but allow the expression
+    // to be annotated with an attribute.
+
     ($weight0:expr => $item0:expr,
-     $weight1:expr => $item1:expr $(,)?) => {
+     $weight1:expr => $item1:expr $(,)?) => {{
+        #[allow(clippy::arc_with_non_send_sync)]
         $crate::strategy::TupleUnion::new(
             (($weight0, $crate::std_facade::Arc::new($item0)),
              ($weight1, $crate::std_facade::Arc::new($item1))))
-    };
+    }};
 
     ($weight0:expr => $item0:expr,
      $weight1:expr => $item1:expr,
-     $weight2:expr => $item2:expr $(,)?) => {
+     $weight2:expr => $item2:expr $(,)?) => {{
+        #[allow(clippy::arc_with_non_send_sync)]
         $crate::strategy::TupleUnion::new(
             (($weight0, $crate::std_facade::Arc::new($item0)),
              ($weight1, $crate::std_facade::Arc::new($item1)),
              ($weight2, $crate::std_facade::Arc::new($item2))))
-    };
+    }};
 
     ($weight0:expr => $item0:expr,
      $weight1:expr => $item1:expr,
      $weight2:expr => $item2:expr,
-     $weight3:expr => $item3:expr $(,)?) => {
+     $weight3:expr => $item3:expr $(,)?) => {{
+        #[allow(clippy::arc_with_non_send_sync)]
         $crate::strategy::TupleUnion::new(
             (($weight0, $crate::std_facade::Arc::new($item0)),
              ($weight1, $crate::std_facade::Arc::new($item1)),
              ($weight2, $crate::std_facade::Arc::new($item2)),
              ($weight3, $crate::std_facade::Arc::new($item3))))
-    };
+    }};
 
     ($weight0:expr => $item0:expr,
      $weight1:expr => $item1:expr,
      $weight2:expr => $item2:expr,
      $weight3:expr => $item3:expr,
-     $weight4:expr => $item4:expr $(,)?) => {
+     $weight4:expr => $item4:expr $(,)?) => {{
+        #[allow(clippy::arc_with_non_send_sync)]
         $crate::strategy::TupleUnion::new(
             (($weight0, $crate::std_facade::Arc::new($item0)),
              ($weight1, $crate::std_facade::Arc::new($item1)),
              ($weight2, $crate::std_facade::Arc::new($item2)),
              ($weight3, $crate::std_facade::Arc::new($item3)),
              ($weight4, $crate::std_facade::Arc::new($item4))))
-    };
+    }};
 
     ($weight0:expr => $item0:expr,
      $weight1:expr => $item1:expr,
      $weight2:expr => $item2:expr,
      $weight3:expr => $item3:expr,
      $weight4:expr => $item4:expr,
-     $weight5:expr => $item5:expr $(,)?) => {
+     $weight5:expr => $item5:expr $(,)?) => {{
+        #[allow(clippy::arc_with_non_send_sync)]
         $crate::strategy::TupleUnion::new(
             (($weight0, $crate::std_facade::Arc::new($item0)),
              ($weight1, $crate::std_facade::Arc::new($item1)),
@@ -386,7 +398,7 @@ macro_rules! prop_oneof {
              ($weight3, $crate::std_facade::Arc::new($item3)),
              ($weight4, $crate::std_facade::Arc::new($item4)),
              ($weight5, $crate::std_facade::Arc::new($item5))))
-    };
+    }};
 
     ($weight0:expr => $item0:expr,
      $weight1:expr => $item1:expr,
@@ -394,7 +406,8 @@ macro_rules! prop_oneof {
      $weight3:expr => $item3:expr,
      $weight4:expr => $item4:expr,
      $weight5:expr => $item5:expr,
-     $weight6:expr => $item6:expr $(,)?) => {
+     $weight6:expr => $item6:expr $(,)?) => {{
+        #[allow(clippy::arc_with_non_send_sync)]
         $crate::strategy::TupleUnion::new(
             (($weight0, $crate::std_facade::Arc::new($item0)),
              ($weight1, $crate::std_facade::Arc::new($item1)),
@@ -403,7 +416,7 @@ macro_rules! prop_oneof {
              ($weight4, $crate::std_facade::Arc::new($item4)),
              ($weight5, $crate::std_facade::Arc::new($item5)),
              ($weight6, $crate::std_facade::Arc::new($item6))))
-    };
+    }};
 
     ($weight0:expr => $item0:expr,
      $weight1:expr => $item1:expr,
@@ -412,7 +425,8 @@ macro_rules! prop_oneof {
      $weight4:expr => $item4:expr,
      $weight5:expr => $item5:expr,
      $weight6:expr => $item6:expr,
-     $weight7:expr => $item7:expr $(,)?) => {
+     $weight7:expr => $item7:expr $(,)?) => {{
+        #[allow(clippy::arc_with_non_send_sync)]
         $crate::strategy::TupleUnion::new(
             (($weight0, $crate::std_facade::Arc::new($item0)),
              ($weight1, $crate::std_facade::Arc::new($item1)),
@@ -422,7 +436,7 @@ macro_rules! prop_oneof {
              ($weight5, $crate::std_facade::Arc::new($item5)),
              ($weight6, $crate::std_facade::Arc::new($item6)),
              ($weight7, $crate::std_facade::Arc::new($item7))))
-    };
+    }};
 
     ($weight0:expr => $item0:expr,
      $weight1:expr => $item1:expr,
@@ -432,7 +446,8 @@ macro_rules! prop_oneof {
      $weight5:expr => $item5:expr,
      $weight6:expr => $item6:expr,
      $weight7:expr => $item7:expr,
-     $weight8:expr => $item8:expr $(,)?) => {
+     $weight8:expr => $item8:expr $(,)?) => {{
+        #[allow(clippy::arc_with_non_send_sync)]
         $crate::strategy::TupleUnion::new(
             (($weight0, $crate::std_facade::Arc::new($item0)),
              ($weight1, $crate::std_facade::Arc::new($item1)),
@@ -443,7 +458,7 @@ macro_rules! prop_oneof {
              ($weight6, $crate::std_facade::Arc::new($item6)),
              ($weight7, $crate::std_facade::Arc::new($item7)),
              ($weight8, $crate::std_facade::Arc::new($item8))))
-    };
+    }};
 
     ($weight0:expr => $item0:expr,
      $weight1:expr => $item1:expr,
@@ -454,7 +469,8 @@ macro_rules! prop_oneof {
      $weight6:expr => $item6:expr,
      $weight7:expr => $item7:expr,
      $weight8:expr => $item8:expr,
-     $weight9:expr => $item9:expr $(,)?) => {
+     $weight9:expr => $item9:expr $(,)?) => {{
+        #[allow(clippy::arc_with_non_send_sync)]
         $crate::strategy::TupleUnion::new(
             (($weight0, $crate::std_facade::Arc::new($item0)),
              ($weight1, $crate::std_facade::Arc::new($item1)),
@@ -466,7 +482,7 @@ macro_rules! prop_oneof {
              ($weight7, $crate::std_facade::Arc::new($item7)),
              ($weight8, $crate::std_facade::Arc::new($item8)),
              ($weight9, $crate::std_facade::Arc::new($item9))))
-    };
+    }};
 
     ($($weight:expr => $item:expr),+ $(,)?) => {
         $crate::strategy::Union::new_weighted(vec![

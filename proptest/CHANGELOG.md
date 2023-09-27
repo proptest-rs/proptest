@@ -8,6 +8,7 @@
 
 - `regex-syntax` version 0.7 is now used.
 - Print a seed to stderr for a failed test even when a regressions file is already present.
+- Fixed a performance issue with `VarBitSet::saturated` that can slow down `VecStrategy`
 
 ## 1.2.0
 

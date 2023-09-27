@@ -9,9 +9,8 @@
 
 use crate::std_facade::{Arc, String, ToOwned, Vec};
 use core::result::Result;
-use core::{fmt, str, u8};
+use core::{fmt, str, u8, convert::TryInto};
 
-use byteorder::{ByteOrder, LittleEndian};
 use rand::{self, Rng, RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
 use rand_xorshift::XorShiftRng;
@@ -137,7 +136,7 @@ impl RngCore for TestRng {
             &mut TestRngImpl::PassThrough { .. } => {
                 let mut buf = [0; 4];
                 self.fill_bytes(&mut buf[..]);
-                LittleEndian::read_u32(&buf[..])
+                u32::from_le_bytes(buf)
             }
 
             &mut TestRngImpl::Recorder {
@@ -160,7 +159,7 @@ impl RngCore for TestRng {
             &mut TestRngImpl::PassThrough { .. } => {
                 let mut buf = [0; 8];
                 self.fill_bytes(&mut buf[..]);
-                LittleEndian::read_u64(&buf[..])
+                u64::from_le_bytes(buf)
             }
 
             &mut TestRngImpl::Recorder {
@@ -302,7 +301,9 @@ impl Seed {
                     }
 
                     let mut seed = [0u8; 16];
-                    LittleEndian::write_u32_into(&dwords[..], &mut seed[..]);
+                    for (chunk, dword) in seed.chunks_mut(4).zip(dwords) {
+                        chunk.copy_from_slice(&dword.to_le_bytes());
+                    }
                     Some(Seed::XorShift(seed))
                 }
 
@@ -354,8 +355,12 @@ impl Seed {
 
         match *self {
             Seed::XorShift(ref seed) => {
-                let mut dwords = [0u32; 4];
-                LittleEndian::read_u32_into(seed, &mut dwords[..]);
+                let dwords = [
+                    u32::from_le_bytes(seed[0..4].try_into().unwrap()),
+                    u32::from_le_bytes(seed[4..8].try_into().unwrap()),
+                    u32::from_le_bytes(seed[8..12].try_into().unwrap()),
+                    u32::from_le_bytes(seed[12..16].try_into().unwrap()),
+                ];
                 format!(
                     "{} {} {} {} {}",
                     RngAlgorithm::XorShift.persistence_key(),

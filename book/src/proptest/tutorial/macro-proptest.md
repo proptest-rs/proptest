@@ -6,6 +6,7 @@ macro works. Our example from the prior section can be rewritten using that
 macro like so:
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 fn add(a: i32, b: i32) -> i32 {
@@ -14,6 +15,7 @@ fn add(a: i32, b: i32) -> i32 {
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_add(a in 0..1000i32, b in 0..1000i32) {
         let sum = add(a, b);
         assert!(sum >= a);

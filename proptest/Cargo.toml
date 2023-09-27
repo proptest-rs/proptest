@@ -2,7 +2,7 @@
 name = "proptest"
 version = "1.2.0"
 authors = ["Jason Lingle"]
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/proptest-rs/proptest"
 homepage = "https://proptest-rs.github.io/proptest/proptest/index.html"
@@ -27,7 +27,7 @@ default-code-coverage = ["std", "fork", "timeout", "bit-set"]
 unstable = []
 
 # Enables the use of standard-library dependent features
-std = ["rand/std", "byteorder/std", "lazy_static",
+std = ["rand/std", "lazy_static",
        "regex-syntax", "num-traits/std"]
 
 # For use in no_std environments with access to an allocator
@@ -51,6 +51,8 @@ timeout = ["fork", "rusty-fork/timeout"]
 # This is enabled by default. Some no_std environments do not support it and
 # need it excluded, however.
 atomic64bit = []
+
+bit-set = [ "dep:bit-set", "dep:bit-vec" ]
 
 [dependencies]
 bitflags = "2"
@@ -78,8 +80,10 @@ optional = true
 
 [dependencies.bit-set]
 version = "0.5.0"
-# It doesn't currently work with no_std
-# default-features = false
+optional = true
+
+[dependencies.bit-vec]
+version = "0.6.0"
 optional = true
 
 [dependencies.rand]
@@ -92,10 +96,6 @@ version = "0.3"
 
 [dependencies.rand_chacha]
 version = "0.3"
-default-features = false
-
-[dependencies.byteorder]
-version = "1.2.3"
 default-features = false
 
 [dependencies.rusty-fork]

@@ -7,18 +7,19 @@ property testing is extremely unlikely to find single-value edge cases in a
 large space. For example, the following test will virtually always pass:
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn i64_abs_is_never_negative(a: i64) {
         // This actually fails if a == i64::MIN, but randomly picking one
         // specific value out of 2⁶⁴ is overwhelmingly unlikely.
         assert!(a.abs() >= 0);
     }
 }
-# // NOREADME
-# fn main() { } // NOREADME
+# fn main() { i64_abs_is_never_negative() }
 ```
 
 Because of this, traditional unit testing with intelligently selected cases
