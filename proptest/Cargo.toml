@@ -19,7 +19,7 @@ Hypothesis-like property-based testing and shrinking.
 
 [features]
 
-default = ["std", "fork", "timeout", "bit-set", "break-dead-code"]
+default = ["std", "fork", "timeout", "bit-set"]
 # Everything in `default` that doesn't break code coverage builds
 default-code-coverage = ["std", "fork", "timeout", "bit-set"]
 
@@ -51,10 +51,6 @@ timeout = ["fork", "rusty-fork/timeout"]
 # This is enabled by default. Some no_std environments do not support it and
 # need it excluded, however.
 atomic64bit = []
-
-# Include features which break the Rust compiler when `-C link-dead-code` is
-# passed (see https://github.com/proptest-rs/proptest/issues/124).
-break-dead-code = []
 
 bit-set = [ "dep:bit-set", "dep:bit-vec" ]
 
