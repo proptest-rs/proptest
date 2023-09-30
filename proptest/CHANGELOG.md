@@ -1,14 +1,31 @@
 ## Unreleased
 
+## 1.3.0
+
 ### Breaking Changes
 
 - The minimum supported Rust version has been increased to 1.64.0.
+
+### New Features
+
+- Adds Arbitrary impl for PathBuf
+- Permit use of (?-u) in byte-regex strategies, allowing non-utf-8 bytes to be generated
+
+### Book
+
+- Various small fixes -- typos, formatting
+- Removal of custom theme
+- Add book page for Tips and Best Practices
 
 ### Other Notes
 
 - `regex-syntax` version 0.7 is now used.
 - Print a seed to stderr for a failed test even when a regressions file is already present.
 - Fixed a performance issue with `VarBitSet::saturated` that can slow down `VecStrategy`
+- Remove use of rust feature `core_intrinsics`
+- Remove no longer needed "break-dead-code" feature
+- Disable `clippy::arc_with_non_send_sync`
+- Remove dependency on `byteorder`
 
 ## 1.2.0
 
