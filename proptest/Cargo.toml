@@ -79,7 +79,7 @@ version = "0.7"
 optional = true
 
 [dependencies.bit-set]
-version = "0.5.0"
+version = "0.5.2"
 optional = true
 
 [dependencies.bit-vec]
