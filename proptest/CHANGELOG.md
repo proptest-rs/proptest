@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 1.3.1
+
+## Other Notes
+
+- `bit-set` updated from 0.5.0 to 0.5.2 to ensure minimum compatible version with bit-vec 0.6
+
 ## 1.3.0
 
 ### Breaking Changes
