@@ -190,7 +190,7 @@ macro_rules! prop_state_machine {
                 fn $test_name(
                     (initial_state, transitions) in <$test $(< $( $ty_param ),+ >)? as StateMachineTest>::Reference::sequential_strategy($size)
                 ) {
-                    $test $(::< $( $ty_param ),+ >)? ::test_sequential(config, initial_state, transitions)
+                    $test $(::< $( $ty_param ),+ >)? ::test_sequential(Default::default(), initial_state, transitions)
                 }
             }
         )*
