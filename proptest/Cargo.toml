@@ -75,7 +75,7 @@ features = ["libm"]
 [dependencies.regex-syntax]
 # If you change this, make sure to also bump the `regex` dependency to a
 # version that also uses this version of regex-syntax.
-version = "0.7"
+version = ">=0.7, <0.9"
 optional = true
 
 [dependencies.bit-set]
