@@ -10,7 +10,7 @@ documentation = "https://docs.rs/proptest/latest/proptest/"
 keywords = ["property", "testing", "quickcheck", "fuzz", "hypothesis"]
 categories = ["development-tools::testing"]
 edition = "2018"
-rust-version = "1.64"
+rust-version = "1.65"
 exclude = ["/gen-*.sh", "/readme-*.md"]
 
 description = """
