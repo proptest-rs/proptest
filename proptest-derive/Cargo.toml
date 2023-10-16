@@ -27,7 +27,7 @@ proptest = { version = "1.0.0", path = "../proptest" }
 # features. However, due to
 # https://github.com/laumann/compiletest-rs/issues/166, the default features of
 # compiletest-rs fail to compile, but the stable fallback works fine.
-compiletest_rs = { version = "0.9", features = ["tmp", "stable"] }
+compiletest_rs = { version = "0.10", features = ["tmp", "stable"] }
 # criterion is used for benchmarks.
 criterion = "0.5"
 
