@@ -27,4 +27,4 @@ proptest = { version = "1.2.0", path = "../proptest", default-features = true, f
 ] }
 
 [dev-dependencies]
-message-io = "0.17.0"
+message-io = "0.18.0"
