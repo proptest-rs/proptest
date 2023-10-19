@@ -313,12 +313,10 @@ impl<
 
             let included_count = self.included_transitions.count();
 
-            if seen_count >= included_count {
-                // the test runner saw all the transitions and failed on the
-                // last one, so we cant delete any transitions from the end.
-            } else {
+            if seen_count < included_count {
                 // the test runner did not see all the transitions so we can
-                // delete the transitions that were not seen and thus not executed.
+                // delete the transitions that were not seen because they were
+                // not executed
 
                 let mut kept_count = 0;
                 for ix in 0..self.transitions.len() {
