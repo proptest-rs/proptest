@@ -9,8 +9,10 @@
 
 //! Test declaration helpers and runners for abstract state machine testing.
 
+use std::sync::atomic::{self, AtomicUsize};
+use std::sync::Arc;
+
 use crate::strategy::ReferenceStateMachine;
-use proptest::std_facade::Vec;
 use proptest::test_runner::Config;
 
 /// State machine test that relies on a reference state machine model
@@ -72,6 +74,7 @@ pub trait StateMachineTest {
         transitions: Vec<
             <Self::Reference as ReferenceStateMachine>::Transition,
         >,
+        mut seen_counter: Option<Arc<AtomicUsize>>,
     ) {
         #[cfg(feature = "std")]
         use proptest::test_runner::INFO_LOG;
@@ -91,6 +94,15 @@ pub trait StateMachineTest {
         Self::check_invariants(&concrete_state, &ref_state);
 
         for (ix, transition) in transitions.into_iter().enumerate() {
+            // The counter is `Some` only before shrinking. When it's `Some` it
+            // must be incremented before every transition that's being applied
+            // to inform the strategy that the transition has been applied for
+            // the first step of its shrinking process which removes any unseen
+            // transitions.
+            if let Some(seen_counter) = seen_counter.as_mut() {
+                seen_counter.fetch_add(1, atomic::Ordering::SeqCst);
+            }
+
             #[cfg(feature = "std")]
             if config.verbose >= INFO_LOG {
                 eprintln!();
@@ -170,11 +182,11 @@ macro_rules! prop_state_machine {
                 #![proptest_config($config)]
                 $(#[$meta])*
                 fn $test_name(
-                    (initial_state, transitions) in <<$test $(< $( $ty_param ),+ >)? as $crate::StateMachineTest>::Reference as $crate::ReferenceStateMachine>::sequential_strategy($size)
+                    (initial_state, transitions, seen_counter) in <<$test $(< $( $ty_param ),+ >)? as $crate::StateMachineTest>::Reference as $crate::ReferenceStateMachine>::sequential_strategy($size)
                 ) {
 
                     let config = $config.__sugar_to_owned();
-                    <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::test_sequential(config, initial_state, transitions)
+                    <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::test_sequential(config, initial_state, transitions, seen_counter)
                 }
             }
         )*
@@ -189,10 +201,10 @@ macro_rules! prop_state_machine {
             ::proptest::proptest! {
                 $(#[$meta])*
                 fn $test_name(
-                    (initial_state, transitions) in <<$test $(< $( $ty_param ),+ >)? as $crate::StateMachineTest>::Reference as $crate::ReferenceStateMachine>::sequential_strategy($size)
+                    (initial_state, transitions, seen_counter) in <<$test $(< $( $ty_param ),+ >)? as $crate::StateMachineTest>::Reference as $crate::ReferenceStateMachine>::sequential_strategy($size)
                 ) {
                     <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::test_sequential(
-                        ::proptest::test_runner::Config::default(), initial_state, transitions)
+                        ::proptest::test_runner::Config::default(), initial_state, transitions, seen_counter)
                 }
             }
         )*

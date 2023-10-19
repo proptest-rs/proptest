@@ -9,6 +9,9 @@
 
 //! Strategies used for abstract state machine testing.
 
+use std::sync::atomic::{self, AtomicUsize};
+use std::sync::Arc;
+
 use proptest::bits::{BitSetLike, VarBitSet};
 use proptest::collection::SizeRange;
 use proptest::num::sample_uniform_incl;
@@ -118,14 +121,19 @@ pub trait ReferenceStateMachine {
 /// The shrinking strategy is to iteratively apply `Shrink::InitialState`,
 /// `Shrink::DeleteTransition` and `Shrink::Transition`.
 ///
-/// 1. We start by trying to delete transitions from the back of the list, until
-///    we can do so no further (reached the beginning of the list).
-///    We start from the back, because it's less likely to affect the state
-///    machine's pre-conditions, if any.
-/// 2. Then, we again iteratively attempt to shrink the individual transitions,
+/// 1. We start by trying to delete transitions from the back of the list that
+///    were never seen by the test, if any. Note that because proptest expects
+///    deterministic results in for reproducible issues, unlike the following
+///    steps this step will not be undone on `complicate`. If there were any
+///    unseen transitions, then the next step will start at trying to delete
+///    the transition before the last one seen as we know that the last
+///    transition cannot be deleted as it's the one that has failed.
+/// 2. Then, we keep trying to delete transitions from the back of the list, until
+///    we can do so no further (reached the beginning of the list)..
+/// 3. Then, we again iteratively attempt to shrink the individual transitions,
 ///    but this time starting from the front of the list - i.e. from the first
 ///    transition to be applied.
-/// 3. Finally, we try to shrink the initial state until it's not possible to
+/// 4. Finally, we try to shrink the initial state until it's not possible to
 ///    shrink it any further.
 ///
 /// For `complicate`, we attempt to undo the last shrink operation, if there was
@@ -162,7 +170,7 @@ impl<
         StateStrategy::Tree,
         TransitionStrategy::Tree,
     >;
-    type Value = (State, Vec<Transition>);
+    type Value = (State, Vec<Transition>, Option<Arc<AtomicUsize>>);
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         // Generate the initial state value tree
@@ -214,6 +222,7 @@ impl<
             // which is less likely to invalidate pre-conditions
             shrink: Shrink::DeleteTransition(max_ix),
             last_shrink: None,
+            seen_transitions_counter: Some(Default::default()),
         })
     }
 }
@@ -276,6 +285,13 @@ pub struct SequentialValueTree<
     shrink: Shrink,
     /// The last applied shrink operation, if any
     last_shrink: Option<Shrink>,
+    /// The number of transitions that were seen by the test runner.
+    /// On a test run this is shared with `StateMachineTest::test_sequential`
+    /// which increments the inner counter value on every transition. If the
+    /// test fails, the counter is used to remove any unseen transitions before
+    /// shrinking and this field is set to `None` as it's no longer needed for
+    /// shrinking.
+    seen_transitions_counter: Option<Arc<AtomicUsize>>,
 }
 
 impl<
@@ -289,6 +305,48 @@ impl<
     /// Try to apply the next `self.shrink`. Returns `true` if a shrink has been
     /// applied.
     fn try_simplify(&mut self) -> bool {
+        if let Some(seen_transitions_counter) =
+            self.seen_transitions_counter.as_ref()
+        {
+            let seen_count =
+                seen_transitions_counter.load(atomic::Ordering::SeqCst);
+
+            let included_count = self.included_transitions.count();
+
+            if seen_count >= included_count {
+                // the test runner saw all the transitions and failed on the
+                // last one, so we cant delete any transitions from the end.
+            } else {
+                // the test runner did not see all the transitions so we can
+                // delete the transitions that were not seen and thus not executed.
+
+                let mut kept_count = 0;
+                for ix in 0..self.transitions.len() {
+                    if self.included_transitions.test(ix) {
+                        // transition at ix was part of test
+
+                        if kept_count < seen_count {
+                            // transition at xi was seen by the test or we are
+                            // still below minimum size for the test
+                            kept_count += 1;
+                        } else {
+                            // transition at ix was never seen
+                            self.included_transitions.clear(ix);
+                            self.shrinkable_transitions.clear(ix);
+                        }
+                    }
+                }
+                // Set the next shrink to the transition before the last seen
+                // transition (subtract 2 from `kept_count`)
+                self.shrink = DeleteTransition(
+                    kept_count.checked_sub(2).unwrap_or_default(),
+                );
+            }
+
+            // Remove the seen transitions counter for shrinking runs
+            self.seen_transitions_counter = None;
+        }
+
         if let DeleteTransition(ix) = self.shrink {
             // Delete the index from the included transitions
             self.included_transitions.clear(ix);
@@ -442,7 +500,7 @@ impl<
     /// yet been rejected.
     fn can_simplify(&self) -> bool {
         self.is_initial_state_shrinkable ||
-             // If there are some transitions whose shrinking has not yet been 
+             // If there are some transitions whose shrinking has not yet been
              // rejected, we can try to shrink them further
              !self
                 .acceptable_transitions
@@ -483,39 +541,48 @@ impl<
         TransitionValueTree,
     >
 {
-    type Value = (State, Vec<Transition>);
+    type Value = (State, Vec<Transition>, Option<Arc<AtomicUsize>>);
 
     fn current(&self) -> Self::Value {
         (
             self.last_valid_initial_state.clone(),
             // The current included acceptable transitions
             self.get_included_acceptable_transitions(None),
+            self.seen_transitions_counter.clone(),
         )
     }
 
     fn simplify(&mut self) -> bool {
-        if self.can_simplify() {
+        let was_simplified = if self.can_simplify() {
             self.try_simplify()
+        } else if let Some(Transition(ix)) = self.last_shrink {
+            self.try_to_find_acceptable_transition(ix)
         } else {
-            if let Some(Transition(ix)) = self.last_shrink {
-                return self.try_to_find_acceptable_transition(ix);
-            }
             false
-        }
+        };
+
+        // reset seen transactions counter for next run
+        self.seen_transitions_counter = Default::default();
+
+        was_simplified
     }
 
     fn complicate(&mut self) -> bool {
-        match self.last_shrink {
+        // reset seen transactions counter for next run
+        self.seen_transitions_counter = Default::default();
+
+        match &self.last_shrink {
             None => false,
             Some(DeleteTransition(ix)) => {
                 // Undo the last item we deleted. Can't complicate any further,
                 // so unset prev_shrink.
-                self.included_transitions.set(ix);
-                self.shrinkable_transitions.set(ix);
+                self.included_transitions.set(*ix);
+                self.shrinkable_transitions.set(*ix);
                 self.last_shrink = None;
                 true
             }
             Some(Transition(ix)) => {
+                let ix = *ix;
                 if self.transitions[ix].complicate() {
                     if self.check_acceptable(Some(ix)) {
                         self.acceptable_transitions[ix] =
@@ -574,6 +641,11 @@ mod test {
     #[test]
     fn number_of_sequential_value_tree_simplifications() {
         let mut value_tree = deterministic_sequential_value_tree();
+        value_tree
+            .seen_transitions_counter
+            .as_mut()
+            .unwrap()
+            .store(TRANSITIONS, atomic::Ordering::SeqCst);
 
         let mut i = 0;
         loop {
@@ -614,7 +686,7 @@ mod test {
         let mut value_tree = deterministic_sequential_value_tree();
 
         let check_preconditions = |value_tree: &TestValueTree| {
-            let (mut state, transitions) = value_tree.current();
+            let (mut state, transitions, _seen_counter) = value_tree.current();
             let len = transitions.len();
             println!("Transitions {}", len);
             for (ix, transition) in transitions.into_iter().enumerate() {
@@ -660,6 +732,57 @@ mod test {
         }
     }
 
+    proptest! {
+        /// Test the initial simplifications of the `SequentialValueTree` produced
+        /// by `deterministic_sequential_value_tree`.
+        ///
+        /// We want to make sure that we initially remove the transitions that
+        /// where not seen.
+        #[test]
+        fn test_value_tree_initial_simplification(
+            len in 10usize..100,
+        ) {
+            test_value_tree_initial_simplification_aux(len)
+        }
+    }
+
+    fn test_value_tree_initial_simplification_aux(len: usize) {
+        let sequential =
+            <HeapStateMachine as ReferenceStateMachine>::sequential_strategy(
+                ..len,
+            );
+
+        let mut runner = TestRunner::deterministic();
+        let mut value_tree = sequential.new_tree(&mut runner).unwrap();
+
+        let (_, transitions, mut seen_counter) = value_tree.current();
+
+        let num_seen = transitions.len() / 2;
+        let seen_counter = seen_counter.as_mut().unwrap();
+        seen_counter.store(num_seen, atomic::Ordering::SeqCst);
+
+        let mut seen_before_complication =
+            transitions.into_iter().take(num_seen).collect::<Vec<_>>();
+
+        assert!(value_tree.simplify());
+
+        let (_, transitions, _seen_counter) = value_tree.current();
+
+        let seen_after_first_complication =
+            transitions.into_iter().collect::<Vec<_>>();
+
+        // After the unseen transitions are removed, the shrink to delete the
+        // transition before the last seen one is applied
+        let last = seen_before_complication.pop().unwrap();
+        seen_before_complication.pop();
+        seen_before_complication.push(last);
+
+        assert_eq!(
+            seen_before_complication, seen_after_first_complication,
+            "only seen transitions should be present after first simplification"
+        );
+    }
+
     /// The following is a definition of an reference state machine used for the
     /// tests.
     mod heap_state_machine {
@@ -682,7 +805,7 @@ mod test {
 
         pub type TestState = Vec<i32>;
 
-        #[derive(Clone, Debug)]
+        #[derive(Clone, Debug, PartialEq)]
         pub enum TestTransition {
             PopNonEmpty,
             PopEmpty,
@@ -839,22 +962,23 @@ mod test {
                     Config::default(), TestRng::from_seed(Default::default(), &seed));
                 let result = runner.run(
                     &FailIfLessThan::sequential_strategy(10..50_usize),
-                    |(ref_state, transitions)| {
+                    |(ref_state, transitions, seen_counter)| {
                         Ok(FailIfLessThanTest::test_sequential(
                             Default::default(),
                             ref_state,
                             transitions,
+                            seen_counter,
                         ))
                     },
                 );
                 if let Err(TestError::Fail(
                     _,
-                    (FailIfLessThan(limit), transitions),
+                    (FailIfLessThan(limit), transitions, _seen_counter),
                 )) = result
                 {
                     assert_eq!(transitions.len(), 1, "The minimal failing case should be ");
                     assert_eq!(limit, MIN_TRANSITION + 1);
-                    assert!(transitions[0] < limit);
+                    assert!(transitions.into_iter().next().unwrap() < limit);
                 } else {
                     prop_assume!(false,
                         "If the state machine doesn't fail as intended, we need a case that fails.");
