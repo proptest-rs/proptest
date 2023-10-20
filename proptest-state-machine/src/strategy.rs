@@ -542,6 +542,12 @@ impl<
     type Value = (State, Vec<Transition>, Option<Arc<AtomicUsize>>);
 
     fn current(&self) -> Self::Value {
+        if let Some(seen_transitions_counter) = &self.seen_transitions_counter {
+            if seen_transitions_counter.load(atomic::Ordering::SeqCst) > 0 {
+                panic!("Unexpected non-zero `seen_transitions_counter`");
+            }
+        }
+
         (
             self.last_valid_initial_state.clone(),
             // The current included acceptable transitions
@@ -779,6 +785,26 @@ mod test {
             seen_before_complication, seen_after_first_complication,
             "only seen transitions should be present after first simplification"
         );
+    }
+
+    #[test]
+    fn test_call_to_current_with_non_zero_seen_counter() {
+        let result = std::panic::catch_unwind(|| {
+            let value_tree = deterministic_sequential_value_tree();
+
+            let (_, _transitions1, mut seen_counter) = value_tree.current();
+            {
+                let seen_counter = seen_counter.as_mut().unwrap();
+                seen_counter.store(1, atomic::Ordering::SeqCst);
+            }
+            drop(seen_counter);
+
+            let _transitions2 = value_tree.current();
+        })
+        .expect_err("should panic");
+
+        let s = "Unexpected non-zero `seen_transitions_counter`";
+        assert_eq!(result.downcast_ref::<&str>(), Some(&s));
     }
 
     /// The following is a definition of an reference state machine used for the
