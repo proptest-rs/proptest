@@ -14,6 +14,7 @@ Another way is to use `#![proptest_config(expr)]` inside `proptest!` where
 write:
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 fn add(a: i32, b: i32) -> i32 { a + b }
@@ -22,14 +23,16 @@ proptest! {
     // The next line modifies the number of tests.
     #![proptest_config(ProptestConfig::with_cases(1000))]
     #[test]
+    # fn dummy(a in 0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_add(a in 0..1000i32, b in 0..1000i32) {
         let sum = add(a, b);
         assert!(sum >= a);
         assert!(sum >= b);
     }
 }
-#
-# fn main() { test_add(); }
+# fn main() {
+#     test_add();
+# }
 ```
 
 Through the same `proptest_config` mechanism you may fine-tune your

@@ -4,7 +4,7 @@ Let's say we want to make a function that parses dates of the form
 `YYYY-MM-DD`. We're not going to worry about _validating_ the date, any
 triple of integers is fine. So let's bang something out real quick.
 
-```rust,no_run
+```rust
 fn parse_date(s: &str) -> Option<(u32, u32, u32)> {
     if 10 != s.len() { return None; }
     if "-" != &s[4..5] || "-" != &s[7..8] { return None; }
@@ -23,7 +23,21 @@ fn parse_date(s: &str) -> Option<(u32, u32, u32)> {
 It compiles, that means it works, right? Maybe not, let's add some tests.
 
 ```rust,ignore
+# fn parse_date(s: &str) -> Option<(u32, u32, u32)> {
+#     if 10 != s.len() { return None; }
+#     if "-" != &s[4..5] || "-" != &s[7..8] { return None; }
+#
+#     let year = &s[0..4];
+#     let month = &s[6..7];
+#     let day = &s[8..10];
+#
+#     year.parse::<u32>().ok().and_then(
+#         |y| month.parse::<u32>().ok().and_then(
+#             |m| day.parse::<u32>().ok().map(
+#                 |d| (y, m, d))))
+# }
 #[test]
+# fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
 fn test_parse_date() {
     assert_eq!(None, parse_date("2017-06-1"));
     assert_eq!(None, parse_date("2017-06-170"));
@@ -31,6 +45,7 @@ fn test_parse_date() {
     assert_eq!(None, parse_date("2017-06017"));
     assert_eq!(Some((2017, 06, 17)), parse_date("2017-06-17"));
 }
+# fn main() { test_parse_date(); }
 ```
 
 Tests pass, deploy to production! But now your application starts crashing,
@@ -51,16 +66,31 @@ and properties correctly. But before correctness, there's actually an even
 simpler property to test: _The function should not crash._ Let's start
 there.
 
-```rust,ignore
+```rust,should_panic
+# extern crate proptest;
 // Bring the macros and other important things into scope.
 use proptest::prelude::*;
-
+# fn parse_date(s: &str) -> Option<(u32, u32, u32)> {
+#     if 10 != s.len() { return None; }
+#     if "-" != &s[4..5] || "-" != &s[7..8] { return None; }
+#
+#     let year = &s[0..4];
+#     let month = &s[6..7];
+#     let day = &s[8..10];
+#
+#     year.parse::<u32>().ok().and_then(
+#         |y| month.parse::<u32>().ok().and_then(
+#             |m| day.parse::<u32>().ok().map(
+#                 |d| (y, m, d))))
+# }
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn doesnt_crash(s in "\\PC*") {
         parse_date(&s);
     }
 }
+# fn main() { doesnt_crash(); }
 ```
 
 What this does is take a literally random `&String` (ignore `\\PC*` for the
@@ -93,11 +123,26 @@ The next thing we should do is copy the failing case to a traditional unit
 test since it has exposed a bug not similar to what we've tested in the
 past.
 
-```rust,ignore
+```rust,should_panic
+# fn parse_date(s: &str) -> Option<(u32, u32, u32)> {
+#     if 10 != s.len() { return None; }
+#     if "-" != &s[4..5] || "-" != &s[7..8] { return None; }
+#
+#     let year = &s[0..4];
+#     let month = &s[6..7];
+#     let day = &s[8..10];
+#
+#     year.parse::<u32>().ok().and_then(
+#         |y| month.parse::<u32>().ok().and_then(
+#             |m| day.parse::<u32>().ok().map(
+#                 |d| (y, m, d))))
+# }
 #[test]
+# fn dummy() {} // Doctests don't build `#[test]` functions, so we need this
 fn test_unicode_gibberish() {
     assert_eq!(None, parse_date("aAௗ0㌀0"));
 }
+# fn main() { test_unicode_gibberish(); }
 ```
 
 Now, let's see what happened... we forgot about UTF-8! You can't just
@@ -107,9 +152,9 @@ Tamil diacritic placed atop other characters in the string.
 In the interest of making the code changes as small as possible, we'll just
 check that the string is ASCII and reject anything that isn't.
 
-```rust,no_run
-# use std::ascii::AsciiExt; //NOREADME
-# // NOREADME
+```rust
+# use std::ascii::AsciiExt;
+#
 fn parse_date(s: &str) -> Option<(u32, u32, u32)> {
     if 10 != s.len() { return None; }
 
@@ -135,15 +180,34 @@ test more properties.
 Another property we want from our code is that it parses every valid date.
 We can add another test to the `proptest!` section:
 
-```rust,ignore
+```rust
+# extern crate proptest;
+# use proptest::prelude::*;
+# fn parse_date(s: &str) -> Option<(u32, u32, u32)> {
+#     if 10 != s.len() { return None; }
+#
+#     // NEW: Ignore non-ASCII strings so we don't need to deal with Unicode.
+#     if !s.is_ascii() { return None; }
+#
+#     if "-" != &s[4..5] || "-" != &s[7..8] { return None; }
+#
+#     let year = &s[0..4];
+#     let month = &s[6..7];
+#     let day = &s[8..10];
+#
+#     year.parse::<u32>().ok().and_then(
+#         |y| month.parse::<u32>().ok().and_then(
+#             |m| day.parse::<u32>().ok().map(
+#                 |d| (y, m, d))))
+# }
 proptest! {
-    // snip...
-
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn parses_all_valid_dates(s in "[0-9]{4}-[0-9]{2}-[0-9]{2}") {
         parse_date(&s).unwrap();
     }
 }
+# fn main() { parses_all_valid_dates(); }
 ```
 
 The thing to the right-hand side of `in` is actually a *regular
@@ -159,11 +223,29 @@ _correctly_. Now, we can't do this by generating strings — we'd end up just
 reimplementing the date parser in the test! Instead, we start from the
 expected output, generate the string, and check that it gets parsed back.
 
-```rust,ignore
+```rust
+# extern crate proptest;
+# use proptest::prelude::*;
+# fn parse_date(s: &str) -> Option<(u32, u32, u32)> {
+#     if 10 != s.len() { return None; }
+#
+#     // NEW: Ignore non-ASCII strings so we don't need to deal with Unicode.
+#     if !s.is_ascii() { return None; }
+#
+#     if "-" != &s[4..5] || "-" != &s[7..8] { return None; }
+#
+#     let year = &s[0..4];
+#     let month = &s[6..7];
+#     let day = &s[8..10];
+#
+#     year.parse::<u32>().ok().and_then(
+#         |y| month.parse::<u32>().ok().and_then(
+#             |m| day.parse::<u32>().ok().map(
+#                 |d| (y, m, d))))
+# }
 proptest! {
-    // snip...
-
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn parses_date_back_to_original(y in 0u32..10000,
                                     m in 1u32..13, d in 1u32..32) {
         let (y2, m2, d2) = parse_date(
@@ -195,7 +277,8 @@ output. Before thinking about why this breaks the code, let's look at what
 proptest did to arrive at this value. At the start of our test function,
 insert
 
-```rust,ignore
+```rust
+    # let (y, m, d) = (0, 10, 1);
     println!("y = {}, m = {}, d = {}", y, m, d);
 ```
 
@@ -247,11 +330,30 @@ file, and we should add this as its own unit test:
 $ git add proptest-regressions
 ```
 
-```rust,ignore
+```rust,should_panic
+# fn parse_date(s: &str) -> Option<(u32, u32, u32)> {
+#     if 10 != s.len() { return None; }
+#
+#     // NEW: Ignore non-ASCII strings so we don't need to deal with Unicode.
+#     if !s.is_ascii() { return None; }
+#
+#     if "-" != &s[4..5] || "-" != &s[7..8] { return None; }
+#
+#     let year = &s[0..4];
+#     let month = &s[6..7];
+#     let day = &s[8..10];
+#
+#     year.parse::<u32>().ok().and_then(
+#         |y| month.parse::<u32>().ok().and_then(
+#             |m| day.parse::<u32>().ok().map(
+#                 |d| (y, m, d))))
+# }
 #[test]
+# fn dummy() {} // Doctests don't build `#[test]` functions, so we need this
 fn test_october_first() {
     assert_eq!(Some((0, 10, 1)), parse_date("0000-10-01"));
 }
+# fn main() { test_october_first(); }
 ```
 
 Now to figure out what's broken in the code. Even without the intermediate

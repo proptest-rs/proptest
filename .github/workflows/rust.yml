@@ -22,7 +22,7 @@ jobs:
         include:
           - build: pinned
             os: ubuntu-20.04
-            rust: 1.60.0
+            rust: 1.65.0
           - build: stable
             os: ubuntu-20.04
             rust: stable
@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Install Rust
@@ -60,7 +60,7 @@ jobs:
       - name: Build rng no-default-features
         if: ${{ matrix.build == 'nightly' }}
         run: cd proptest && cargo build --no-default-features --features "alloc unstable hardware-rng"
-      - name: Run presisrnce tests
+      - name: Run persistence tests
         if: ${{ matrix.build == 'nightly' }}
         run: cd proptest/test-persistence-location && ./run-tests.sh
       - name: Clean

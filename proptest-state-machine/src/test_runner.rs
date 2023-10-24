@@ -73,9 +73,12 @@ pub trait StateMachineTest {
             <Self::Reference as ReferenceStateMachine>::Transition,
         >,
     ) {
+        #[cfg(feature = "std")]
+        use proptest::test_runner::INFO_LOG;
+
         let trans_len = transitions.len();
         #[cfg(feature = "std")]
-        if config.verbose >= super::INFO_LOG {
+        if config.verbose >= INFO_LOG {
             eprintln!();
             eprintln!("Running a test case with {} transitions.", trans_len);
         }
@@ -89,7 +92,7 @@ pub trait StateMachineTest {
 
         for (ix, transition) in transitions.into_iter().enumerate() {
             #[cfg(feature = "std")]
-            if config.verbose >= super::INFO_LOG {
+            if config.verbose >= INFO_LOG {
                 eprintln!();
                 eprintln!(
                     "Applying transition {}/{}: {:?}",
@@ -187,7 +190,7 @@ macro_rules! prop_state_machine {
                 fn $test_name(
                     (initial_state, transitions) in <$test $(< $( $ty_param ),+ >)? as StateMachineTest>::Reference::sequential_strategy($size)
                 ) {
-                    $test $(::< $( $ty_param ),+ >)? ::test_sequential(config, initial_state, transitions)
+                    $test $(::< $( $ty_param ),+ >)? ::test_sequential(Default::default(), initial_state, transitions)
                 }
             }
         )*

@@ -39,12 +39,11 @@ pub enum FileFailurePersistence {
     /// `Direct("NUL")` on Windows (though it is internally handled by simply
     /// not doing any I/O).
     Off,
-    /// The path given to `TestRunner::set_source_file()` is parsed. The path
-    /// is traversed up the directory tree until a directory containing a file
-    /// named `lib.rs` or `main.rs` is found. A sibling to that directory with
-    /// the name given by the string in this configuration is created, and a
-    /// file with the same name and path relative to the source directory, but
-    /// with the extension changed to `.txt`, is used.
+    /// The path of the source file under test is traversed up the directory tree
+    /// until a directory containing a file named `lib.rs` or `main.rs` is found.
+    /// A sibling to that directory with the name given by the string in this
+    /// configuration is created, and a file with the same name and path relative
+    /// to the source directory, but with the extension changed to `.txt`, is used.
     ///
     /// For example, given a source path of
     /// `/home/jsmith/code/project/src/foo/bar.rs` and a configuration of
@@ -58,9 +57,9 @@ pub enum FileFailurePersistence {
     /// If no source file has been configured, a warning is printed and this
     /// behaves like `Off`.
     SourceParallel(&'static str),
-    /// The path given to `TestRunner::set_source_file()` is parsed. The
-    /// extension of the path is changed to the string given in this
-    /// configuration, and that filename is used.
+    /// Failures are persisted in a file with the same path as the source file
+    /// under test, but the extension is changed to the string given in this
+    /// configuration.
     ///
     /// For example, given a source path of
     /// `/home/jsmith/code/project/src/foo/bar.rs` and a configuration of
@@ -151,7 +150,7 @@ impl FailurePersistence for FileFailurePersistence {
                     path.display(),
                     e
                 );
-            } else if is_new {
+            } else {
                 eprintln!(
                     "proptest: Saving this and future failures in {}\n\
                      proptest: If this test was run on a CI system, you may \

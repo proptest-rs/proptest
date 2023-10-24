@@ -5,6 +5,39 @@
 - Setting `PROPTEST_MAX_DEFAULT_SIZE_RANGE` now customizes the default `SizeRange`
   used by the default strategies for collections (like `Vec`). The default remains 100.
 
+## 1.3.1
+
+## Other Notes
+
+- `bit-set` updated from 0.5.0 to 0.5.2 to ensure minimum compatible version with bit-vec 0.6
+
+## 1.3.0
+
+### Breaking Changes
+
+- The minimum supported Rust version has been increased to 1.64.0.
+
+### New Features
+
+- Adds Arbitrary impl for PathBuf
+- Permit use of (?-u) in byte-regex strategies, allowing non-utf-8 bytes to be generated
+
+### Book
+
+- Various small fixes -- typos, formatting
+- Removal of custom theme
+- Add book page for Tips and Best Practices
+
+### Other Notes
+
+- `regex-syntax` version 0.7 is now used.
+- Print a seed to stderr for a failed test even when a regressions file is already present.
+- Fixed a performance issue with `VarBitSet::saturated` that can slow down `VecStrategy`
+- Remove use of rust feature `core_intrinsics`
+- Remove no longer needed "break-dead-code" feature
+- Disable `clippy::arc_with_non_send_sync`
+- Remove dependency on `byteorder`
+
 ## 1.2.0
 
 ### Breaking Changes
@@ -102,7 +135,7 @@
 
 ### New Features
 
-- Enabling the `hardware-rng` optional depndency (disabled by default) allows
+- Enabling the `hardware-rng` optional dependency (disabled by default) allows
   obtaining non-deterministic random seeds even in `no_std` environments
   provided the architecture is x86 or AMD64.
 
@@ -178,7 +211,7 @@
 
 ## 0.9.3
 
-This is a minor release to correct some packaging errors. The licence files are
+This is a minor release to correct some packaging errors. The license files are
 now included in the files published to crates.io, and some unneeded files are
 now excluded.
 

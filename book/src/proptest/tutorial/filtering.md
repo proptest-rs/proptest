@@ -8,7 +8,8 @@ In general, the ideal solution is to find a way to take a seed value and
 then use `prop_map` to transform it into the desired, irregular domain. For
 example, to generate even integers, use something like
 
-```rust,no_run
+```rust
+# extern crate proptest;
 use proptest::prelude::*;
 prop_compose! {
     // Generate arbitrary integers up to half the maximum desired value,
@@ -16,7 +17,6 @@ prop_compose! {
     // desired range.
     fn even_integer(max: i32)(base in 0..max/2) -> i32 { base * 2 }
 }
-# fn main() { }
 ```
 
 For the cases where this is not viable, it is possible to filter
@@ -39,10 +39,12 @@ type `&'static str`, `String`, .., which it uses to record where/why the
 rejection happened.
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn some_test(
       v in (0..1000u32)
         .prop_filter("Values must not divisible by 7 xor 11",
@@ -60,6 +62,7 @@ Global filtering results when a test itself returns
 macro provides an easy way to do this.
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 fn frob(a: i32, b: i32) -> (i32, i32) {
@@ -69,6 +72,7 @@ fn frob(a: i32, b: i32) -> (i32, i32) {
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_frob(a in -1000..1000, b in -1000..1000) {
         // Input illegal if a==b.
         // Equivalent to

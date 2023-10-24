@@ -86,6 +86,9 @@ pub mod test_runner;
 pub mod tuple;
 
 pub mod option;
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+pub mod path;
 pub mod result;
 pub mod sample;
 #[cfg(feature = "std")]

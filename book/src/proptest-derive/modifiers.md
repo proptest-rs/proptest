@@ -34,20 +34,31 @@ of [`prop_filter`].
 Example:
 
 ```rust
+# extern crate proptest_derive;
+# extern crate proptest;
+# use proptest_derive::Arbitrary;
+# use proptest::prelude::*;
+
 #[derive(Debug, Arbitrary)]
 #[proptest(filter = "|segment| segment.start != segment.end")]
 struct NonEmptySegment {
     start: i32,
     end: i32,
 }
+```
+is equivalent to
+```rust
+# extern crate proptest_derive;
+# extern crate proptest;
+# use proptest_derive::Arbitrary;
+# use proptest::prelude::*;
 
-// Equivalent to the above
 fn is_nonempty(segment: &NonEmptySegment) -> bool {
     segment.start != segment.end
 }
 
 #[derive(Debug, Arbitrary)]
-#[proptest(filter = is_nomempty)]
+#[proptest(filter = "is_nonempty")]
 struct NonEmptySegment {
     start: i32,
     end: i32,
@@ -58,6 +69,11 @@ As mentioned above, filtering should be avoided when it is reasonably possible
 to express a non-filtering strategy that achieves the same effect. For example:
 
 ```rust
+# extern crate proptest_derive;
+# extern crate proptest;
+# use proptest_derive::Arbitrary;
+# use proptest::{proptest, arbitrary::any, strategy::Strategy};
+
 #[derive(Debug, Arbitrary)]
 struct BadExample {
     // Don't do this! Your tests will run more slowly and shrinking won't work
@@ -88,39 +104,71 @@ parameter, every type parameter which is "used" (see below) is required to
 `impl Arbitrary`. For example, given a declaration like the following:
 
 ```rust
-#[derive(Arbitrary)]
-struct MyStruct<T> { /* ... */ }
+# extern crate proptest_derive;
+# use proptest_derive::Arbitrary;
+
+#[derive(Debug, Arbitrary)]
+struct MyStruct<T> {
+    # t: T
+    /* ... */
+}
 ```
 
 Something like this will be generated:
 
 ```rust
-impl<T> Arbitrary for MyStruct<T> where T: Arbitrary { /* ... */ }
-```
+# extern crate proptest;
+# use proptest::arbitrary::Arbitrary;
 
-Placing `#[proptest(no_bound)]` on a generic type parameter suppresses this. For
-example, the following removes the extra `where T: Arbitrary`:
+# #[derive(Debug)]
+# struct MyStruct<T> {
+# t: T
+}
 
-```rust
-#[derive(Arbitrary)]
-struct MyStruct<#[proptest(no_bound)] T> { /* ... */ }
+impl<T> Arbitrary for MyStruct<T> where T: Arbitrary {
+    # type Parameters = u32;
+    # type Strategy = proptest::strategy::BoxedStrategy<Self>;
+    # fn arbitrary_with(_params: Self::Parameters) -> Self::Strategy { todo!() }
+    /* ... */
+}
 ```
 
 Placing `#[proptest(no_bound)]` on a generic type definition is equivalent to
 placing the same attribute on every type parameter.
 
 ```rust
-#[derive(Arbitrary)]
-#[proptest(no_bound)]
-struct MyStruct<A, B, C> { /* ... */ }
+# extern crate proptest_derive;
+# extern crate proptest;
+# use proptest_derive::Arbitrary;
+# use proptest::proptest;
+# use std::marker::PhantomData;
 
-// Equivalent to
-#[derive[Arbitrary)]
+#[derive(Debug, Arbitrary)]
+#[proptest(no_bound)]
+struct MyStruct<A, B, C> {
+    # a: PhantomData<A>,
+    # b: PhantomData<B>,
+    # c: PhantomData<C>,
+    /* ... */
+}
+```
+This is equivalent to a hypothetical (but not currently supported) syntax like:
+```rust,compile_fail
+# extern crate proptest_derive;
+# use proptest_derive::Arbitrary;
+# use std::marker::PhantomData;
+
+#[derive(Debug, Arbitrary)]
 struct MyStruct<
   #[proptest(no_bound)] A,
   #[proptest(no_bound)] B,
   #[proptest(no_bound)] C,
-> { /* ... */ }
+> {
+    # a: PhantomData<A>,
+    # b: PhantomData<B>,
+    # c: PhantomData<C>,
+    /* ... */
+}
 ```
 
 A type parameter is "used" if the following hold:
@@ -134,7 +182,7 @@ A type parameter is "used" if the following hold:
 
 Due to the above, `#[proptest(no_bound)]` is generally only needed when the
 type parameter is used in another type which does not itself have an
-`Arbitrary` mound on the type.
+`Arbitrary` bound on the type.
 
 ## `no_params`
 
@@ -185,6 +233,11 @@ variable named `params` which is of the type passed in
 Examples:
 
 ```rust
+# extern crate proptest_derive;
+# extern crate proptest;
+# use proptest_derive::Arbitrary;
+# use proptest::prelude::*;
+
 #[derive(Debug)]
 struct WidgetRange(usize, usize);
 
@@ -231,6 +284,10 @@ applied to fields of type `String` or `Vec<u8>`.
 Example:
 
 ```rust
+# extern crate proptest_derive;
+# extern crate proptest;
+# use proptest_derive::Arbitrary;
+# use proptest::proptest;
 #[derive(Debug, Arbitrary)]
 struct FileContent {
     #[proptest(regex = "[a-z0-9.]+")]
@@ -257,6 +314,11 @@ some variant during development.
 Example:
 
 ```rust
+# extern crate proptest_derive;
+# extern crate proptest;
+# use proptest_derive::Arbitrary;
+# use proptest::prelude::*;
+
 #[derive(Debug, Arbitrary)]
 enum DataSource {
     Memory(Vec<u8>),
@@ -293,6 +355,12 @@ and these values ought to be of the variant in question.
 Example:
 
 ```rust
+# extern crate proptest_derive;
+# extern crate proptest;
+# use proptest_derive::Arbitrary;
+# use proptest::prelude::*;
+# use proptest::strategy::Strategy;
+
 #[derive(Debug, Arbitrary)]
 enum Token {
     Delimitation {
@@ -300,12 +368,12 @@ enum Token {
         delimiter: Delimiter,
 
         // But for this field we use a custom strategy
-        #[proptest(strategy = "1..10")]
+        #[proptest(strategy = "1..(10 as u32)")]
         count: u32,
 
         // Here we also use a custom strategy, generated by the function
         // `offset_strategy`.
-        #[proptest(strategy = offset_strategy)]
+        #[proptest(strategy = "offset_strategy()")]
         offset: u32,
     },
 
@@ -315,10 +383,13 @@ enum Token {
 }
 
 #[derive(Debug, Arbitrary)]
-enum Delimiter { /* ... */ }
+enum Delimiter {
+    # Nope
+    /* ... */
+ }
 
 fn offset_strategy() -> impl Strategy<Value = u32> {
-  0..100
+  0..(100 as u32)
 }
 ```
 
@@ -344,6 +415,12 @@ value in `LazyJust`.
 Example:
 
 ```rust
+# extern crate proptest_derive;
+# extern crate proptest;
+# use proptest_derive::Arbitrary;
+# use proptest::prelude::*;
+# use std::time::Instant;
+
 #[derive(Debug, Arbitrary)]
 struct EventCounter {
     // We always start with the first two fields set to 0/None
@@ -377,6 +454,10 @@ Variants with no `weight` modifier are equivalent to being annotated
 Example:
 
 ```rust
+# extern crate proptest_derive;
+# extern crate proptest;
+# use proptest_derive::Arbitrary;
+# use proptest::proptest;
 #[derive(Debug, Arbitrary)]
 enum FilterOption {
     KeepAll,
