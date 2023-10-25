@@ -48,14 +48,14 @@ lift1!([PartialOrd] Range<A>; base => {
 
 #[cfg(feature = "unstable")]
 arbitrary!(
-    [Y: Arbitrary, R: Arbitrary] GeneratorState<Y, R>,
+    [Y: Arbitrary, R: Arbitrary] CoroutineState<Y, R>,
     TupleUnion<(WA<SMapped<Y, Self>>, WA<SMapped<R, Self>>)>,
     product_type![Y::Parameters, R::Parameters];
     args => {
         let product_unpack![y, r] = args;
         prop_oneof![
-            static_map(any_with::<Y>(y), GeneratorState::Yielded),
-            static_map(any_with::<R>(r), GeneratorState::Complete)
+            static_map(any_with::<Y>(y), CoroutineState::Yielded),
+            static_map(any_with::<R>(r), CoroutineState::Complete)
         ]
     }
 );
@@ -65,7 +65,7 @@ use core::fmt;
 
 #[cfg(feature = "unstable")]
 impl<A: fmt::Debug + 'static, B: fmt::Debug + 'static>
-    functor::ArbitraryF2<A, B> for GeneratorState<A, B>
+    functor::ArbitraryF2<A, B> for CoroutineState<A, B>
 {
     type Parameters = ();
 
@@ -79,8 +79,8 @@ impl<A: fmt::Debug + 'static, B: fmt::Debug + 'static>
         BS: Strategy<Value = B> + 'static,
     {
         prop_oneof![
-            fst.prop_map(GeneratorState::Yielded),
-            snd.prop_map(GeneratorState::Complete)
+            fst.prop_map(CoroutineState::Yielded),
+            snd.prop_map(CoroutineState::Complete)
         ]
         .boxed()
     }
@@ -99,6 +99,6 @@ mod test {
 
     #[cfg(feature = "unstable")]
     no_panic_test!(
-        generator_state => GeneratorState<u32, u64>
+        generator_state => CoroutineState<u32, u64>
     );
 }
