@@ -4,6 +4,10 @@
 
 ### Other Notes
 
+- `compiletest_rs` updated from 0.9 to 0.10
+
+### Other Notes
+
 - Upgraded `syn`, `quote`, and `proc-macro2` to 1.0
 
 ## 0.3.0

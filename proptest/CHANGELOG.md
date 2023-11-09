@@ -1,8 +1,20 @@
 ## Unreleased
 
+## 1.4.0
+
+### Breaking Changes
+
+- The minimum supported Rust version has been increased to 1.65.0.
+
+### Other Notes
+
+- `regex-syntax` updated from 0.7 to 0.8
+- Fixed new clippies
+- Fixed nightly build where Generator was renamed to Coroutine
+
 ## 1.3.1
 
-## Other Notes
+### Other Notes
 
 - `bit-set` updated from 0.5.0 to 0.5.2 to ensure minimum compatible version with bit-vec 0.6
 
