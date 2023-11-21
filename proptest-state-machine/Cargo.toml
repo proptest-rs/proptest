@@ -1,0 +1,30 @@
+[package]
+name = "proptest-state-machine"
+version = "0.1.0"
+authors = ["Tomáš Zemanovič"]
+license = "MIT OR Apache-2.0"
+edition = "2018"
+repository = "https://github.com/proptest-rs/proptest"
+homepage = "https://proptest-rs.github.io/proptest/proptest/state-machine.html"
+documentation = "https://docs.rs/proptest-state-machine/latest/proptest-state-machine/"
+keywords = ["property", "testing", "quickcheck", "fuzz", "state-machine"]
+categories = ["development-tools::testing"]
+description = """
+State machine based testing support for proptest.
+"""
+
+[features]
+default = ["std"]
+
+# Enables the use of standard-library dependent features
+std = ["proptest/std"]
+
+[dependencies]
+proptest = { version = "1.2.0", path = "../proptest", default-features = true, features = [
+    "fork",
+    "timeout",
+    "bit-set",
+] }
+
+[dev-dependencies]
+message-io = "0.18.0"

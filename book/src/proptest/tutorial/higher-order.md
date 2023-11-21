@@ -8,17 +8,20 @@ into that slice. If we use a fixed size for the slice, it's easy, but maybe
 we need to test with different slice sizes. We could try something with a
 filter:
 
-```rust,ignore
+```rust
+# extern crate proptest;
+use proptest::prelude::*;
 fn some_function(stuff: &[String], index: usize) { /* do stuff */ }
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_some_function(
         stuff in prop::collection::vec(".*", 1..100),
         index in 0..100usize
     ) {
         prop_assume!(index < stuff.len());
-        some_function(stuff, index);
+        some_function(&stuff, index);
     }
 }
 ```
@@ -33,6 +36,7 @@ The solution is the `prop_flat_map` combinator. This is sort of like
 value. This is more easily understood by implementing our example:
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 fn some_function(stuff: Vec<String>, index: usize) {
@@ -50,6 +54,7 @@ fn vec_and_index() -> impl Strategy<Value = (Vec<String>, usize)> {
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_some_function((vec, index) in vec_and_index()) {
         some_function(vec, index);
     }
@@ -73,7 +78,8 @@ simply providing three argument lists instead of two. The below desugars to
 something much like what we wrote by hand above, except that the index and
 vector's positions are internally reversed due to borrowing limitations.
 
-```rust,no_run
+```rust
+# extern crate proptest;
 # use proptest::prelude::*;
 prop_compose! {
     fn vec_and_index()(vec in prop::collection::vec(".*", 1..100))
@@ -82,5 +88,4 @@ prop_compose! {
        (vec, index)
    }
 }
-# fn main() { }
 ```

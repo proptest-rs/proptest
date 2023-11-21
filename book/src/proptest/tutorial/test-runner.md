@@ -8,6 +8,7 @@ give it the strategy and a function to test inputs and it takes care of the
 rest.
 
 ```rust
+# extern crate proptest;
 use proptest::test_runner::{Config, FileFailurePersistence,
                             TestError, TestRunner};
 

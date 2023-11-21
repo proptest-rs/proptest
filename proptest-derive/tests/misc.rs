@@ -6,8 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![allow(unused_variables)]
-
 use proptest::prelude::Arbitrary;
 use proptest::strategy::Just;
 use proptest_derive::Arbitrary;
@@ -63,10 +61,9 @@ enum Quux {
     E(u32),
     F {
         #[proptest(strategy = "10usize..20usize")]
-        foo: usize,
+        _foo: usize,
     },
 }
-
 
 #[test]
 fn asserting_arbitrary() {

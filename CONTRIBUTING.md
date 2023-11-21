@@ -2,9 +2,9 @@
 
 Bug reports and questions are always welcome, though before asking whether a
 feature exists, please glance through the [Proptest
-book](https://altsysrq.github.io/proptest-book/intro.html) and try the search
+book](https://proptest-rs.github.io/proptest/intro.html) and try the search
 feature built in to the [API
-docs](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/) to see if
+docs](https://docs.rs/proptest/latest/proptest/) to see if
 they answer your question already.
 
 Please include your rust version and proptest version in any reports. Also
@@ -67,12 +67,12 @@ All source files start with the copyright header whose template is found at
 `proptest/src/file-preamble`.
 
 When creating a new source file, insert the template and fill it out with the
-current year and either your name or "The proptest developers", at your choice.
+current year and "The proptest developers".
 
 When making non-trivial changes to an existing file, update the header to _add_
 the current year (separated from the previous by a comma) if not already there,
-and change the name to "The proptest developers" if the current name is neither
-that nor your own. Use your best judgement for what "non-trivial" is.
+and change the name to "The proptest developers" if the current name is not
+that. Use your best judgement for what "non-trivial" is.
 
 You retain copyright for any code you add to proptest.
 

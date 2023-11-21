@@ -4,7 +4,8 @@ Randomly generating recursive data structures is trickier than it sounds. For
 example, the below is a naïve attempt at generating a JSON AST by using
 recursion.
 
-```rust,no_run
+```rust
+# extern crate proptest;
 use std::collections::HashMap;
 use proptest::prelude::*;
 
@@ -29,7 +30,6 @@ fn arb_json() -> impl Strategy<Value = Json> {
           ".*", arb_json(), 0..10).prop_map(Json::Map),
     ].boxed()
 }
-# fn main() { }
 ```
 
 Upon closer consideration, this obviously can't work because `arb_json()`
@@ -47,6 +47,7 @@ parameters, and a function to transform a nested strategy into a recursive
 strategy.
 
 ```rust
+# extern crate proptest;
 use std::collections::HashMap;
 use proptest::prelude::*;
 
@@ -79,5 +80,4 @@ fn arb_json() -> impl Strategy<Value = Json> {
               .prop_map(Json::Map),
       ])
 }
-# fn main() { }
 ```

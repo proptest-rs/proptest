@@ -14,6 +14,7 @@ use core::result::Result;
 use core::str::FromStr;
 
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 mod file;
 mod map;
 mod noop;

@@ -12,4 +12,4 @@ extern crate proptest_derive;
 fn main() {}
 
 #[derive(Arbitrary)] //~ `Foo` doesn't implement `Debug` [E0277]
-struct Foo { x: usize }
+struct Foo { x: usize } //~ `Foo` doesn't implement `Debug` [E0277]

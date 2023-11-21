@@ -77,20 +77,23 @@ impl SizeRange {
         self.with(Default::default())
     }
 
-    pub(crate) fn start(&self) -> usize {
+    /// The lower bound of the range (inclusive).
+    pub fn start(&self) -> usize {
         self.0.start
     }
 
     /// Extract the ends `[low, high]` of a `SizeRange`.
-    pub(crate) fn start_end_incl(&self) -> (usize, usize) {
+    pub fn start_end_incl(&self) -> (usize, usize) {
         (self.start(), self.end_incl())
     }
 
-    pub(crate) fn end_incl(&self) -> usize {
+    /// The upper bound of the range (inclusive).
+    pub fn end_incl(&self) -> usize {
         self.0.end - 1
     }
 
-    pub(crate) fn end_excl(&self) -> usize {
+    /// The upper bound of the range (exclusive).
+    pub fn end_excl(&self) -> usize {
         self.0.end
     }
 
@@ -328,6 +331,7 @@ impl<T: Eq + Hash> statics::FilterFn<HashSet<T>> for MinSize {
 
 opaque_strategy_wrapper! {
     {#[cfg(feature = "std")]}
+    {#[cfg_attr(docsrs, doc(cfg(feature = "std")))]}
     /// Strategy to create `HashSet`s with a length in a certain range.
     ///
     /// Created by the `hash_set()` function in the same module.
@@ -349,6 +353,7 @@ opaque_strategy_wrapper! {
 /// has at least the minimum number of elements, in case `element` should
 /// produce duplicate values.
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub fn hash_set<T: Strategy>(
     element: T,
     size: impl Into<SizeRange>,
@@ -431,6 +436,7 @@ impl<K: Hash + Eq, V> statics::FilterFn<HashMap<K, V>> for MinSize {
 
 opaque_strategy_wrapper! {
     {#[cfg(feature = "std")]}
+    {#[cfg_attr(docsrs, doc(cfg(feature = "std")))]}
     /// Strategy to create `HashMap`s with a length in a certain range.
     ///
     /// Created by the `hash_map()` function in the same module.
@@ -457,6 +463,7 @@ opaque_strategy_wrapper! {
 /// has at least the minimum number of elements, in case `key` should produce
 /// duplicate values.
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub fn hash_map<K: Strategy, V: Strategy>(
     key: K,
     value: V,

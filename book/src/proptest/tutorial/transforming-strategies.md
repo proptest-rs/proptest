@@ -5,6 +5,7 @@ Suppose you have a function that takes a string which needs to be the
 argument might be to use a regular expression, like so:
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 fn do_stuff(v: String) {
@@ -15,6 +16,7 @@ fn do_stuff(v: String) {
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_do_stuff(v in "[1-9][0-9]{0,8}") {
         do_stuff(v);
     }
@@ -38,6 +40,7 @@ The thing we're looking for is the first strategy _combinator_, `prop_map`.
 We need to ensure `Strategy` is in scope to use it.
 
 ```rust
+# extern crate proptest;
 // Grab `Strategy`, shorter namespace prefix, and the macros
 use proptest::prelude::*;
 
@@ -49,6 +52,7 @@ fn do_stuff(v: String) {
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_do_stuff(v in any::<u32>().prop_map(|v| v.to_string())) {
         do_stuff(v);
     }
@@ -69,6 +73,7 @@ Let's update our code so it takes a more interesting structure.
 
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 #[derive(Clone, Debug)]
@@ -87,6 +92,7 @@ fn do_stuff(order: Order) {
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_do_stuff(
         order in
         (any::<u32>().prop_map(|v| v.to_string()),
@@ -106,6 +112,7 @@ But that's quite a mouthful in the argument list. Fortunately, strategies
 are normal values, so we can extract it to a function.
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 // snip
@@ -123,7 +130,7 @@ use proptest::prelude::*;
 #     let s = i.to_string();
 #     assert_eq!(s, order.id);
 # }
-
+#
 fn arb_order(max_quantity: u32) -> BoxedStrategy<Order> {
     (any::<u32>().prop_map(|v| v.to_string()),
      "[a-z]*", 1..max_quantity)
@@ -133,6 +140,7 @@ fn arb_order(max_quantity: u32) -> BoxedStrategy<Order> {
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_do_stuff(order in arb_order(1000)) {
         do_stuff(order);
     }
@@ -158,6 +166,7 @@ overhead as in the following example. You should use `-> impl Strategy<..>`
 unless you need the dynamic dispatch.
 
 ```rust
+# extern crate proptest;
 use proptest::prelude::*;
 
 // snip
@@ -170,13 +179,12 @@ use proptest::prelude::*;
 #   quantity: u32,
 # }
 #
-
 # fn do_stuff(order: Order) {
 #     let i: u32 = order.id.parse().unwrap();
 #     let s = i.to_string();
 #     assert_eq!(s, order.id);
 # }
-
+#
 fn arb_order(max_quantity: u32) -> impl Strategy<Value = Order> {
     (any::<u32>().prop_map(|v| v.to_string()),
      "[a-z]*", 1..max_quantity)
@@ -185,6 +193,7 @@ fn arb_order(max_quantity: u32) -> impl Strategy<Value = Order> {
 
 proptest! {
     #[test]
+    # fn dummy(0..1) {} // Doctests don't build `#[test]` functions, so we need this
     fn test_do_stuff(order in arb_order(1000)) {
         do_stuff(order);
     }

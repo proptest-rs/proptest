@@ -1,17 +1,21 @@
 # Proptest
 
-[![Build Status](https://github.com/AltSysrq/proptest/workflows/Rust/badge.svg?branch=master)](https://github.com/AltSysrq/proptest/actions)
-[![Build status](https://ci.appveyor.com/api/projects/status/ofe98xfthbx1m608/branch/master?svg=true)](https://ci.appveyor.com/project/AltSysrq/proptest/branch/master)
-[![](http://meritbadge.herokuapp.com/proptest)](https://crates.io/crates/proptest)
-[![](https://img.shields.io/website/https/altsysrq.github.io/proptest-book.svg)][book]
+[![Build Status](https://github.com/proptest-rs/proptest/workflows/Rust/badge.svg?branch=master)](https://github.com/proptest-rs/proptest/actions)
+[![](https://img.shields.io/crates/v/proptest.svg)](https://crates.io/crates/proptest)
+[![](https://img.shields.io/website/https/proptest-rs.github.io/proptest.svg)][book]
 [![](https://docs.rs/proptest/badge.svg)][api-docs]
 
-[book]: https://altsysrq.github.io/proptest-book/intro.html
-[api-docs]: https://altsysrq.github.io/rustdoc/proptest/latest/proptest/
+[book]: https://proptest-rs.github.io/proptest/intro.html
+[api-docs]: https://docs.rs/proptest/latest/proptest/
+
+## Book
+
+A detailed introduction to proptest can be found in the [book](https://proptest-rs.github.io/proptest/)
+
 ## Introduction
 
 Proptest is a property testing framework (i.e., the QuickCheck family)
-inspired by the [Hypothesis](http://hypothesis.works/) framework for
+inspired by the [Hypothesis](https://hypothesis.works/) framework for
 Python. It allows to test that certain properties of your code hold for
 arbitrary inputs, and if a failure is found, automatically finds the
 minimal test case to reproduce the problem. Unlike QuickCheck, generation
@@ -24,8 +28,14 @@ The crate is fairly close to being feature-complete and has not seen
 substantial architectural changes in quite some time. At this point, it mainly
 sees passive maintenance.
 
-See the [changelog](https://github.com/AltSysrq/proptest/blob/master/proptest/CHANGELOG.md)
+See the [changelog](https://github.com/proptest-rs/proptest/blob/master/proptest/CHANGELOG.md)
 for a full list of substantial historical changes, breaking and otherwise.
+
+### MSRV
+
+The current MSRV of this crate is 1.64.
+The MSRV is guaranteed to not exceed `<current stable release> - 7`, though in practice it may be lower than this - your mileage may vary.
+If we change this policy in a backwards incompatible way (e.g. changing it to `<current stable release> - 1`), this constitutes a breaking change, and would be a major version bump (e.g. 1.1 -> 2.0).
 
 ### What is property testing?
 
@@ -39,6 +49,7 @@ using specific inputs chosen by hand). Traditional tests can test specific
 known edge cases, simple inputs, and inputs that were known in the past to
 reveal bugs, whereas property tests will search for more complicated inputs
 that cause problems.
+
 ## Getting Started
 
 Let's say we want to make a function that parses dates of the form
@@ -123,7 +134,7 @@ thread 'main' panicked at 'Test failed: byte index 4 is not a char boundary; it 
 If we look at the top directory after the test fails, we'll see a new
 `proptest-regressions` directory, which contains some files corresponding to
 source files containing failing test cases. These are [_failure
-persistence_](https://altsysrq.github.io/proptest-book/proptest/failure-persistence.html)
+persistence_](https://proptest-rs.github.io/proptest/proptest/failure-persistence.html)
 files. The first thing we should do is add these to source control.
 
 ```text
@@ -310,8 +321,9 @@ the test passes.
 
 The `proptest!` macro has some additional syntax, including for setting
 configuration for things like the number of test cases to generate. See its
-[documentation](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/macro.proptest.html)
+[documentation](https://docs.rs/proptest/latest/proptest/macro.proptest.html)
 for more details.
+
 ## Differences between QuickCheck and Proptest
 
 QuickCheck and Proptest are similar in many ways: both generate random
@@ -346,7 +358,7 @@ QuickCheck approach has a lot of disadvantages in comparison:
   violate them.
 
 The author of Hypothesis also has an [article on this
-topic](http://hypothesis.works/articles/integrated-shrinking/).
+topic](https://hypothesis.works/articles/integrated-shrinking/).
 
 Of course, there's also some relative downsides that fall out of what
 Proptest does differently:
@@ -356,6 +368,7 @@ Proptest does differently:
   shrinking based on the output value, whereas Proptest must hold on to all the
   intermediate states and relationships in order for its richer shrinking model
   to work.
+
 ## Limitations of Property Testing
 
 Given infinite time, property testing will eventually explore the whole
@@ -388,7 +401,7 @@ makes it to a code generator.
 # Acknowledgements
 
 This crate wouldn't have come into existence had it not been for the [Rust port
-of QuickCheck](https://github.com/burntsushi/quickcheck) and the
+of QuickCheck](https://github.com/BurntSushi/quickcheck) and the
 [`regex_generate`](https://github.com/CryptArchy/regex_generate) crate which
 gave wonderful examples of what is possible.
 

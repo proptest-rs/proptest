@@ -12,7 +12,7 @@
 //! This is the reference documentation for the proptest API.
 //!
 //! For documentation on how to get started with proptest and general usage
-//! advice, please refer to the [Proptest Book](https://altsysrq.github.io/proptest-book/intro.html).
+//! advice, please refer to the [Proptest Book](https://proptest-rs.github.io/proptest/intro.html).
 
 #![forbid(future_incompatible)]
 #![deny(missing_docs, bare_trait_objects)]
@@ -24,19 +24,10 @@
 ))]
 #![cfg_attr(
     feature = "unstable",
-    feature(
-        allocator_api,
-        try_trait,
-        generator_trait,
-        never_type,
-        try_reserve
-    )
+    feature(allocator_api, try_trait_v2, coroutine_trait, never_type)
 )]
 #![cfg_attr(all(feature = "std", feature = "unstable"), feature(ip))]
-#![cfg_attr(
-    all(feature = "alloc", not(feature = "std")),
-    feature(core_intrinsics)
-)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 // std_facade is used in a few macros, so it needs to be public.
 #[macro_use]
@@ -72,11 +63,6 @@ extern crate bit_set;
 #[macro_use]
 extern crate lazy_static;
 
-// Only required for the string module.
-#[cfg(feature = "std")]
-#[macro_use]
-extern crate quick_error;
-
 #[cfg(feature = "fork")]
 #[macro_use]
 extern crate rusty_fork;
@@ -100,9 +86,13 @@ pub mod test_runner;
 pub mod tuple;
 
 pub mod option;
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+pub mod path;
 pub mod result;
 pub mod sample;
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub mod string;
 
 pub mod prelude;

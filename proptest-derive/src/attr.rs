@@ -8,6 +8,7 @@
 
 //! Provides a parser from syn attributes to our logical model.
 
+use quote::ToTokens;
 use syn::{self, Attribute, Expr, Lit, Meta, NestedMeta, Type, Path};
 
 use crate::error::{self, Ctx, DeriveResult};
@@ -263,21 +264,25 @@ fn is_outer_attr(attr: &Attribute) -> bool {
 /// let's them add stuff into our accumulartor.
 fn dispatch_attribute(ctx: Ctx, mut acc: ParseAcc, meta: Meta) -> ParseAcc {
     // Dispatch table for attributes:
-    let name = meta.path().get_ident().map(|id| id.to_string());
-    match name.as_deref() {
-        // Valid modifiers:
-        Some("skip") => parse_skip(ctx, &mut acc, meta),
-        Some("w") | Some("weight") => parse_weight(ctx, &mut acc, &meta),
-        Some("no_params") => parse_no_params(ctx, &mut acc, meta),
-        Some("params") => parse_params(ctx, &mut acc, meta),
-        Some("strategy") => parse_strategy(ctx, &mut acc, &meta),
-        Some("value") => parse_value(ctx, &mut acc, &meta),
-        Some("regex") => parse_regex(ctx, &mut acc, &meta),
-        Some("filter") => parse_filter(ctx, &mut acc, &meta),
-        Some("no_bound") => parse_no_bound(ctx, &mut acc, meta),
-        // Invalid modifiers:
-        Some(name) => dispatch_unknown_mod(ctx, name),
-        None => error::unkown_modifier(ctx, &format!("{:?}", meta.path())),
+    let path = meta.path();
+    if let Some(name) = path.get_ident().map(ToString::to_string) {
+        match name.as_ref() {
+            // Valid modifiers:
+            "skip" => parse_skip(ctx, &mut acc, meta),
+            "w" | "weight" => parse_weight(ctx, &mut acc, &meta),
+            "no_params" => parse_no_params(ctx, &mut acc, meta),
+            "params" => parse_params(ctx, &mut acc, meta),
+            "strategy" => parse_strategy(ctx, &mut acc, &meta),
+            "value" => parse_value(ctx, &mut acc, &meta),
+            "regex" => parse_regex(ctx, &mut acc, &meta),
+            "filter" => parse_filter(ctx, &mut acc, &meta),
+            "no_bound" => parse_no_bound(ctx, &mut acc, meta),
+            // Invalid modifiers:
+            name => dispatch_unknown_mod(ctx, name),
+        }
+    } else {
+        // Occurs when passed path is something other than a single ident
+        error::unkown_modifier(ctx, &path.into_token_stream().to_string());
     }
     acc
 }
@@ -603,7 +608,12 @@ fn normalize_meta(meta: Meta) -> Option<NormMeta> {
             if let Some(nm) = util::match_singleton(ml.nested) {
                 match nm {
                     NestedMeta::Lit(lit) => NormMeta::Lit(lit),
-                    NestedMeta::Meta(Meta::Path(path)) => NormMeta::Path(path),
+                    NestedMeta::Meta(Meta::Path(path)) => {
+                        match path.get_ident() {
+                            Some(word) => NormMeta::Word(word.to_owned()),
+                            None => return None,
+                        }
+                    }
                     _ => return None,
                 }
             } else {

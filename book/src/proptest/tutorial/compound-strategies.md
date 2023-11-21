@@ -7,6 +7,7 @@ if verbose. But `TestRunner` only takes a single `Strategy`; how can we
 test a function that needs inputs from more than one?
 
 ```rust,ignore
+# extern crate proptest;
 use proptest::test_runner::TestRunner;
 
 fn add(a: i32, b: i32) -> i32 {
@@ -14,11 +15,11 @@ fn add(a: i32, b: i32) -> i32 {
 }
 
 #[test]
+# fn dummy() {} // Doctests don't build `#[test]` functions, so we need this
 fn test_add() {
     let mut runner = TestRunner::default();
     runner.run(/* uhhm... */).unwrap();
 }
-#
 # fn main() { test_add(); }
 ```
 
@@ -34,6 +35,7 @@ and 1000.
 So for our two-argument function, our strategy is simply a tuple of ranges.
 
 ```rust
+# extern crate proptest;
 use proptest::test_runner::TestRunner;
 
 fn add(a: i32, b: i32) -> i32 {
@@ -41,6 +43,7 @@ fn add(a: i32, b: i32) -> i32 {
 }
 
 #[test]
+# fn dummy() {} // Doctests don't build `#[test]` functions, so we need this
 fn test_add() {
     let mut runner = TestRunner::default();
     // Combine our two inputs into a strategy for one tuple. Our test
@@ -53,11 +56,10 @@ fn test_add() {
         Ok(())
     }).unwrap();
 }
-#
 # fn main() { test_add(); }
 ```
 
 Other compound strategies include fixed-sizes arrays of strategies and
 `Vec`s of strategies (which produce arrays or `Vec`s of values parallel to
 the strategy collection), as well as the various strategies provided in the
-[collection](https://altsysrq.github.io/rustdoc/proptest/latest/proptest/collection/index.html) module.
+[collection](https://docs.rs/proptest/latest/proptest/collection/index.html) module.

@@ -109,8 +109,15 @@ impl Impl {
         let _const = call_site_ident(&format!("_IMPL_ARBITRARY_FOR_{}", typ));
 
         // Linearise everything. We're done after this.
+        //
+        // NOTE: The clippy::arc_with_non_send_sync lint is disabled here because the strategies
+        // generated are often not Send or Sync, such as BoxedStrategy.
+        //
+        // The double-curly-braces are not strictly required, but allow the expression to be
+        // annotated with an attribute.
         let q = quote! {
             #[allow(non_upper_case_globals)]
+            #[allow(clippy::arc_with_non_send_sync)]
             const #_const: () = {
             extern crate proptest as _proptest;
 
@@ -840,32 +847,4 @@ impl<'a> ToTokens for FreshVar<'a> {
 
 fn call_site_ident(ident: &str) -> syn::Ident {
     syn::Ident::new(ident, Span::call_site())
-}
-
-//==============================================================================
-// Util
-//==============================================================================
-
-/// A comma separated tuple to a token stream when more than 1, or just flat
-/// when 1.
-#[derive(Copy, Clone)]
-struct Tuple2<S>(S);
-
-impl<'a, T: ToTokens> ToTokens for Tuple2<&'a [T]> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self.0 {
-            [x] => x.to_tokens(tokens),
-            _ => Tuple(self.0).to_tokens(tokens),
-        }
-    }
-}
-
-/// Append a comma separated tuple to a token stream.
-struct Tuple<I>(I);
-
-impl<T: ToTokens, I: Clone + IntoIterator<Item = T>> ToTokens for Tuple<I> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let iter = self.0.clone();
-        tokens.append_all(iter);
-    }
 }

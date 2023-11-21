@@ -33,8 +33,32 @@ pub enum TestCaseError {
     Fail(Reason),
 }
 
+/// Indicates the type of test that ran successfully.
+///
+/// This is used for managing whether or not a success is counted against
+/// configured `PROPTEST_CASES`; only `NewCases` shall be counted.
+///
+/// TODO-v2: Ideally `TestCaseResult = Result<TestCaseOk, TestCaseError>`
+/// however this breaks source compability in version 1.x.x because
+/// `TestCaseResult` is public.
+#[derive(Debug, Clone)]
+pub(crate) enum TestCaseOk {
+    NewCaseSuccess,
+    PersistedCaseSuccess,
+    ReplayFromForkSuccess,
+    CacheHitSuccess,
+    Reject,
+}
+
 /// Convenience for the type returned by test cases.
 pub type TestCaseResult = Result<(), TestCaseError>;
+
+/// Intended to replace `TestCaseResult` in v2.
+///
+/// TODO-v2: Ideally `TestCaseResult = Result<TestCaseOk, TestCaseError>`
+/// however this breaks source compability in version 1.x.x because
+/// `TestCaseResult` is public.
+pub(crate) type TestCaseResultV2 = Result<TestCaseOk, TestCaseError>;
 
 impl TestCaseError {
     /// Rejects the generated test input as invalid for this test case. This
@@ -90,11 +114,10 @@ impl<T: fmt::Debug> fmt::Display for TestError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             TestError::Abort(ref why) => write!(f, "Test aborted: {}", why),
-            TestError::Fail(ref why, ref what) => write!(
-                f,
-                "Test failed: {}; minimal failing input: {:?}",
-                why, what
-            ),
+            TestError::Fail(ref why, ref what) => {
+                writeln!(f, "Test failed: {}.", why)?;
+                write!(f, "minimal failing input: {:#?}", what)
+            }
         }
     }
 }

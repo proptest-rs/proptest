@@ -22,6 +22,8 @@ use core::mem;
 
 #[cfg(feature = "bit-set")]
 use bit_set::BitSet;
+#[cfg(feature = "bit-set")]
+use bit_vec::BitVec;
 use rand::{self, seq::IteratorRandom, Rng};
 
 use crate::collection::SizeRange;
@@ -95,6 +97,7 @@ int_bitset!(i64);
 int_bitset!(isize);
 
 #[cfg(feature = "bit-set")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bit-set")))]
 impl BitSetLike for BitSet {
     fn new_bitset(max: usize) -> Self {
         BitSet::with_capacity(max)
@@ -430,6 +433,7 @@ macro_rules! minimal_api {
 minimal_api!(usize, usize);
 minimal_api!(isize, isize);
 #[cfg(feature = "bit-set")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bit-set")))]
 minimal_api!(bitset, BitSet);
 minimal_api!(bool_vec, Vec<bool>);
 
@@ -442,12 +446,21 @@ pub(crate) mod varsize {
     #[cfg(not(feature = "bit-set"))]
     type Inner = Vec<bool>;
 
+    /// A bit set is a set of bit flags.
     #[derive(Debug, Clone)]
-    pub(crate) struct VarBitSet(Inner);
+    pub struct VarBitSet(Inner);
 
     impl VarBitSet {
-        pub(crate) fn saturated(len: usize) -> Self {
-            (0..len).collect::<VarBitSet>()
+        /// Create a bit set of `len` set values.
+        #[cfg(not(feature = "bit-set"))]
+        pub fn saturated(len: usize) -> Self {
+            Self(vec![true; len])
+        }
+
+        /// Create a bit set of `len` set values.
+        #[cfg(feature = "bit-set")]
+        pub fn saturated(len: usize) -> Self {
+            Self(BitSet::from_bit_vec(BitVec::from_elem(len, true)))
         }
 
         #[cfg(not(feature = "bit-set"))]
@@ -488,8 +501,10 @@ pub(crate) mod varsize {
     }
 
     impl FromIterator<usize> for VarBitSet {
-        fn from_iter<T: IntoIterator<Item = usize>>(iter: T) -> Self {
-            let mut bits = VarBitSet::new_bitset(0);
+        fn from_iter<T: IntoIterator<Item = usize>>(into_iter: T) -> Self {
+            let iter = into_iter.into_iter();
+            let lower_bound = iter.size_hint().0;
+            let mut bits = VarBitSet::new_bitset(lower_bound);
             for bit in iter {
                 bits.set(bit);
             }
@@ -515,7 +530,7 @@ pub(crate) mod varsize {
     }
 }
 
-pub(crate) use self::varsize::VarBitSet;
+pub use self::varsize::VarBitSet;
 
 #[cfg(test)]
 mod test {

@@ -79,6 +79,7 @@ test! {
         struct MyUnitStruct;
     } expands to {
         #[allow(non_upper_case_globals)]
+        #[allow(clippy::arc_with_non_send_sync)]
         const _IMPL_ARBITRARY_FOR_MyUnitStruct : () = {
             extern crate proptest as _proptest;
         impl _proptest::arbitrary::Arbitrary for MyUnitStruct {
@@ -99,6 +100,7 @@ test! {
         struct MyTupleUnitStruct();
     } expands to {
         #[allow(non_upper_case_globals)]
+        #[allow(clippy::arc_with_non_send_sync)]
         const _IMPL_ARBITRARY_FOR_MyTupleUnitStruct : () = {
             extern crate proptest as _proptest;
         impl _proptest::arbitrary::Arbitrary for MyTupleUnitStruct {
@@ -119,6 +121,7 @@ test! {
         struct MyNamedUnitStruct {}
     } expands to {
         #[allow(non_upper_case_globals)]
+        #[allow(clippy::arc_with_non_send_sync)]
         const _IMPL_ARBITRARY_FOR_MyNamedUnitStruct : () = {
             extern crate proptest as _proptest;
         impl _proptest::arbitrary::Arbitrary for MyNamedUnitStruct {

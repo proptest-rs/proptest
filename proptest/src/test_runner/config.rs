@@ -43,10 +43,16 @@ const FORK: &str = "PROPTEST_FORK";
 const TIMEOUT: &str = "PROPTEST_TIMEOUT";
 #[cfg(feature = "std")]
 const VERBOSE: &str = "PROPTEST_VERBOSE";
-const RNG_ALGORITHM: &str = "PROPTEST_RNG_ALGORITHM";
-
 #[cfg(feature = "std")]
-fn contextualize_config(mut result: Config) -> Config {
+const RNG_ALGORITHM: &str = "PROPTEST_RNG_ALGORITHM";
+#[cfg(feature = "std")]
+const DISABLE_FAILURE_PERSISTENCE: &str =
+    "PROPTEST_DISABLE_FAILURE_PERSISTENCE";
+
+/// Override the config fields from environment variables, if any are set.
+/// Without the `std` feature this function returns config unchanged.
+#[cfg(feature = "std")]
+pub fn contextualize_config(mut result: Config) -> Config {
     fn parse_or_warn<T: FromStr + fmt::Display>(
         src: &OsString,
         dst: &mut T,
@@ -124,6 +130,7 @@ fn contextualize_config(mut result: Config) -> Config {
                 "RngAlgorithm",
                 RNG_ALGORITHM,
             ),
+            DISABLE_FAILURE_PERSISTENCE => result.failure_persistence = None,
 
             _ => {
                 if var.starts_with("PROPTEST_") {
@@ -136,8 +143,9 @@ fn contextualize_config(mut result: Config) -> Config {
     result
 }
 
+/// Without the `std` feature this function returns config unchanged.
 #[cfg(not(feature = "std"))]
-fn contextualize_config(result: Config) -> Config {
+pub fn contextualize_config(result: Config) -> Config {
     result
 }
 
@@ -182,21 +190,25 @@ pub struct Config {
     /// This does not include implicitly-replayed persisted failing cases.
     ///
     /// The default is 256, which can be overridden by setting the
-    /// `PROPTEST_CASES` environment variable.
+    /// `PROPTEST_CASES` environment variable. (The variable is only considered
+    /// when the `std` feature is enabled, which it is by default.)
     pub cases: u32,
 
     /// The maximum number of individual inputs that may be rejected before the
     /// test as a whole aborts.
     ///
     /// The default is 65536, which can be overridden by setting the
-    /// `PROPTEST_MAX_LOCAL_REJECTS` environment variable.
+    /// `PROPTEST_MAX_LOCAL_REJECTS` environment variable. (The variable is only
+    /// considered when the `std` feature is enabled, which it is by default.)
     pub max_local_rejects: u32,
 
     /// The maximum number of combined inputs that may be rejected before the
     /// test as a whole aborts.
     ///
     /// The default is 1024, which can be overridden by setting the
-    /// `PROPTEST_MAX_GLOBAL_REJECTS` environment variable.
+    /// `PROPTEST_MAX_GLOBAL_REJECTS` environment variable. (The variable is
+    /// only considered when the `std` feature is enabled, which it is by
+    /// default.)
     pub max_global_rejects: u32,
 
     /// The maximum number of times all `Flatten` combinators will attempt to
@@ -204,7 +216,9 @@ pub struct Config {
     /// explosion that can happen with nested `Flatten`s.
     ///
     /// The default is 1_000_000, which can be overridden by setting the
-    /// `PROPTEST_MAX_FLAT_MAP_REGENS` environment variable.
+    /// `PROPTEST_MAX_FLAT_MAP_REGENS` environment variable. (The variable is
+    /// only considered when the `std` feature is enabled, which it is by
+    /// default.)
     pub max_flat_map_regens: u32,
 
     /// Indicates whether and how to persist failed test results.
@@ -217,7 +231,11 @@ pub struct Config {
     /// See the docs of [`FileFailurePersistence`](enum.FileFailurePersistence.html)
     /// and [`MapFailurePersistence`](struct.MapFailurePersistence.html) for more information.
     ///
-    /// The default cannot currently be overridden by an environment variable.
+    /// You can disable failure persistence with the `PROPTEST_DISABLE_FAILURE_PERSISTENCE`
+    /// environment variable but its not currently possible to set the persistence file
+    /// with an environment variable. (The variable is
+    /// only considered when the `std` feature is enabled, which it is by
+    /// default.)
     pub failure_persistence: Option<Box<dyn FailurePersistence>>,
 
     /// File location of the current test, relevant for persistence
@@ -252,8 +270,11 @@ pub struct Config {
     /// This requires the "fork" feature, enabled by default.
     ///
     /// The default is `false`, which can be overridden by setting the
-    /// `PROPTEST_FORK` environment variable.
+    /// `PROPTEST_FORK` environment variable. (The variable is
+    /// only considered when the `std` feature is enabled, which it is by
+    /// default.)
     #[cfg(feature = "fork")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "fork")))]
     pub fork: bool,
 
     /// If non-zero, tests are run in a subprocess and each generated case
@@ -271,8 +292,11 @@ pub struct Config {
     /// aborted.
     ///
     /// The default is `0` (i.e., no timeout), which can be overridden by
-    /// setting the `PROPTEST_TIMEOUT` environment variable.
+    /// setting the `PROPTEST_TIMEOUT` environment variable. (The variable is
+    /// only considered when the `std` feature is enabled, which it is by
+    /// default.)
     #[cfg(feature = "timeout")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "timeout")))]
     pub timeout: u32,
 
     /// If non-zero, give up the shrinking process after this many milliseconds
@@ -284,8 +308,11 @@ pub struct Config {
     /// (which it is by default).
     ///
     /// The default is `0` (i.e., no limit), which can be overridden by setting
-    /// the `PROPTEST_MAX_SHRINK_TIME` environment variable.
+    /// the `PROPTEST_MAX_SHRINK_TIME` environment variable. (The variable is
+    /// only considered when the `std` feature is enabled, which it is by
+    /// default.)
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub max_shrink_time: u32,
 
     /// Give up on shrinking if more than this number of iterations of the test
@@ -300,7 +327,8 @@ pub struct Config {
     /// proptest to better accommodate its special values.
     ///
     /// The default is `std::u32::MAX`, which can be overridden by setting the
-    /// `PROPTEST_MAX_SHRINK_ITERS` environment variable.
+    /// `PROPTEST_MAX_SHRINK_ITERS` environment variable. (The variable is only
+    /// considered when the `std` feature is enabled, which it is by default.)
     pub max_shrink_iters: u32,
 
     /// A function to create new result caches.
@@ -328,15 +356,18 @@ pub struct Config {
     /// meaning of certain levels other than 0 is subject to change.
     ///
     /// - 0: No extra output.
-    /// - 1: Log test failure messages.
+    /// - 1: Log test failure messages. In state machine tests, this level is
+    ///   used to print transitions.
     /// - 2: Trace low-level details.
     ///
     /// This is only available with the `std` feature (enabled by default)
     /// since on nostd proptest has no way to produce output.
     ///
     /// The default is `0`, which can be overridden by setting the
-    /// `PROPTEST_VERBOSE` environment variable.
+    /// `PROPTEST_VERBOSE` environment variable. (The variable is only considered
+    /// when the `std` feature is enabled, which it is by default.)
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub verbose: u32,
 
     /// The RNG algorithm to use when not using a user-provided RNG.
@@ -346,6 +377,9 @@ pub struct Config {
     ///
     /// - `xs` — `RngAlgorithm::XorShift`
     /// - `cc` — `RngAlgorithm::ChaCha`
+    ///
+    /// (The variable is only considered when the `std` feature is enabled,
+    /// which it is by default.)
     pub rng_algorithm: RngAlgorithm,
 
     // Needs to be public so FRU syntax can be used.

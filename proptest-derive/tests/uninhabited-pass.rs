@@ -7,29 +7,27 @@
 // except according to those terms.
 
 #![feature(never_type)]
-#![allow(dead_code, unreachable_code)]
 
 use proptest::prelude::{prop_assert_eq, proptest, Arbitrary};
 use proptest_derive::Arbitrary;
 
 // Various arithmetic and basic things.
+#[allow(unreachable_code)]
 #[derive(Debug, Arbitrary, PartialEq)]
 enum Ty1 {
     // Ensure that all of the types below are deemed uninhabited:
-    V2(!),
-    V3([!; 1]),
-    V4([!; 2 - 1]),
-    V5([!; 2 * 1]),
-    V6([!; 2 / 2]),
-    V7([!; 0b0 ^ 0b1]),
-    V8([!; 0b1 & 0b1]),
-    V9([!; 0b1 | 0b0]),
-    V10([!; 0b10 << 1]),
-    V11([!; 0b10 >> 1]),
-    V12([!; !0 - 18446744073709551614]),
-    V13([!; (1 + 2 * (3 / 3))]),
-    // This one is inhabited:
-    #[warn(dead_code)]
+    _V2(!),
+    _V3([!; 1]),
+    _V4([!; 2 - 1]),
+    _V5([!; 2 * 1]),
+    _V6([!; 2 / 2]),
+    _V7([!; 0b0 ^ 0b1]),
+    _V8([!; 0b1 & 0b1]),
+    _V9([!; 0b1 | 0b0]),
+    _V10([!; 0b10 << 1]),
+    _V11([!; 0b10 >> 1]),
+    _V12([!; !0 - 18446744073709551614]),
+    _V13([!; 1 + 2 * (3 / 3)]),
     V1,
 }
 
@@ -49,15 +47,15 @@ macro_rules! tymac {
 
 #[derive(Debug, Arbitrary)]
 struct TyMac0 {
-    field: tymac!(!),
+    _field: tymac!(!),
 }
 
 #[derive(Debug, Arbitrary)]
 struct TyMac1 {
-    baz: tymac!([!; 3 + 4]),
+    _baz: tymac!([!; 3 + 4]),
 }
 
-enum TyMac2 {
+enum _TyMac2 {
     #[deny(dead_code)]
     V0(tymac!((u8, !, usize))),
 }

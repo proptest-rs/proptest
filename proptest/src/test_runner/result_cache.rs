@@ -97,6 +97,7 @@ impl ResultCache for BasicResultCache {
 ///
 /// Values are identified by their `Debug` string representation.
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub fn basic_result_cache() -> Box<dyn ResultCache> {
     Box::new(BasicResultCache::default())
 }

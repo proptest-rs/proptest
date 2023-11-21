@@ -245,6 +245,14 @@ impl Index {
     }
 }
 
+// This impl is handy for generic code over any type that exposes an internal `Index` -- with it,
+// a plain `Index` can be passed in as well.
+impl AsRef<Index> for Index {
+    fn as_ref(&self) -> &Index {
+        self
+    }
+}
+
 mapfn! {
     [] fn UsizeToIndex[](raw: usize) -> Index {
         Index(raw)

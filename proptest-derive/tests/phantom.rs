@@ -41,8 +41,8 @@ struct T8(T7<NotArbitrary>);
 
 #[derive(Debug, Arbitrary)]
 struct T9<A, B, C> {
-    a: A,
-    b: B,
+    _a: A,
+    _b: B,
     c: PhantomData<C>,
 }
 

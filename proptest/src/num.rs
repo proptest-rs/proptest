@@ -12,19 +12,25 @@
 //!
 //! All strategies in this module shrink by binary searching towards 0.
 
+mod float_samplers;
+
 use crate::test_runner::TestRunner;
-use core::ops::Range;
 use rand::distributions::uniform::{SampleUniform, Uniform};
 use rand::distributions::{Distribution, Standard};
 
+/// Generate a random value of `X`, sampled uniformly from the half
+/// open range `[low, high)` (excluding `high`). Panics if `low >= high`.
 pub(crate) fn sample_uniform<X: SampleUniform>(
     run: &mut TestRunner,
-    range: Range<X>,
+    start: X,
+    end: X,
 ) -> X {
-    Uniform::new(range.start, range.end).sample(run.rng())
+    Uniform::new(start, end).sample(run.rng())
 }
 
-pub(crate) fn sample_uniform_incl<X: SampleUniform>(
+/// Generate a random value of `X`, sampled uniformly from the closed
+/// range `[low, high]` (inclusive). Panics if `low > high`.
+pub fn sample_uniform_incl<X: SampleUniform>(
     run: &mut TestRunner,
     start: X,
     end: X,
@@ -55,6 +61,9 @@ macro_rules! int_any {
 
 macro_rules! numeric_api {
     ($typ:ident, $epsilon:expr) => {
+        numeric_api!($typ, $typ, $epsilon);
+    };
+    ($typ:ident, $sample_typ:ty, $epsilon:expr) => {
         impl Strategy for ::core::ops::Range<$typ> {
             type Tree = BinarySearch;
             type Value = $typ;
@@ -62,7 +71,12 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     self.start,
-                    $crate::num::sample_uniform(runner, self.clone()),
+                    $crate::num::sample_uniform::<$sample_typ>(
+                        runner,
+                        self.start.into(),
+                        self.end.into(),
+                    )
+                    .into(),
                     self.end - $epsilon,
                 ))
             }
@@ -75,11 +89,12 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     *self.start(),
-                    $crate::num::sample_uniform_incl(
+                    $crate::num::sample_uniform_incl::<$sample_typ>(
                         runner,
-                        *self.start(),
-                        *self.end(),
-                    ),
+                        (*self.start()).into(),
+                        (*self.end()).into(),
+                    )
+                    .into(),
                     *self.end(),
                 ))
             }
@@ -92,11 +107,12 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     self.start,
-                    $crate::num::sample_uniform_incl(
+                    $crate::num::sample_uniform_incl::<$sample_typ>(
                         runner,
-                        self.start,
-                        ::core::$typ::MAX,
-                    ),
+                        self.start.into(),
+                        ::core::$typ::MAX.into(),
+                    )
+                    .into(),
                     ::core::$typ::MAX,
                 ))
             }
@@ -109,10 +125,12 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     ::core::$typ::MIN,
-                    $crate::num::sample_uniform(
+                    $crate::num::sample_uniform::<$sample_typ>(
                         runner,
-                        ::core::$typ::MIN..self.end,
-                    ),
+                        ::core::$typ::MIN.into(),
+                        self.end.into(),
+                    )
+                    .into(),
                     self.end,
                 ))
             }
@@ -125,11 +143,12 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     ::core::$typ::MIN,
-                    $crate::num::sample_uniform_incl(
+                    $crate::num::sample_uniform_incl::<$sample_typ>(
                         runner,
-                        ::core::$typ::MIN,
-                        self.end,
-                    ),
+                        ::core::$typ::MIN.into(),
+                        self.end.into(),
+                    )
+                    .into(),
                     self.end,
                 ))
             }
@@ -343,6 +362,7 @@ unsigned_integer_bin_search!(u128);
 unsigned_integer_bin_search!(usize);
 
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub(crate) struct FloatTypes: u32 {
         const POSITIVE          = 0b0000_0001;
         const NEGATIVE          = 0b0000_0010;
@@ -353,13 +373,13 @@ bitflags! {
         const QUIET_NAN         = 0b0100_0000;
         const SIGNALING_NAN     = 0b1000_0000;
         const ANY =
-            Self::POSITIVE.bits |
-            Self::NEGATIVE.bits |
-            Self::NORMAL.bits |
-            Self::SUBNORMAL.bits |
-            Self::ZERO.bits |
-            Self::INFINITE.bits |
-            Self::QUIET_NAN.bits;
+            Self::POSITIVE.bits() |
+            Self::NEGATIVE.bits() |
+            Self::NORMAL.bits() |
+            Self::SUBNORMAL.bits() |
+            Self::ZERO.bits() |
+            Self::INFINITE.bits() |
+            Self::QUIET_NAN.bits();
     }
 }
 
@@ -664,9 +684,11 @@ macro_rules! float_any {
 }
 
 macro_rules! float_bin_search {
-    ($typ:ident) => {
+    ($typ:ident, $sample_typ:ident) => {
         #[allow(missing_docs)]
         pub mod $typ {
+            use super::float_samplers::$sample_typ;
+
             use core::ops;
             #[cfg(not(feature = "std"))]
             use num_traits::float::FloatCore;
@@ -842,13 +864,13 @@ macro_rules! float_bin_search {
                 }
             }
 
-            numeric_api!($typ, 0.0);
+            numeric_api!($typ, $sample_typ, 0.0);
         }
     };
 }
 
-float_bin_search!(f32);
-float_bin_search!(f64);
+float_bin_search!(f32, F32U);
+float_bin_search!(f64, F64U);
 
 #[cfg(test)]
 mod test {
@@ -1037,17 +1059,17 @@ mod test {
                 mod $t {
                     use crate::strategy::check_strategy_sanity;
 
-                    const FOURTY_TWO: $t = 42 as $t;
+                    const FORTY_TWO: $t = 42 as $t;
                     const FIFTY_SIX: $t = 56 as $t;
 
                     #[test]
                     fn range() {
-                        check_strategy_sanity(FOURTY_TWO..FIFTY_SIX, None);
+                        check_strategy_sanity(FORTY_TWO..FIFTY_SIX, None);
                     }
 
                     #[test]
                     fn range_inclusive() {
-                        check_strategy_sanity(FOURTY_TWO..=FIFTY_SIX, None);
+                        check_strategy_sanity(FORTY_TWO..=FIFTY_SIX, None);
                     }
 
                     #[test]
@@ -1062,7 +1084,7 @@ mod test {
 
                     #[test]
                     fn range_from() {
-                        check_strategy_sanity(FOURTY_TWO.., None);
+                        check_strategy_sanity(FORTY_TWO.., None);
                     }
                 }
             };
