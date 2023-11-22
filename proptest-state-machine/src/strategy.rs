@@ -119,7 +119,7 @@ pub trait ReferenceStateMachine {
 /// `Shrink::DeleteTransition` and `Shrink::Transition`.
 ///
 /// 1. We start by trying to delete transitions from the back of the list, until
-///    we can do so no further (the list has reached the `min_size`).
+///    we can do so no further (reached the beginning of the list).
 ///    We start from the back, because it's less likely to affect the state
 ///    machine's pre-conditions, if any.
 /// 2. Then, we again iteratively attempt to shrink the individual transitions,
@@ -209,7 +209,6 @@ impl<
             acceptable_transitions,
             included_transitions,
             shrinkable_transitions,
-            min_size,
             max_ix,
             // On a failure, we start by shrinking transitions from the back
             // which is less likely to invalidate pre-conditions
@@ -271,8 +270,6 @@ pub struct SequentialValueTree<
     included_transitions: VarBitSet,
     /// The bit-set of transitions that can be shrunk further
     shrinkable_transitions: VarBitSet,
-    /// The minimum number of `transitions`
-    min_size: usize,
     /// The maximum index in the `transitions` vector (its size - 1)
     max_ix: usize,
     /// The next shrink operation to apply
@@ -293,32 +290,27 @@ impl<
     /// applied.
     fn try_simplify(&mut self) -> bool {
         if let DeleteTransition(ix) = self.shrink {
-            if self.included_transitions.count() == self.min_size {
-                // Can't delete any more transitions, move on to shrinking them
-                self.shrink = Transition(0);
-            } else {
-                // Delete the index from the included transitions
-                self.included_transitions.clear(ix);
+            // Delete the index from the included transitions
+            self.included_transitions.clear(ix);
 
-                self.last_shrink = Some(self.shrink);
-                self.shrink = if ix == 0 {
-                    // Reached the beginning of the list, move on to shrinking
-                    Transition(0)
-                } else {
-                    // Try to delete the previous transition next
-                    DeleteTransition(ix - 1)
-                };
-                // If this delete is not acceptable, undo it and try again
-                if !self.check_acceptable(None) {
-                    self.included_transitions.set(ix);
-                    self.last_shrink = None;
-                    return self.try_simplify();
-                }
-                // If the delete was accepted, remove this index from shrinkable
-                // transitions
-                self.shrinkable_transitions.clear(ix);
-                return true;
+            self.last_shrink = Some(self.shrink);
+            self.shrink = if ix == 0 {
+                // Reached the beginning of the list, move on to shrinking
+                Transition(0)
+            } else {
+                // Try to delete the previous transition next
+                DeleteTransition(ix - 1)
+            };
+            // If this delete is not acceptable, undo it and try again
+            if !self.check_acceptable(None) {
+                self.included_transitions.set(ix);
+                self.last_shrink = None;
+                return self.try_simplify();
             }
+            // If the delete was accepted, remove this index from shrinkable
+            // transitions
+            self.shrinkable_transitions.clear(ix);
+            return true;
         }
 
         while let Transition(ix) = self.shrink {
