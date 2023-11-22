@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.2.0
+
 ### Other Notes
 
 - `message-io` updated from 0.17 to 0.18
