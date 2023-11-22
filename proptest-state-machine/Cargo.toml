@@ -20,7 +20,7 @@ default = ["std"]
 std = ["proptest/std"]
 
 [dependencies]
-proptest = { version = "1.2.0", path = "../proptest", default-features = true, features = [
+proptest = { version = "1.4.0", path = "../proptest", default-features = true, features = [
     "fork",
     "timeout",
     "bit-set",
