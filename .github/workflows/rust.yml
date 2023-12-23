@@ -70,3 +70,6 @@ jobs:
       - name: Clean and Run tests for derive
         if: ${{ matrix.build == 'nightly' }}
         run: cd proptest-derive && cargo clean && cargo test
+      - name: Clean and Run tests for derive with features enabled
+        if: ${{ matrix.build == 'nightly' }}
+        run: cd proptest-derive && cargo clean && cargo test --features boxed_union
