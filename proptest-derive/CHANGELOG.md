@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Add `boxed_union` feature which when turned on uses heap allocation for
+  `#[derive(Arbitrary)]` strategy synthesis preventing stack overflow for
+  exceptionally large structures.
+
 ### 0.4.0
 
 ### Other Notes
