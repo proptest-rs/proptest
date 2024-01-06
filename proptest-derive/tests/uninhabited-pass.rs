@@ -73,13 +73,11 @@ impl Fun for (!, usize, !) {
 
 #[derive(Debug, Arbitrary)]
 enum UsePrj0 {
-    #[deny(dead_code)]
     V0(<! as Fun>::Prj),
 }
 
 #[derive(Debug, Arbitrary)]
 enum UsePrj1 {
-    #[deny(dead_code)]
     V0(<(!, usize, !) as Fun>::Prj),
 }
 
