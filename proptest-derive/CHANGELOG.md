@@ -1,8 +1,14 @@
 ## Unreleased
 
+### Features
+
 - Add `boxed_union` feature which when turned on uses heap allocation for
   `#[derive(Arbitrary)]` strategy synthesis preventing stack overflow for
   exceptionally large structures.
+
+### Dependencies
+
+- Upgraded `syn` to 2.x
 
 ### 0.4.0
 
