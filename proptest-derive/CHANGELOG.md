@@ -1,6 +1,14 @@
 ## Unreleased
 
+- Add `boxed_union` feature which when turned on uses heap allocation for
+  `#[derive(Arbitrary)]` strategy synthesis preventing stack overflow for
+  exceptionally large structures.
+
 ### 0.4.0
+
+### Other Notes
+
+- `compiletest_rs` updated from 0.9 to 0.10
 
 ### Other Notes
 
