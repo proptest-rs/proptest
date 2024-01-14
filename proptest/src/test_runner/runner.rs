@@ -210,6 +210,92 @@ where
     })
 }
 
+#[cfg(all(feature = "handle-panics", feature = "std"))]
+mod panicky {
+    use std::{ptr, mem};
+    use std::cell::Cell;
+    use std::sync::Once;
+    use std::panic::{take_hook, set_hook, PanicInfo};
+    use std::boxed::Box;
+
+    thread_local! {
+        // Pointers to arbitrary fn's are fat, and Rust doesn't allow crafting null pointers
+        // to fat objects. So we just store const pointer to tuple with whatever data we need
+        static HANDLER: Cell<*const (*mut dyn FnMut(&PanicInfo<'_>),)> = Cell::new(ptr::null());
+    }
+
+    static INIT_ONCE: Once = Once::new();
+    // NB: no need for external sync, value is mutated only once, when init is performed
+    static mut DEF_HOOK: Option<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>> = None;
+
+    fn init() {
+        INIT_ONCE.call_once(|| {
+            let old_handler = take_hook();
+            set_hook(Box::new(scoping_hook));
+            unsafe {
+                DEF_HOOK = Some(old_handler);
+            }
+        });
+    }
+
+    fn scoping_hook(info: &PanicInfo<'_>) {
+        let handler = HANDLER.get();
+        if !handler.is_null() {
+            // It's assumed that if container's ptr is not null, ptr to `FnMut` is non-null too
+            let hook = unsafe { &mut *(*handler).0 };
+            (hook)(info);
+        }
+
+        if let Some(hook) = unsafe { DEF_HOOK.as_ref() } {
+            (hook)(info);
+        }
+    }
+
+    struct Finally<F: FnOnce()>(Option<F>);
+
+    impl<F: FnOnce()> Finally<F> {
+        fn new(body: F) -> Self {
+            Self(Some(body))
+        }
+    }
+
+    impl<F: FnOnce()> Drop for Finally<F> {
+        fn drop(&mut self) {
+            if let Some(body) = self.0.take() {
+                body();
+            }
+        }
+    }
+
+    pub fn with_hook<R>(
+        mut guard: impl FnMut(&PanicInfo<'_>),
+        body: impl FnOnce() -> R,
+    ) -> R {
+        init();
+
+        let guard_tuple = ( unsafe {
+            // to erase all lifetimes, it won't be used for longer
+            // than func scope anyway
+            mem::transmute(&mut guard as *mut dyn FnMut(&PanicInfo<'_>))
+        }, );
+
+        let old_tuple = HANDLER.replace(&guard_tuple);
+        let _undo = Finally::new(|| { HANDLER.set(old_tuple); });
+        body()
+    }
+}
+
+#[cfg(not(all(feature = "handle-panics", feature = "std")))]
+mod panicky {
+    pub fn with_hook<R>(
+        _: impl FnMut(&PanicInfo<'_>) -> bool,
+        body: impl FnOnce() -> R,
+    ) -> R {
+        body()
+    }
+}
+
+
 #[cfg(feature = "std")]
 fn call_test<V, F, R>(
     runner: &mut TestRunner,
@@ -253,7 +339,10 @@ where
     let time_start = time::Instant::now();
 
     let mut result = unwrap_or!(
-        panic::catch_unwind(AssertUnwindSafe(|| test(case))),
+        panicky::with_hook(
+            |_| (),
+            || panic::catch_unwind(AssertUnwindSafe(|| test(case)))
+        ),
         what => Err(TestCaseError::Fail(
             what.downcast::<&'static str>().map(|s| (*s).into())
                 .or_else(|what| what.downcast::<String>().map(|b| (*b).into()))
