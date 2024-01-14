@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018 The proptest developers
+// Copyright 2017, 2018, 2024 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -12,6 +12,7 @@
 //! You do not normally need to access things in this module directly except
 //! when implementing new low-level strategies.
 
+mod backtrace;
 mod config;
 mod errors;
 mod failure_persistence;
@@ -22,6 +23,7 @@ mod result_cache;
 mod rng;
 mod runner;
 
+pub use self::backtrace::*;
 pub use self::config::*;
 pub use self::errors::*;
 pub use self::failure_persistence::*;

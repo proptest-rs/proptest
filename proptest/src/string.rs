@@ -171,10 +171,7 @@ pub fn string_regex_parsed(expr: &Hir) -> ParseResult<String> {
 /// [`regex` crate's documentation](https://docs.rs/regex/*/regex/#opt-out-of-unicode-support)
 /// for more information.
 pub fn bytes_regex(regex: &str) -> ParseResult<Vec<u8>> {
-    let hir = ParserBuilder::new()
-        .utf8(false)
-        .build()
-        .parse(regex)?;
+    let hir = ParserBuilder::new().utf8(false).build().parse(regex)?;
     bytes_regex_parsed(&hir)
 }
 
@@ -361,8 +358,8 @@ fn unsupported<T>(error: &'static str) -> Result<T, Error> {
 mod test {
     use std::collections::HashSet;
 
-    use regex::Regex;
     use regex::bytes::Regex as BytesRegex;
+    use regex::Regex;
 
     use super::*;
 
@@ -402,7 +399,8 @@ mod test {
         max_distinct: usize,
         iterations: usize,
     ) {
-        let generated = generate_byte_values_matching_regex(pattern, iterations);
+        let generated =
+            generate_byte_values_matching_regex(pattern, iterations);
         assert!(
             generated.len() >= min_distinct,
             "Expected to generate at least {} strings, but only \
@@ -477,7 +475,8 @@ mod test {
                 if !ok {
                     panic!(
                         "Generated string {:?} which does not match {:?}",
-                        printable_ascii(&s), pattern
+                        printable_ascii(&s),
+                        pattern
                     );
                 }
 
@@ -584,10 +583,15 @@ mod test {
     fn test_non_utf8_byte_strings() {
         do_test_bytes(r"(?-u)[\xC0-\xFF]\x20", 64, 64, 512);
         do_test_bytes(r"(?-u)\x20[\x80-\xBF]", 64, 64, 512);
-        do_test_bytes(r#"(?x-u)
+        do_test_bytes(
+            r#"(?x-u)
   \xed (( ( \xa0\x80 | \xad\xbf | \xae\x80 | \xaf\xbf )
           ( \xed ( \xb0\x80 | \xbf\xbf ) )? )
-        | \xb0\x80 | \xbe\x80 | \xbf\xbf )"#, 15, 15, 120);
+        | \xb0\x80 | \xbe\x80 | \xbf\xbf )"#,
+            15,
+            15,
+            120,
+        );
     }
 
     fn assert_send_and_sync<T: Send + Sync>(_: T) {}
