@@ -210,7 +210,7 @@ where
     })
 }
 
-#[cfg(all(feature = "handle-panics", feature = "std"))]
+#[cfg(feature = "handle-panics")]
 mod panicky {
     use std::{ptr, mem};
     use std::cell::Cell;
@@ -285,8 +285,9 @@ mod panicky {
     }
 }
 
-#[cfg(all(not(feature = "handle-panics"), feature = "std"))]
+#[cfg(not(feature = "handle-panics"))]
 mod panicky {
+    use std::panic::Panic;
     pub fn with_hook<R>(
         _: impl FnMut(&PanicInfo<'_>) -> bool,
         body: impl FnOnce() -> R,
