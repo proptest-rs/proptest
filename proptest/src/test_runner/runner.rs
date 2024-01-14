@@ -285,7 +285,7 @@ mod panicky {
     }
 }
 
-#[cfg(not(all(feature = "handle-panics", feature = "std")))]
+#[cfg(all(not(feature = "handle-panics"), feature = "std"))]
 mod panicky {
     pub fn with_hook<R>(
         _: impl FnMut(&PanicInfo<'_>) -> bool,
