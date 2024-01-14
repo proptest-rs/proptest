@@ -212,11 +212,11 @@ where
 
 #[cfg(feature = "handle-panics")]
 mod panicky {
-    use std::{ptr, mem};
-    use std::cell::Cell;
-    use std::sync::Once;
-    use std::panic::{take_hook, set_hook, PanicInfo};
     use std::boxed::Box;
+    use std::cell::Cell;
+    use std::panic::{set_hook, take_hook, PanicInfo};
+    use std::sync::Once;
+    use std::{mem, ptr};
 
     thread_local! {
         // Pointers to arbitrary fn's are fat, and Rust doesn't allow crafting null pointers
@@ -226,7 +226,8 @@ mod panicky {
 
     static INIT_ONCE: Once = Once::new();
     // NB: no need for external sync, value is mutated only once, when init is performed
-    static mut DEF_HOOK: Option<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>> = None;
+    static mut DEF_HOOK: Option<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>> =
+        None;
 
     fn init() {
         INIT_ONCE.call_once(|| {
@@ -274,14 +275,16 @@ mod panicky {
     ) -> R {
         init();
 
-        let guard_tuple = ( unsafe {
+        let guard_tuple = (unsafe {
             // to erase all lifetimes, it won't be used for longer
             // than func scope anyway
             mem::transmute(&mut guard as *mut dyn FnMut(&PanicInfo<'_>))
-        }, );
+        },);
 
         let old_tuple = HANDLER.replace(&guard_tuple);
-        let _undo = Finally::new(|| { HANDLER.set(old_tuple); });
+        let _undo = Finally::new(|| {
+            HANDLER.set(old_tuple);
+        });
         body()
     }
 }
@@ -296,7 +299,6 @@ mod panicky {
         body()
     }
 }
-
 
 #[cfg(feature = "std")]
 fn call_test<V, F, R>(
