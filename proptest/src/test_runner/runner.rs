@@ -244,6 +244,7 @@ mod panicky {
             // It's assumed that if container's ptr is not null, ptr to `FnMut` is non-null too
             let hook = unsafe { &mut *(*handler).0 };
             (hook)(info);
+            return;
         }
 
         if let Some(hook) = unsafe { DEF_HOOK.as_ref() } {
