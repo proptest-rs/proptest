@@ -107,7 +107,7 @@ impl<E: ::std::error::Error> From<E> for TestCaseError {
 }
 
 /// A failure state from running test cases for a single test.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum TestError<T> {
     /// The test was aborted for the given reason, for example, due to too many
     /// inputs having been rejected.
@@ -115,15 +115,32 @@ pub enum TestError<T> {
     /// A failing test case was found. The string indicates where and/or why
     /// the test failed. The `T` is the minimal input found to reproduce the
     /// failure.
-    Fail(Reason, T),
+    Fail(Reason, Backtrace, T),
 }
+
+impl<T: PartialEq> PartialEq for TestError<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Abort(l0), Self::Abort(r0)) => l0 == r0,
+            (Self::Fail(l0, _, l2), Self::Fail(r0, _, r2)) => {
+                l0 == r0 && l2 == r2
+            }
+            _ => false,
+        }
+    }
+}
+
+impl<T: Eq> Eq for TestError<T> {}
 
 impl<T: fmt::Debug> fmt::Display for TestError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             TestError::Abort(ref why) => write!(f, "Test aborted: {}", why),
-            TestError::Fail(ref why, ref what) => {
+            TestError::Fail(ref why, ref bt, ref what) => {
                 writeln!(f, "Test failed: {}.", why)?;
+                if !bt.is_empty() {
+                    writeln!(f, "{bt}")?;
+                }
                 write!(f, "minimal failing input: {:#?}", what)
             }
         }

@@ -35,6 +35,8 @@ use crate::test_runner::replay;
 use crate::test_runner::result_cache::*;
 use crate::test_runner::rng::TestRng;
 
+use super::Backtrace;
+
 #[cfg(feature = "fork")]
 const ENV_FORK_FILE: &'static str = "_PROPTEST_FORKFILE";
 
@@ -317,8 +319,6 @@ where
 {
     use core::mem;
     use std::time;
-
-    use crate::test_runner::Backtrace;
 
     let timeout = runner.config.timeout();
 
@@ -725,7 +725,7 @@ impl TestRunner {
                 &mut fork_output,
                 false,
             );
-            if let Err(TestError::Fail(_, ref value)) = result {
+            if let Err(TestError::Fail(_, _, ref value)) = result {
                 if let Some(ref mut failure_persistence) =
                     self.config.failure_persistence
                 {
@@ -838,8 +838,8 @@ impl TestRunner {
 
         match result {
             Ok(success_type) => Ok(success_type),
-            Err(TestCaseError::Fail(why, _)) => {
-                let why = self
+            Err(TestCaseError::Fail(why, bt)) => {
+                let (why, bt) = self
                     .shrink(
                         &mut case,
                         test,
@@ -848,8 +848,8 @@ impl TestRunner {
                         fork_output,
                         is_from_persisted_seed,
                     )
-                    .unwrap_or(why);
-                Err(TestError::Fail(why, case.current()))
+                    .unwrap_or((why, bt));
+                Err(TestError::Fail(why, bt, case.current()))
             }
             Err(TestCaseError::Reject(whence)) => {
                 self.reject_global(whence)?;
@@ -866,7 +866,7 @@ impl TestRunner {
         result_cache: &mut dyn ResultCache,
         fork_output: &mut ForkOutput,
         is_from_persisted_seed: bool,
-    ) -> Option<Reason> {
+    ) -> Option<(Reason, Backtrace)> {
         #[cfg(feature = "std")]
         use std::time;
 
@@ -968,8 +968,8 @@ impl TestRunner {
                             break;
                         }
                     }
-                    Err(TestCaseError::Fail(why, _)) => {
-                        last_failure = Some(why);
+                    Err(TestCaseError::Fail(why, bt)) => {
+                        last_failure = Some((why, bt));
                         if !case.simplify() {
                             break;
                         }
@@ -1199,7 +1199,14 @@ mod test {
             }
         });
 
-        assert_eq!(Err(TestError::Fail("not less than 5".into(), 5)), result);
+        assert_eq!(
+            Err(TestError::Fail(
+                "not less than 5".into(),
+                Backtrace::empty(),
+                5
+            )),
+            result
+        );
     }
 
     #[test]
@@ -1212,7 +1219,14 @@ mod test {
             assert!(v < 5, "not less than 5");
             Ok(())
         });
-        assert_eq!(Err(TestError::Fail("not less than 5".into(), 5)), result);
+        assert_eq!(
+            Err(TestError::Fail(
+                "not less than 5".into(),
+                Backtrace::empty(),
+                5
+            )),
+            result
+        );
     }
 
     #[test]
@@ -1393,7 +1407,7 @@ mod test {
             .unwrap();
 
         match failure {
-            TestError::Fail(_, value) => assert_eq!(500, value),
+            TestError::Fail(_, _, value) => assert_eq!(500, value),
             failure => panic!("Unexpected failure: {:?}", failure),
         }
     }
@@ -1421,7 +1435,7 @@ mod test {
             .unwrap();
 
         match failure {
-            TestError::Fail(_, value) => assert_eq!(500, value),
+            TestError::Fail(_, _, value) => assert_eq!(500, value),
             failure => panic!("Unexpected failure: {:?}", failure),
         }
     }
@@ -1449,7 +1463,7 @@ mod test {
             .unwrap();
 
         match failure {
-            TestError::Fail(_, value) => assert_eq!(500, value),
+            TestError::Fail(_, _, value) => assert_eq!(500, value),
             failure => panic!("Unexpected failure: {:?}", failure),
         }
     }
@@ -1480,7 +1494,7 @@ mod test {
             .unwrap();
 
         match failure {
-            TestError::Fail(_, value) => assert_eq!(500, value),
+            TestError::Fail(_, _, value) => assert_eq!(500, value),
             failure => panic!("Unexpected failure: {:?}", failure),
         }
     }
@@ -1521,7 +1535,7 @@ mod test {
             .unwrap();
 
         match failure {
-            TestError::Fail(_, value) => assert_eq!(500, value),
+            TestError::Fail(_, _, value) => assert_eq!(500, value),
             failure => panic!("Unexpected failure: {:?}", failure),
         }
     }
@@ -1554,7 +1568,7 @@ mod test {
                 });
 
             assert!(pass.get());
-            if let Err(TestError::Fail(_, val)) = result {
+            if let Err(TestError::Fail(_, _, val)) = result {
                 assert_eq!(6, val);
             } else {
                 panic!("Incorrect result: {:?}", result);
@@ -1631,7 +1645,7 @@ mod timeout_tests {
             Ok(())
         });
 
-        if let Err(TestError::Fail(_, value)) = result {
+        if let Err(TestError::Fail(_, _, value)) = result {
             // Ensure the final value was in fact a failing case.
             assert!(value > u32::MAX as u64);
         } else {

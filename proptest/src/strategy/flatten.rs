@@ -293,7 +293,7 @@ mod test {
 
             match result {
                 Ok(_) => {}
-                Err(TestError::Fail(_, v)) => {
+                Err(TestError::Fail(_, _, v)) => {
                     failures += 1;
                     assert_eq!((10001, 10002), v);
                 }
