@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018 The proptest developers
+// Copyright 2017, 2018, 2024 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -13,6 +13,8 @@ use crate::std_facade::fmt;
 use std::string::ToString;
 
 use crate::test_runner::Reason;
+
+use super::Backtrace;
 
 /// Errors which can be returned from test cases to indicate non-successful
 /// completion.
@@ -30,7 +32,7 @@ pub enum TestCaseError {
     /// a new input and try again.
     Reject(Reason),
     /// The code under test failed the test.
-    Fail(Reason),
+    Fail(Reason, Backtrace),
 }
 
 /// Indicates the type of test that ran successfully.
@@ -76,7 +78,7 @@ impl TestCaseError {
     /// The string should indicate the location of the failure, but may
     /// generally be any string.
     pub fn fail(reason: impl Into<Reason>) -> Self {
-        TestCaseError::Fail(reason.into())
+        TestCaseError::Fail(reason.into(), Backtrace::empty())
     }
 }
 
@@ -86,7 +88,13 @@ impl fmt::Display for TestCaseError {
             TestCaseError::Reject(ref whence) => {
                 write!(f, "Input rejected at {}", whence)
             }
-            TestCaseError::Fail(ref why) => write!(f, "Case failed: {}", why),
+            TestCaseError::Fail(ref why, ref bt) => {
+                if bt.is_empty() {
+                    write!(f, "Case failed: {why}")
+                } else {
+                    write!(f, "Case failed: {why}\n{bt}")
+                }
+            }
         }
     }
 }

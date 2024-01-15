@@ -58,6 +58,8 @@ bit-set = [ "dep:bit-set", "dep:bit-vec" ]
 # In particular, hides all intermediate panics flowing into stderr during shrink phase
 handle-panics = ["std"]
 
+backtrace = ["std"]
+
 [dependencies]
 bitflags = "2"
 unarray = "0.1.4"

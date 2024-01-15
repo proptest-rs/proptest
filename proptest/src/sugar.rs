@@ -754,7 +754,10 @@ macro_rules! prop_assert {
             let message = format!($($fmt)*);
             let message = format!("{} at {}:{}", message, file!(), line!());
             return ::core::result::Result::Err(
-                $crate::test_runner::TestCaseError::fail(message));
+                $crate::test_runner::TestCaseError::Fail(
+                    message.into(),
+                    $crate::test_runner::Backtrace::capture(),
+                ));
         }
     };
 }

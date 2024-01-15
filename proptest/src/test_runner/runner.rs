@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018, 2019 The proptest developers
+// Copyright 2017, 2018, 2019, 2024 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -291,9 +291,9 @@ mod panicky {
 
 #[cfg(not(feature = "handle-panics"))]
 mod panicky {
-    use std::panic::Panic;
+    use std::panic::PanicInfo;
     pub fn with_hook<R>(
-        _: impl FnMut(&PanicInfo<'_>) -> bool,
+        _: impl FnMut(&PanicInfo<'_>),
         body: impl FnOnce() -> R,
     ) -> R {
         body()
@@ -315,7 +315,10 @@ where
     F: Fn(V) -> TestCaseResult,
     R: Iterator<Item = TestCaseResult>,
 {
+    use core::mem;
     use std::time;
+
+    use crate::test_runner::Backtrace;
 
     let timeout = runner.config.timeout();
 
@@ -342,16 +345,21 @@ where
 
     let time_start = time::Instant::now();
 
+    let mut bt = Backtrace::empty();
     let mut result = unwrap_or!(
         panicky::with_hook(
-            |_| (),
+            |_| { bt = Backtrace::capture(); },
             || panic::catch_unwind(AssertUnwindSafe(|| test(case)))
         ),
-        what => Err(TestCaseError::Fail(
-            what.downcast::<&'static str>().map(|s| (*s).into())
+        what => {
+            let what = what.downcast::<&'static str>().map(|s| (*s).into())
                 .or_else(|what| what.downcast::<String>().map(|b| (*b).into()))
                 .or_else(|what| what.downcast::<Box<str>>().map(|b| (*b).into()))
-                .unwrap_or_else(|_| "<unknown panic value>".into()))));
+                .unwrap_or_else(|_| "<unknown panic value>".into());
+
+            Err(TestCaseError::Fail(what, mem::take(&mut bt)))
+        }
+    );
 
     // If there is a timeout and we exceeded it, fail the test here so we get
     // consistent behaviour. (The parent process cannot precisely time the test
@@ -377,8 +385,14 @@ where
         Err(TestCaseError::Reject(ref reason)) => {
             verbose_message!(runner, INFO_LOG, "Test case rejected: {}", reason)
         }
-        Err(TestCaseError::Fail(ref reason)) => {
-            verbose_message!(runner, INFO_LOG, "Test case failed: {}", reason)
+        Err(TestCaseError::Fail(ref reason, ref bt)) => {
+            verbose_message!(
+                runner,
+                INFO_LOG,
+                "Test case failed: {}\n{}",
+                reason,
+                bt
+            )
         }
     }
 
@@ -824,7 +838,7 @@ impl TestRunner {
 
         match result {
             Ok(success_type) => Ok(success_type),
-            Err(TestCaseError::Fail(why)) => {
+            Err(TestCaseError::Fail(why, _)) => {
                 let why = self
                     .shrink(
                         &mut case,
@@ -954,7 +968,7 @@ impl TestRunner {
                             break;
                         }
                     }
-                    Err(TestCaseError::Fail(why)) => {
+                    Err(TestCaseError::Fail(why, _)) => {
                         last_failure = Some(why);
                         if !case.simplify() {
                             break;
@@ -1218,7 +1232,7 @@ mod test {
         {
             TestRunner::new(config.clone())
                 .run(&(0i32..max), |_v| {
-                    Err(TestCaseError::Fail("persist a failure".into()))
+                    Err(TestCaseError::fail("persist a failure"))
                 })
                 .expect_err("didn't fail?");
         }
@@ -1267,7 +1281,7 @@ mod test {
                     if v.0 < max / 2 {
                         Ok(())
                     } else {
-                        Err(TestCaseError::Fail("too big".into()))
+                        Err(TestCaseError::fail("too big"))
                     }
                 })
                 .expect_err("didn't fail?")
@@ -1278,7 +1292,7 @@ mod test {
                     if v.0 >= max / 2 {
                         Ok(())
                     } else {
-                        Err(TestCaseError::Fail("too small".into()))
+                        Err(TestCaseError::fail("too small"))
                     }
                 })
                 .expect_err("didn't fail?")
@@ -1289,7 +1303,7 @@ mod test {
                     if v.0 < max / 2 {
                         Ok(())
                     } else {
-                        Err(TestCaseError::Fail("too big".into()))
+                        Err(TestCaseError::fail("too big"))
                     }
                 })
                 .expect_err("didn't fail?")
@@ -1300,7 +1314,7 @@ mod test {
                     if v.0 >= max / 2 {
                         Ok(())
                     } else {
-                        Err(TestCaseError::Fail("too small".into()))
+                        Err(TestCaseError::fail("too small"))
                     }
                 })
                 .expect_err("didn't fail?")
