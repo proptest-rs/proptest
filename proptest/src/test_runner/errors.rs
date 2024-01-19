@@ -138,10 +138,17 @@ impl<T: fmt::Debug> fmt::Display for TestError<T> {
             TestError::Abort(ref why) => write!(f, "Test aborted: {}", why),
             TestError::Fail(ref why, ref bt, ref what) => {
                 writeln!(f, "Test failed: {}.", why)?;
+
                 if !bt.is_empty() {
-                    writeln!(f, "{bt}")?;
+                    writeln!(f, "\nstack backtrace:\n{bt}")?;
+                    // No need for extra newline, backtrace seems to print it anyway
+                } else {
+                    // Extra empty line between failure description and minimal failing input
+                    writeln!(f)?;
                 }
-                write!(f, "minimal failing input: {:#?}", what)
+
+                writeln!(f, "minimal failing input: {:#?}", what)?;
+                Ok(())
             }
         }
     }
