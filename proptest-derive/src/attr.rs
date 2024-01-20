@@ -9,7 +9,9 @@
 //! Provides a parser from syn attributes to our logical model.
 
 use quote::ToTokens;
-use syn::{self, Attribute, Expr, Ident, Lit, Meta, NestedMeta, Type};
+use syn::parse::Parser;
+use syn::punctuated::Punctuated;
+use syn::{self, Attribute, Expr, Ident, Lit, Meta, Type};
 
 use crate::error::{self, Ctx, DeriveResult};
 use crate::interp;
@@ -209,7 +211,7 @@ fn parse_accumulate(ctx: Ctx, attrs: &[Attribute]) -> ParseAcc {
 /// Otherwise, the attribute is irrevant to us and we will simply
 /// ignore it in our processing.
 fn is_proptest_attr(attr: &Attribute) -> bool {
-    util::eq_simple_path("proptest", &attr.path)
+    util::eq_simple_path("proptest", attr.path())
 }
 
 /// Extract all individual attributes inside one `#[proptest(..)]`.
@@ -222,31 +224,21 @@ fn extract_modifiers(ctx: Ctx, attr: &Attribute) -> Vec<Meta> {
         error::inner_attr(ctx);
     }
 
-    match attr.parse_meta().ok() {
-        Some(Meta::List(list)) => {
-            return list
-                .nested
-                .into_iter()
-                .filter_map(|nm| extract_metas(ctx, nm))
-                .collect()
+    match &attr.meta {
+        Meta::List(list) => {
+            if syn::parse2::<Lit>(list.tokens.clone()).is_ok() {
+                error::immediate_literals(ctx);
+            } else {
+                let parser = Punctuated::<Meta, Token![,]>::parse_separated_nonempty;
+                let metas = parser.parse2(list.tokens.clone()).unwrap();
+                return metas.into_iter().collect();
+            }
         }
-        Some(Meta::Path(_)) => error::bare_proptest_attr(ctx),
-        Some(Meta::NameValue(_)) => error::literal_set_proptest(ctx),
-        None => error::no_interp_meta(ctx),
+        Meta::Path(_) => error::bare_proptest_attr(ctx),
+        Meta::NameValue(_) => error::literal_set_proptest(ctx),
     }
 
     vec![]
-}
-
-fn extract_metas(ctx: Ctx, nested: NestedMeta) -> Option<Meta> {
-    match nested {
-        NestedMeta::Lit(_) => {
-            error::immediate_literals(ctx);
-            None
-        }
-        // This is the only valid form.
-        NestedMeta::Meta(meta) => Some(meta),
-    }
 }
 
 /// Returns true iff the given attribute is an outer one, i.e: `#[<attr>]`.
@@ -601,24 +593,22 @@ enum NormMeta {
 
 /// Normalize a `meta: Meta` into the forms accepted in `#[proptest(<meta>)]`.
 fn normalize_meta(meta: Meta) -> Option<NormMeta> {
-    Some(match meta {
-        Meta::Path(_) => NormMeta::Plain,
-        Meta::NameValue(nv) => NormMeta::Lit(nv.lit),
-        Meta::List(ml) => {
-            if let Some(nm) = util::match_singleton(ml.nested) {
-                match nm {
-                    NestedMeta::Lit(lit) => NormMeta::Lit(lit),
-                    NestedMeta::Meta(Meta::Path(path)) => {
-                        match path.get_ident() {
-                            Some(word) => NormMeta::Word(word.to_owned()),
-                            None => return None,
-                        }
-                    }
-                    _ => return None,
-                }
-            } else {
-                return None;
-            }
+    match meta {
+        Meta::Path(_) => Some(NormMeta::Plain),
+        Meta::NameValue(nv) => match nv.value {
+            Expr::Lit(elit) => Some(NormMeta::Lit(elit.lit)),
+            _ => None,
         }
-    })
+        Meta::List(ml) => {
+            let mut output: Option<NormMeta> = None;
+
+            if let Ok(lit) = syn::parse2(ml.tokens.clone()) {
+                output = Some(NormMeta::Lit(lit));
+            } else if let Ok(ident) = syn::parse2(ml.tokens.clone()) {
+                output = Some(NormMeta::Word(ident));
+            }
+
+            output
+        }
+    }
 }
