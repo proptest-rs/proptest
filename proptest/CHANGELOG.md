@@ -4,6 +4,9 @@
 
 - Setting `PROPTEST_MAX_DEFAULT_SIZE_RANGE` now customizes the default `SizeRange`
   used by the default strategies for collections (like `Vec`). The default remains 100.
+- Added `handle-panics` feature which enables catching panics raised in tests and turning them into failures
+- Added `backtrace` feature which enables capturing backtraces for both test failures and panics,
+  if `handle-panics` feature is enabled
 
 ## 1.4.0
 
