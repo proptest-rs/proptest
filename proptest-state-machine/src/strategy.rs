@@ -357,6 +357,7 @@ impl<
                     // Store the valid initial state
                     self.last_valid_initial_state =
                         self.initial_state.current();
+                    self.last_shrink = Some(self.shrink);
                     return true;
                 } else {
                     // If the shrink is not acceptable, clear it out
@@ -533,7 +534,6 @@ impl<
                 false
             }
             Some(InitialState) => {
-                self.last_shrink = None;
                 if self.initial_state.complicate()
                     && self.check_acceptable(None)
                 {
@@ -748,6 +748,116 @@ mod test {
                     TestTransition::PopEmpty => state.is_empty(),
                     TestTransition::PopNonEmpty => !state.is_empty(),
                     TestTransition::Push(_) => true,
+                }
+            }
+        }
+    }
+
+    /// A tests that verifies that the strategy finds a simplest failing case, and
+    /// that this simplest failing case is ultimately reported by the test runner,
+    /// as opposed to reporting input that actually passes the test.
+    ///
+    /// This module defines a state machine test that is designed to fail.
+    /// The reference state machine consists of a lower bound the acceptable value
+    /// of a transition. And the test fails if an unacceptably low transition
+    /// value is observed, given the reference state's limit.
+    ///
+    /// This intentionally-failing state machine test is then run inside a proptest
+    /// to verify that it reports a simplest failing input when it fails.
+    mod find_simplest_failure {
+        use proptest::prelude::*;
+        use proptest::strategy::BoxedStrategy;
+        use proptest::test_runner::TestRng;
+        use proptest::{
+            collection,
+            strategy::Strategy,
+            test_runner::{Config, TestError, TestRunner},
+        };
+
+        use crate::{ReferenceStateMachine, StateMachineTest};
+
+        const MIN_TRANSITION: u32 = 10;
+        const MAX_TRANSITION: u32 = 20;
+
+        const MIN_LIMIT: u32 = 2;
+        const MAX_LIMIT: u32 = 50;
+
+        #[derive(Debug, Default, Clone)]
+        struct FailIfLessThan(u32);
+        impl ReferenceStateMachine for FailIfLessThan {
+            type State = Self;
+            type Transition = u32;
+
+            fn init_state() -> BoxedStrategy<Self> {
+                (MIN_LIMIT..MAX_LIMIT).prop_map(FailIfLessThan).boxed()
+            }
+
+            fn transitions(_: &Self::State) -> BoxedStrategy<u32> {
+                (MIN_TRANSITION..MAX_TRANSITION).boxed()
+            }
+
+            fn apply(state: Self::State, _: &Self::Transition) -> Self::State {
+                state
+            }
+        }
+
+        /// Defines a test that is intended to fail, so that we can inspect the
+        /// failing input.
+        struct FailIfLessThanTest;
+        impl StateMachineTest for FailIfLessThanTest {
+            type SystemUnderTest = ();
+            type Reference = FailIfLessThan;
+
+            fn init_test(ref_state: &FailIfLessThan) {
+                println!();
+                println!("starting {ref_state:?}");
+            }
+
+            fn apply(
+                (): Self::SystemUnderTest,
+                ref_state: &FailIfLessThan,
+                transition: u32,
+            ) -> Self::SystemUnderTest {
+                // Fail on any transition that is less than the ref state's limit.
+                let FailIfLessThan(limit) = ref_state;
+                println!("{transition} < {}?", limit);
+                if transition < ref_state.0 {
+                    panic!("{transition} < {}", limit);
+                }
+            }
+        }
+
+        proptest! {
+            #[test]
+            fn test_returns_simplest_failure(
+                seed in collection::vec(any::<u8>(), 32).no_shrink()) {
+
+                // We need to explicitly run create a runner so that we can
+                // inspect the output, and determine if it does return an input that
+                // should fail, and is minimal.
+                let mut runner = TestRunner::new_with_rng(
+                    Config::default(), TestRng::from_seed(Default::default(), &seed));
+                let result = runner.run(
+                    &FailIfLessThan::sequential_strategy(10..50_usize),
+                    |(ref_state, transitions)| {
+                        Ok(FailIfLessThanTest::test_sequential(
+                            Default::default(),
+                            ref_state,
+                            transitions,
+                        ))
+                    },
+                );
+                if let Err(TestError::Fail(
+                    _,
+                    (FailIfLessThan(limit), transitions),
+                )) = result
+                {
+                    assert_eq!(transitions.len(), 1, "The minimal failing case should be ");
+                    assert_eq!(limit, MIN_TRANSITION + 1);
+                    assert!(transitions[0] < limit);
+                } else {
+                    prop_assume!(false,
+                        "If the state machine doesn't fail as intended, we need a case that fails.");
                 }
             }
         }
