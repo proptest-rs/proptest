@@ -22,7 +22,6 @@ mod noop;
 #[cfg(feature = "std")]
 pub use self::file::*;
 pub use self::map::*;
-pub use self::noop::*;
 
 use crate::test_runner::Seed;
 

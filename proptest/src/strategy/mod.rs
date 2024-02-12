@@ -27,7 +27,6 @@ pub use self::flatten::*;
 pub use self::fuse::*;
 pub use self::just::*;
 pub use self::lazy::*;
-pub use self::lazy::*;
 pub use self::map::*;
 pub use self::recursive::*;
 pub use self::shuffle::*;
