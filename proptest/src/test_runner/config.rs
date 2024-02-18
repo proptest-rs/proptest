@@ -80,8 +80,6 @@ pub fn contextualize_config(mut result: Config) -> Config {
         }
     }
 
-    result.failure_persistence =
-        Some(Box::new(FileFailurePersistence::default()));
     for (var, value) in
         env::vars_os().filter_map(|(k, v)| k.into_string().ok().map(|k| (k, v)))
     {
@@ -186,8 +184,11 @@ fn default_default_config() -> Config {
 // defaults.
 #[cfg(feature = "std")]
 lazy_static! {
-    static ref DEFAULT_CONFIG: Config =
-        contextualize_config(default_default_config());
+    static ref DEFAULT_CONFIG: Config = {
+        let mut default_config = default_default_config();
+        default_config.failure_persistence = Some(Box::new(FileFailurePersistence::default()));
+        contextualize_config(default_config)
+    };
 }
 
 /// Configuration for how a proptest test should be run.

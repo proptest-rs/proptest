@@ -5,6 +5,9 @@
 - Setting `PROPTEST_MAX_DEFAULT_SIZE_RANGE` now customizes the default `SizeRange`
   used by the default strategies for collections (like `Vec`). The default remains 100.
 
+### Bug Fixes
+- Fixed issue where config contextualization would clobber existing failure persistence config
+
 ## 1.4.0
 
 ### Breaking Changes
