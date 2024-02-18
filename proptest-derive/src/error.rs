@@ -505,10 +505,6 @@ error!(
      in Rust. An example: `#[proptest(params = \"ComplexType<Foo>\")]`."
 );
 
-// Happens when syn can't interpret <tts> in `#[proptest <tts>]`.
-error!(no_interp_meta, E0024,
-    "The tokens `<tts>` in #[proptest <tts>] do not make for a valid attribute.");
-
 // Happens when more than one of `#[proptest(strategy..)]`,
 // `#[proptest(value..)]`, or `#[proptest(regex..)]` were specified.
 // They are mutually exclusive choices.
