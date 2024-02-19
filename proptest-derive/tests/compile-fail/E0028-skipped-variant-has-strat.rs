@@ -8,10 +8,11 @@
 
 #[macro_use]
 extern crate proptest_derive;
+use proptest_derive::Arbitrary;
 
 fn main() {}
 
-#[derive(Debug, Arbitrary)] //~ ERROR: 2 errors 
+#[derive(Debug, Arbitrary)] //~ ERROR: 2 errors
                             //~| [proptest_derive, E0028]
                             //~| [proptest_derive, E0006]
 enum NonFatal {

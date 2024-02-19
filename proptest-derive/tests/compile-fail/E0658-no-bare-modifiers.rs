@@ -13,6 +13,7 @@ extern crate proptest_derive;
 extern crate proptest;
 
 use proptest::prelude::*;
+use proptest_derive::Arbitrary;
 
 fn main() {}
 
