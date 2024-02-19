@@ -8,6 +8,7 @@
 
 #[macro_use]
 extern crate proptest_derive;
+use proptest_derive::Arbitrary;
 
 fn main() {}
 

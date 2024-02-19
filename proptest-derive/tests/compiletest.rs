@@ -20,6 +20,7 @@ fn run_mode(src: &'static str, mode: &'static str) {
         config.filters = vec![name];
     }
     config.src_base = format!("tests/{}", src).into();
+    config.clean_rmeta();
 
     ct::run_tests(&config);
 }
