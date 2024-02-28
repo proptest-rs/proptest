@@ -17,7 +17,7 @@
 #![forbid(future_incompatible)]
 #![deny(missing_docs, bare_trait_objects)]
 #![no_std]
-#![cfg_attr(feature = "cargo-clippy", allow(
+#![cfg_attr(clippy, allow(
     doc_markdown,
     // We have a lot of these lints for associated types... And we don't care.
     type_complexity
