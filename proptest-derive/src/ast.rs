@@ -106,8 +106,6 @@ impl Impl {
 
         let _top = call_site_ident(TOP_PARAM_NAME);
 
-        let _const = call_site_ident(&format!("_IMPL_ARBITRARY_FOR_{}", typ));
-
         // Linearise everything. We're done after this.
         //
         // NOTE: The clippy::arc_with_non_send_sync lint is disabled here because the strategies
@@ -118,7 +116,7 @@ impl Impl {
         let q = quote! {
             #[allow(non_upper_case_globals)]
             #[allow(clippy::arc_with_non_send_sync)]
-            const #_const: () = {
+            const _: () = {
             extern crate proptest as _proptest;
 
             impl #impl_generics _proptest::arbitrary::Arbitrary
