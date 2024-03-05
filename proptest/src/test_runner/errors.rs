@@ -125,7 +125,8 @@ impl<T: PartialEq> PartialEq for TestError<T> {
             (Self::Fail(l0, _, l2), Self::Fail(r0, _, r2)) => {
                 l0 == r0 && l2 == r2
             }
-            _ => false,
+            (TestError::Abort(_), TestError::Fail(_, _, _))
+            | (TestError::Fail(_, _, _), TestError::Abort(_)) => false,
         }
     }
 }
