@@ -227,8 +227,10 @@ mod panicky {
     }
 
     static INIT_ONCE: Once = Once::new();
-    // NB: no need for external sync, value is mutated only once, when init is performed
-    static mut DEF_HOOK: Option<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>> =
+    /// Default panic hook, the one which was present before installing scoped one
+    ///
+    /// NB: no need for external sync, value is mutated only once, when init is performed
+    static mut DEFAULT_HOOK: Option<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>> =
         None;
 
     fn init() {
@@ -236,7 +238,7 @@ mod panicky {
             let old_handler = take_hook();
             set_hook(Box::new(scoping_hook));
             unsafe {
-                DEF_HOOK = Some(old_handler);
+                DEFAULT_HOOK = Some(old_handler);
             }
         });
     }
@@ -250,7 +252,7 @@ mod panicky {
             return;
         }
 
-        if let Some(hook) = unsafe { DEF_HOOK.as_ref() } {
+        if let Some(hook) = unsafe { DEFAULT_HOOK.as_ref() } {
             (hook)(info);
         }
     }
