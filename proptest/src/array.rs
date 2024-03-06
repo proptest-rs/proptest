@@ -149,7 +149,7 @@ impl<T: ValueTree, const N: usize> ValueTree for ArrayValueTree<[T; N]> {
     type Value = [T::Value; N];
 
     fn current(&self) -> [T::Value; N] {
-        unarray::build_array(|i| self.tree[i].current())
+        core::array::from_fn(|i| self.tree[i].current())
     }
 
     fn simplify(&mut self) -> bool {
