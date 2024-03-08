@@ -567,7 +567,7 @@ mod test {
     ///
     /// This constant can be determined from the test
     /// `number_of_sequential_value_tree_simplifications`.
-    const SIMPLIFICATIONS: usize = 699;
+    const SIMPLIFICATIONS: usize = 32;
     /// Number of transitions in the [`deterministic_sequential_value_tree`].
     const TRANSITIONS: usize = 32;
 

@@ -1,6 +1,6 @@
 [package]
 name = "proptest-state-machine"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Tomáš Zemanovič"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -20,7 +20,7 @@ default = ["std"]
 std = ["proptest/std"]
 
 [dependencies]
-proptest = { version = "1.2.0", path = "../proptest", default-features = true, features = [
+proptest = { version = "1.4.0", path = "../proptest", default-features = true, features = [
     "fork",
     "timeout",
     "bit-set",
