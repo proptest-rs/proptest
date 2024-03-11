@@ -14,3 +14,4 @@ convert_case = "0.6"
 
 [dev-dependencies]
 insta = "1"
+prettyplease = "0.2"

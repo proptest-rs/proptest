@@ -31,4 +31,11 @@ mod tests {
         let ty = types.pop().unwrap();
         assert_eq!(ty.to_token_stream().to_string(), "i : i32");
     }
+
+    #[test]
+    #[should_panic]
+    fn strip_args_panics_with_self() {
+        let f = parse_str("fn foo(self) {}").unwrap();
+        strip_args(f);
+    }
 }

@@ -30,7 +30,6 @@ pub(super) fn body(
         quote!(#field_name: #pat,)
     });
 
-
     // e.g. FooArgs { field0: x, field1: (y, z), }
     let struct_pattern = quote! {
         #struct_name { #(#struct_fields)* }
