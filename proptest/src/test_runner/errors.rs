@@ -39,7 +39,7 @@ pub enum TestCaseError {
 /// configured `PROPTEST_CASES`; only `NewCases` shall be counted.
 ///
 /// TODO-v2: Ideally `TestCaseResult = Result<TestCaseOk, TestCaseError>`
-/// however this breaks source compability in version 1.x.x because
+/// however this breaks source compatibility in version 1.x.x because
 /// `TestCaseResult` is public.
 #[derive(Debug, Clone)]
 pub(crate) enum TestCaseOk {
@@ -56,7 +56,7 @@ pub type TestCaseResult = Result<(), TestCaseError>;
 /// Intended to replace `TestCaseResult` in v2.
 ///
 /// TODO-v2: Ideally `TestCaseResult = Result<TestCaseOk, TestCaseError>`
-/// however this breaks source compability in version 1.x.x because
+/// however this breaks source compatibility in version 1.x.x because
 /// `TestCaseResult` is public.
 pub(crate) type TestCaseResultV2 = Result<TestCaseOk, TestCaseError>;
 
