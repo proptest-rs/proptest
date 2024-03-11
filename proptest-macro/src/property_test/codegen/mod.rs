@@ -14,7 +14,7 @@ mod test_body;
 ///  - implement `Arbitrary` for that struct (simple field-wise impl)
 ///  - create a runner, do the rest
 ///
-///  Currently, any attributes on fields are ignored - in the future, we probably want to read
+///  Currently, any attributes on parameters are ignored - in the future, we probably want to read
 ///  these for things like customizing strategies
 pub(super) fn generate(item_fn: ItemFn, options: Options) -> TokenStream {
     let (mut argless_fn, args) = strip_args(item_fn);
