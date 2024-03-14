@@ -438,20 +438,29 @@ macro_rules! float_sampler {
                         let intervals = split_interval([low, high]);
                         let size = (intervals.count - 1) as usize;
 
-                        let interval = intervals.get(index.index(size) as $int_typ);
-                        let small_intervals = split_interval(interval);
+                        if size <= 0
+                        {
+                            prop_assert!((intervals.start == high && intervals.step < 0.0) ||
+                                (intervals.start == low && intervals.step > 0.0));
+                            prop_assert!(intervals.count == 1);
+                        }
+                        else
+                        {
+                            let interval = intervals.get(index.index(size) as $int_typ);
+                            let small_intervals = split_interval(interval);
 
-                        let start = small_intervals.get(0);
-                        let end = small_intervals.get(small_intervals.count - 1);
-                        let (low_interval, high_interval) = if  start[0] < end[0] {
-                            (start, end)
-                        } else {
-                            (end, start)
-                        };
+                            let start = small_intervals.get(0);
+                            let end = small_intervals.get(small_intervals.count - 1);
+                            let (low_interval, high_interval) = if  start[0] < end[0] {
+                                (start, end)
+                            } else {
+                                (end, start)
+                            };
 
-                        prop_assert!(
-                            interval[0] == low_interval[0] &&
-                            interval[1] == high_interval[1]);
+                            prop_assert!(
+                                interval[0] == low_interval[0] &&
+                                interval[1] == high_interval[1]);
+                        }
                     }
                 }
             }

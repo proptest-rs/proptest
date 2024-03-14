@@ -14,6 +14,7 @@ use core::{fmt, iter};
 #[cfg(feature = "std")]
 use std::panic::{self, AssertUnwindSafe};
 
+use rand::Rng;
 #[cfg(feature = "fork")]
 use rusty_fork;
 #[cfg(feature = "fork")]
@@ -34,6 +35,8 @@ use crate::test_runner::reason::*;
 use crate::test_runner::replay;
 use crate::test_runner::result_cache::*;
 use crate::test_runner::rng::TestRng;
+
+use super::PersistedEdgeBias;
 
 #[cfg(feature = "fork")]
 const ENV_FORK_FILE: &'static str = "_PROPTEST_FORKFILE";
@@ -71,6 +74,7 @@ type RejectionDetail = BTreeMap<Reason, u32>;
 pub struct TestRunner {
     config: Config,
     successes: u32,
+    current_edge_bias: f32,
     local_rejects: u32,
     global_rejects: u32,
     rng: TestRng,
@@ -85,6 +89,7 @@ impl fmt::Debug for TestRunner {
         f.debug_struct("TestRunner")
             .field("config", &self.config)
             .field("successes", &self.successes)
+            .field("current_edge_bias", &self.current_edge_bias)
             .field("local_rejects", &self.local_rejects)
             .field("global_rejects", &self.global_rejects)
             .field("rng", &"<TestRng>")
@@ -340,6 +345,7 @@ impl TestRunner {
         TestRunner {
             config: config,
             successes: 0,
+            current_edge_bias: 0f32,
             local_rejects: 0,
             global_rejects: 0,
             rng: rng,
@@ -356,6 +362,7 @@ impl TestRunner {
         TestRunner {
             config: self.config.clone(),
             successes: 0,
+            current_edge_bias: 0f32,
             local_rejects: 0,
             global_rejects: 0,
             rng: self.new_rng(),
@@ -368,6 +375,19 @@ impl TestRunner {
     /// Returns the RNG for this test run.
     pub fn rng(&mut self) -> &mut TestRng {
         &mut self.rng
+    }
+
+    /// Returns the current edge bias for this test run.
+    pub fn current_edge_bias(&self) -> f32 {
+        self.current_edge_bias
+    }
+
+    /// Evaluates if we should generate edge bias case.
+    pub fn eval_edge_bias(&mut self) -> bool {
+        // We do not want to use up rng if current edge bias is 0 so we can
+        // stay backwards compatible in case current_edge_bias is not set.
+        self.current_edge_bias > 0f32
+            && self.rng.gen_range(0f32..1f32) <= self.current_edge_bias
     }
 
     /// Create a new, independent but deterministic RNG from the RNG in this
@@ -584,17 +604,20 @@ impl TestRunner {
     ) -> TestRunResult<S> {
         let old_rng = self.rng.clone();
 
-        let persisted_failure_seeds: Vec<PersistedSeed> = self
-            .config
-            .failure_persistence
-            .as_ref()
-            .map(|f| f.load_persisted_failures2(self.config.source_file))
-            .unwrap_or_default();
+        let persisted_failure_seeds: Vec<(PersistedSeed, PersistedEdgeBias)> =
+            self.config
+                .failure_persistence
+                .as_ref()
+                .map(|f| f.load_persisted_failures2(self.config.source_file))
+                .unwrap_or_default();
 
         let mut result_cache = self.new_cache();
 
-        for PersistedSeed(persisted_seed) in persisted_failure_seeds {
+        for (PersistedSeed(persisted_seed), edge_bias_bytes) in
+            persisted_failure_seeds
+        {
             self.rng.set_seed(persisted_seed);
+            self.current_edge_bias = f32::from_le_bytes(edge_bias_bytes);
             self.gen_and_run_case(
                 strategy,
                 &test,
@@ -609,6 +632,33 @@ impl TestRunner {
         while self.successes < self.config.cases {
             // Generate a new seed and make an RNG from that so that we know
             // what seed to persist if this case fails.
+
+            if self.config.edge_bias <= 0f32 {
+                self.current_edge_bias = 0f32;
+            } else if self.config.edge_bias >= 1f32 {
+                self.current_edge_bias = 1f32;
+            } else {
+                // Value from 0.0 to 1.0 representing how far we are through the
+                // tests. Infinity is OK here in case of cases == 1.
+                let x = self.successes as f32 / (self.config.cases - 1) as f32;
+                if x.is_infinite() {
+                    self.current_edge_bias = self.config.edge_bias;
+                } else {
+                    // Separate the curve into two linear parts whose total area
+                    // is p. Cases of p <= 0 and p >= 1 are handled above.
+                    let p = self.config.edge_bias;
+                    if x < p {
+                        self.current_edge_bias = 1f32 + x * (p - 1f32) / p;
+                    } else {
+                        self.current_edge_bias = (x - 1f32) * p / (p - 1f32);
+                    }
+                }
+            }
+
+            if self.current_edge_bias.is_nan() {
+                // Might happen if cases is 1 or edge_bias is 0.
+                self.current_edge_bias = self.config.edge_bias;
+            }
             let seed = self.rng.gen_get_seed();
             let result = self.gen_and_run_case(
                 strategy,
@@ -631,6 +681,7 @@ impl TestRunner {
                         failure_persistence.save_persisted_failure2(
                             *source_file,
                             PersistedSeed(seed),
+                            self.current_edge_bias.to_le_bytes(),
                             value,
                         );
                     }

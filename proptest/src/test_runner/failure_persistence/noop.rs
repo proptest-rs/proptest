@@ -11,7 +11,7 @@ use crate::std_facade::{fmt, Box, Vec};
 use core::any::Any;
 
 use crate::test_runner::failure_persistence::{
-    FailurePersistence, PersistedSeed,
+    FailurePersistence, PersistedEdgeBias, PersistedSeed,
 };
 
 /// Failure persistence option that loads and saves nothing at all.
@@ -22,7 +22,7 @@ impl FailurePersistence for NoopFailurePersistence {
     fn load_persisted_failures2(
         &self,
         _source_file: Option<&'static str>,
-    ) -> Vec<PersistedSeed> {
+    ) -> Vec<(PersistedSeed, PersistedEdgeBias)> {
         Vec::new()
     }
 
@@ -30,6 +30,7 @@ impl FailurePersistence for NoopFailurePersistence {
         &mut self,
         _source_file: Option<&'static str>,
         _seed: PersistedSeed,
+        _current_edge_bias: PersistedEdgeBias,
         _shrunken_value: &dyn fmt::Debug,
     ) {
     }
@@ -68,7 +69,7 @@ mod tests {
     #[test]
     fn seeds_not_recoverable() {
         let mut p = NoopFailurePersistence::default();
-        p.save_persisted_failure2(HI_PATH, INC_SEED, &"");
+        p.save_persisted_failure2(HI_PATH, INC_SEED, INC_EDGE_BIAS, &"");
         assert!(p.load_persisted_failures2(HI_PATH).is_empty());
         assert!(p.load_persisted_failures2(None).is_empty());
         assert!(p.load_persisted_failures2(UNREL_PATH).is_empty());
