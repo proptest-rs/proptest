@@ -1,5 +1,10 @@
 ## Unreleased
 
+### New Features
+
+- Remove unseen transitions on a first step of shrinking.
+  ([\#388](https://github.com/proptest-rs/proptest/pull/388))
+
 ## 0.2.0
 
 ### Other Notes
