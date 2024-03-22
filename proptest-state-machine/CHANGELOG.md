@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.3.0
+
 ### New Features
 
 - Remove unseen transitions on a first step of shrinking.
