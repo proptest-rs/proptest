@@ -9,7 +9,7 @@
 
 use crate::std_facade::{Arc, String, ToOwned, Vec};
 use core::result::Result;
-use core::{fmt, str, u8, convert::TryInto};
+use core::{convert::TryInto, fmt, str, u8};
 
 use rand::{self, Rng, RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
