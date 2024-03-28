@@ -96,3 +96,13 @@ pub mod sample;
 pub mod string;
 
 pub mod prelude;
+
+#[cfg(feature = "attr-macro")]
+pub use proptest_macro::property_test; 
+
+#[cfg(feature = "attr-macro")]
+#[test]
+fn compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/pass/*.rs");
+}
