@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_str, spanned::Spanned, Attribute, Ident, ItemFn, PatType};
 
-use super::{utils::strip_args, options::Options};
+use super::{options::Options, utils::strip_args};
 
 mod test_body;
 
@@ -27,7 +27,6 @@ pub(super) fn generate(item_fn: ItemFn, options: Options) -> TokenStream {
         #arb_tokens
     };
 
-
     let new_body = test_body::body(
         *argless_fn.block,
         &args,
@@ -38,7 +37,6 @@ pub(super) fn generate(item_fn: ItemFn, options: Options) -> TokenStream {
     );
 
     *argless_fn.block = new_body;
-
     argless_fn.attrs.push(test_attr());
 
     argless_fn.to_token_stream()
@@ -202,4 +200,32 @@ mod tests {
 
         assert_eq!(arb.to_string(), expected.to_string());
     }
+}
+
+#[cfg(test)]
+mod snapshot_tests {
+    use super::*;
+
+    macro_rules! snapshot_test {
+        ($name:ident) => {
+            #[test]
+            fn $name() {
+                const TEXT: &str = include_str!(concat!(
+                    "test_data/",
+                    stringify!($name),
+                    ".rs"
+                ));
+
+                let tokens = generate(
+                    parse_str(TEXT).unwrap(),
+                    $crate::property_test::options::Options::default(),
+                );
+                insta::assert_debug_snapshot!(tokens);
+            }
+        };
+    }
+
+    snapshot_test!(simple);
+    snapshot_test!(many_params);
+    snapshot_test!(arg_pattern);
 }

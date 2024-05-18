@@ -16,6 +16,6 @@ fn no_trailing_comma(x: i32) {
         ..Default::default()
     }
 )]
-fn trailing_comma(x: i32) {
+fn trailing_comma(x: i32,) {
     assert_eq!(x, x);
 }
