@@ -1,0 +1,1290 @@
+---
+source: proptest-macro/src/property_test/codegen/mod.rs
+expression: tokens
+---
+TokenStream [
+    Punct {
+        char: '#',
+        spacing: Alone,
+    },
+    Group {
+        delimiter: Bracket,
+        stream: TokenStream [
+            Ident {
+                sym: test,
+            },
+        ],
+    },
+    Ident {
+        sym: fn,
+    },
+    Ident {
+        sym: foo,
+    },
+    Group {
+        delimiter: Parenthesis,
+        stream: TokenStream [],
+    },
+    Group {
+        delimiter: Brace,
+        stream: TokenStream [
+            Punct {
+                char: '#',
+                spacing: Alone,
+            },
+            Group {
+                delimiter: Bracket,
+                stream: TokenStream [
+                    Ident {
+                        sym: derive,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Ident {
+                                sym: Debug,
+                            },
+                        ],
+                    },
+                ],
+            },
+            Ident {
+                sym: struct,
+            },
+            Ident {
+                sym: FooArgs,
+            },
+            Group {
+                delimiter: Brace,
+                stream: TokenStream [
+                    Ident {
+                        sym: field0,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Ident {
+                                sym: i32,
+                            },
+                            Punct {
+                                char: ',',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: i32,
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: ',',
+                        spacing: Alone,
+                    },
+                ],
+            },
+            Ident {
+                sym: impl,
+            },
+            Punct {
+                char: ':',
+                spacing: Joint,
+            },
+            Punct {
+                char: ':',
+                spacing: Alone,
+            },
+            Ident {
+                sym: proptest,
+            },
+            Punct {
+                char: ':',
+                spacing: Joint,
+            },
+            Punct {
+                char: ':',
+                spacing: Alone,
+            },
+            Ident {
+                sym: prelude,
+            },
+            Punct {
+                char: ':',
+                spacing: Joint,
+            },
+            Punct {
+                char: ':',
+                spacing: Alone,
+            },
+            Ident {
+                sym: Arbitrary,
+            },
+            Ident {
+                sym: for,
+            },
+            Ident {
+                sym: FooArgs,
+            },
+            Group {
+                delimiter: Brace,
+                stream: TokenStream [
+                    Ident {
+                        sym: type,
+                    },
+                    Ident {
+                        sym: Parameters,
+                    },
+                    Punct {
+                        char: '=',
+                        spacing: Alone,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [],
+                    },
+                    Punct {
+                        char: ';',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: type,
+                    },
+                    Ident {
+                        sym: Strategy,
+                    },
+                    Punct {
+                        char: '=',
+                        spacing: Alone,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: proptest,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: strategy,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: Map,
+                    },
+                    Punct {
+                        char: '<',
+                        spacing: Alone,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: proptest,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: arbitrary,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: StrategyFor,
+                    },
+                    Punct {
+                        char: '<',
+                        spacing: Alone,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [
+                                    Ident {
+                                        sym: i32,
+                                    },
+                                    Punct {
+                                        char: ',',
+                                        spacing: Alone,
+                                    },
+                                    Ident {
+                                        sym: i32,
+                                    },
+                                ],
+                            },
+                            Punct {
+                                char: ',',
+                                spacing: Alone,
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: '>',
+                        spacing: Alone,
+                    },
+                    Punct {
+                        char: ',',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: fn,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [
+                                    Group {
+                                        delimiter: Parenthesis,
+                                        stream: TokenStream [
+                                            Ident {
+                                                sym: i32,
+                                            },
+                                            Punct {
+                                                char: ',',
+                                                spacing: Alone,
+                                            },
+                                            Ident {
+                                                sym: i32,
+                                            },
+                                        ],
+                                    },
+                                    Punct {
+                                        char: ',',
+                                        spacing: Alone,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: '-',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: '>',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: Self,
+                    },
+                    Punct {
+                        char: '>',
+                        spacing: Alone,
+                    },
+                    Punct {
+                        char: ';',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: fn,
+                    },
+                    Ident {
+                        sym: arbitrary_with,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [],
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: Self,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: Parameters,
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: '-',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: '>',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: Self,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: Strategy,
+                    },
+                    Group {
+                        delimiter: Brace,
+                        stream: TokenStream [
+                            Ident {
+                                sym: use,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: proptest,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: strategy,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: Strategy,
+                            },
+                            Punct {
+                                char: ';',
+                                spacing: Alone,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: proptest,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: prelude,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: any,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Punct {
+                                char: '<',
+                                spacing: Alone,
+                            },
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [
+                                    Group {
+                                        delimiter: Parenthesis,
+                                        stream: TokenStream [
+                                            Ident {
+                                                sym: i32,
+                                            },
+                                            Punct {
+                                                char: ',',
+                                                spacing: Alone,
+                                            },
+                                            Ident {
+                                                sym: i32,
+                                            },
+                                        ],
+                                    },
+                                    Punct {
+                                        char: ',',
+                                        spacing: Alone,
+                                    },
+                                ],
+                            },
+                            Punct {
+                                char: '>',
+                                spacing: Alone,
+                            },
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [],
+                            },
+                            Punct {
+                                char: '.',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: prop_map,
+                            },
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [
+                                    Punct {
+                                        char: '|',
+                                        spacing: Alone,
+                                    },
+                                    Group {
+                                        delimiter: Parenthesis,
+                                        stream: TokenStream [
+                                            Ident {
+                                                sym: field0,
+                                            },
+                                            Punct {
+                                                char: ',',
+                                                spacing: Alone,
+                                            },
+                                        ],
+                                    },
+                                    Punct {
+                                        char: '|',
+                                        spacing: Alone,
+                                    },
+                                    Ident {
+                                        sym: Self,
+                                    },
+                                    Group {
+                                        delimiter: Brace,
+                                        stream: TokenStream [
+                                            Ident {
+                                                sym: field0,
+                                            },
+                                            Punct {
+                                                char: ',',
+                                                spacing: Alone,
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            Ident {
+                sym: let,
+            },
+            Ident {
+                sym: config,
+            },
+            Punct {
+                char: '=',
+                spacing: Alone,
+            },
+            Punct {
+                char: ':',
+                spacing: Joint,
+            },
+            Punct {
+                char: ':',
+                spacing: Alone,
+            },
+            Ident {
+                sym: proptest,
+            },
+            Punct {
+                char: ':',
+                spacing: Joint,
+            },
+            Punct {
+                char: ':',
+                spacing: Alone,
+            },
+            Ident {
+                sym: test_runner,
+            },
+            Punct {
+                char: ':',
+                spacing: Joint,
+            },
+            Punct {
+                char: ':',
+                spacing: Alone,
+            },
+            Ident {
+                sym: Config,
+            },
+            Group {
+                delimiter: Brace,
+                stream: TokenStream [
+                    Ident {
+                        sym: test_name,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: Some,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Ident {
+                                sym: concat,
+                            },
+                            Punct {
+                                char: '!',
+                                spacing: Alone,
+                            },
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [
+                                    Ident {
+                                        sym: module_path,
+                                    },
+                                    Punct {
+                                        char: '!',
+                                        spacing: Alone,
+                                    },
+                                    Group {
+                                        delimiter: Parenthesis,
+                                        stream: TokenStream [],
+                                    },
+                                    Punct {
+                                        char: ',',
+                                        spacing: Alone,
+                                    },
+                                    Literal {
+                                        lit: "::",
+                                    },
+                                    Punct {
+                                        char: ',',
+                                        spacing: Alone,
+                                    },
+                                    Ident {
+                                        sym: stringify,
+                                    },
+                                    Punct {
+                                        char: '!',
+                                        spacing: Alone,
+                                    },
+                                    Group {
+                                        delimiter: Parenthesis,
+                                        stream: TokenStream [
+                                            Punct {
+                                                char: '$',
+                                                spacing: Alone,
+                                            },
+                                            Ident {
+                                                sym: test_name,
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: ',',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: source_file,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: Some,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Ident {
+                                sym: file,
+                            },
+                            Punct {
+                                char: '!',
+                                spacing: Alone,
+                            },
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [],
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: ',',
+                        spacing: Alone,
+                    },
+                    Punct {
+                        char: '.',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: '.',
+                        spacing: Alone,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: proptest,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: test_runner,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: Config,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: default,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [],
+                    },
+                ],
+            },
+            Punct {
+                char: ';',
+                spacing: Alone,
+            },
+            Ident {
+                sym: let,
+            },
+            Ident {
+                sym: mut,
+            },
+            Ident {
+                sym: runner,
+            },
+            Punct {
+                char: '=',
+                spacing: Alone,
+            },
+            Punct {
+                char: ':',
+                spacing: Joint,
+            },
+            Punct {
+                char: ':',
+                spacing: Alone,
+            },
+            Ident {
+                sym: proptest,
+            },
+            Punct {
+                char: ':',
+                spacing: Joint,
+            },
+            Punct {
+                char: ':',
+                spacing: Alone,
+            },
+            Ident {
+                sym: test_runner,
+            },
+            Punct {
+                char: ':',
+                spacing: Joint,
+            },
+            Punct {
+                char: ':',
+                spacing: Alone,
+            },
+            Ident {
+                sym: TestRunner,
+            },
+            Punct {
+                char: ':',
+                spacing: Joint,
+            },
+            Punct {
+                char: ':',
+                spacing: Alone,
+            },
+            Ident {
+                sym: new,
+            },
+            Group {
+                delimiter: Parenthesis,
+                stream: TokenStream [
+                    Ident {
+                        sym: config,
+                    },
+                ],
+            },
+            Punct {
+                char: ';',
+                spacing: Alone,
+            },
+            Ident {
+                sym: let,
+            },
+            Ident {
+                sym: result,
+            },
+            Punct {
+                char: '=',
+                spacing: Alone,
+            },
+            Ident {
+                sym: runner,
+            },
+            Punct {
+                char: '.',
+                spacing: Alone,
+            },
+            Ident {
+                sym: run,
+            },
+            Group {
+                delimiter: Parenthesis,
+                stream: TokenStream [
+                    Punct {
+                        char: '&',
+                        spacing: Alone,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: proptest,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: strategy,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: Strategy,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: prop_map,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: proptest,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: prelude,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: any,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Joint,
+                            },
+                            Punct {
+                                char: ':',
+                                spacing: Alone,
+                            },
+                            Punct {
+                                char: '<',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: FooArgs,
+                            },
+                            Punct {
+                                char: '>',
+                                spacing: Alone,
+                            },
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [],
+                            },
+                            Punct {
+                                char: ',',
+                                spacing: Alone,
+                            },
+                            Punct {
+                                char: '|',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: values,
+                            },
+                            Punct {
+                                char: '|',
+                                spacing: Alone,
+                            },
+                            Group {
+                                delimiter: Brace,
+                                stream: TokenStream [
+                                    Punct {
+                                        char: ':',
+                                        spacing: Joint,
+                                    },
+                                    Punct {
+                                        char: ':',
+                                        spacing: Alone,
+                                    },
+                                    Ident {
+                                        sym: proptest,
+                                    },
+                                    Punct {
+                                        char: ':',
+                                        spacing: Joint,
+                                    },
+                                    Punct {
+                                        char: ':',
+                                        spacing: Alone,
+                                    },
+                                    Ident {
+                                        sym: sugar,
+                                    },
+                                    Punct {
+                                        char: ':',
+                                        spacing: Joint,
+                                    },
+                                    Punct {
+                                        char: ':',
+                                        spacing: Alone,
+                                    },
+                                    Ident {
+                                        sym: NamedArguments,
+                                    },
+                                    Group {
+                                        delimiter: Parenthesis,
+                                        stream: TokenStream [
+                                            Ident {
+                                                sym: stringify,
+                                            },
+                                            Punct {
+                                                char: '!',
+                                                spacing: Alone,
+                                            },
+                                            Group {
+                                                delimiter: Parenthesis,
+                                                stream: TokenStream [
+                                                    Ident {
+                                                        sym: FooArgs,
+                                                    },
+                                                ],
+                                            },
+                                            Punct {
+                                                char: ',',
+                                                spacing: Alone,
+                                            },
+                                            Ident {
+                                                sym: values,
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: ',',
+                        spacing: Alone,
+                    },
+                    Punct {
+                        char: '|',
+                        spacing: Alone,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: proptest,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: sugar,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: ':',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: NamedArguments,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Ident {
+                                sym: _,
+                            },
+                            Punct {
+                                char: ',',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: FooArgs,
+                            },
+                            Group {
+                                delimiter: Brace,
+                                stream: TokenStream [
+                                    Ident {
+                                        sym: field0,
+                                    },
+                                    Punct {
+                                        char: ':',
+                                        spacing: Alone,
+                                    },
+                                    Group {
+                                        delimiter: Parenthesis,
+                                        stream: TokenStream [
+                                            Ident {
+                                                sym: x,
+                                            },
+                                            Punct {
+                                                char: ',',
+                                                spacing: Alone,
+                                            },
+                                            Ident {
+                                                sym: y,
+                                            },
+                                        ],
+                                    },
+                                    Punct {
+                                        char: ',',
+                                        spacing: Alone,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: '|',
+                        spacing: Alone,
+                    },
+                    Group {
+                        delimiter: Brace,
+                        stream: TokenStream [
+                            Ident {
+                                sym: let,
+                            },
+                            Ident {
+                                sym: result,
+                            },
+                            Punct {
+                                char: '=',
+                                spacing: Alone,
+                            },
+                            Group {
+                                delimiter: Brace,
+                                stream: TokenStream [
+                                    Ident {
+                                        sym: println,
+                                    },
+                                    Punct {
+                                        char: '!',
+                                        spacing: Alone,
+                                    },
+                                    Group {
+                                        delimiter: Parenthesis,
+                                        stream: TokenStream [
+                                            Literal {
+                                                lit: "{x} and {y}",
+                                            },
+                                        ],
+                                    },
+                                    Punct {
+                                        char: ';',
+                                        spacing: Alone,
+                                    },
+                                ],
+                            },
+                            Punct {
+                                char: ';',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: let,
+                            },
+                            Ident {
+                                sym: _,
+                            },
+                            Punct {
+                                char: '=',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: result,
+                            },
+                            Punct {
+                                char: ';',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: Ok,
+                            },
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [
+                                    Group {
+                                        delimiter: Parenthesis,
+                                        stream: TokenStream [],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: ',',
+                        spacing: Alone,
+                    },
+                ],
+            },
+            Punct {
+                char: ';',
+                spacing: Alone,
+            },
+            Ident {
+                sym: match,
+            },
+            Ident {
+                sym: result,
+            },
+            Group {
+                delimiter: Brace,
+                stream: TokenStream [
+                    Ident {
+                        sym: Ok,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [],
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: '=',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: '>',
+                        spacing: Alone,
+                    },
+                    Group {
+                        delimiter: Brace,
+                        stream: TokenStream [],
+                    },
+                    Ident {
+                        sym: Err,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Ident {
+                                sym: e,
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: '=',
+                        spacing: Joint,
+                    },
+                    Punct {
+                        char: '>',
+                        spacing: Alone,
+                    },
+                    Ident {
+                        sym: panic,
+                    },
+                    Punct {
+                        char: '!',
+                        spacing: Alone,
+                    },
+                    Group {
+                        delimiter: Parenthesis,
+                        stream: TokenStream [
+                            Literal {
+                                lit: "{}",
+                            },
+                            Punct {
+                                char: ',',
+                                spacing: Alone,
+                            },
+                            Ident {
+                                sym: e,
+                            },
+                        ],
+                    },
+                    Punct {
+                        char: ',',
+                        spacing: Alone,
+                    },
+                ],
+            },
+        ],
+    },
+]

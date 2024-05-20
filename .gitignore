@@ -9,3 +9,5 @@ persistence-test.txt
 
 # IntelliJ
 .idea
+
+/.direnv
