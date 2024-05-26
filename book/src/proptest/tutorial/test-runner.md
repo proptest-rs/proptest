@@ -1,11 +1,10 @@
 # Using the Test Runner
 
 Rather than manually shrinking, proptest's
-[`TestRunner`](test_runner/struct.TestRunner.html) provides this
-functionality for us and additionally handles things like panics. The
-method we're interested in is `run`. We simply
-give it the strategy and a function to test inputs and it takes care of the
-rest.
+[`TestRunner`](https://docs.rs/proptest/latest/proptest/test_runner/struct.TestRunner.html)
+provides this functionality for us and additionally handles things like panics.
+The method we're interested in is `run`. We simply give it the strategy and a
+function to test inputs and it takes care of the rest.
 
 ```rust
 # extern crate proptest;
