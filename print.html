@@ -730,11 +730,10 @@ fn main() {
 <p>This code reliably finds the boundary of the failure, 501.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="using-the-test-runner"><a class="header" href="#using-the-test-runner">Using the Test Runner</a></h1>
 <p>Rather than manually shrinking, proptest’s
-<a href="proptest/tutorial/test_runner/struct.TestRunner.html"><code>TestRunner</code></a> provides this
-functionality for us and additionally handles things like panics. The
-method we’re interested in is <code>run</code>. We simply
-give it the strategy and a function to test inputs and it takes care of the
-rest.</p>
+<a href="https://docs.rs/proptest/latest/proptest/test_runner/struct.TestRunner.html"><code>TestRunner</code></a>
+provides this functionality for us and additionally handles things like panics.
+The method we’re interested in is <code>run</code>. We simply give it the strategy and a
+function to test inputs and it takes care of the rest.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">extern crate proptest;
 </span>use proptest::test_runner::{Config, FileFailurePersistence,
                             TestError, TestRunner};
@@ -1091,7 +1090,8 @@ where <code>T</code> is the declared return type.</p>
 limited. Creating such strategies with <code>prop_compose!</code> is possible but
 generally is not very readable, so in most cases defining the function by
 hand is preferable.</p>
-<p>The core building block is the <a href="proptest/tutorial/macro.prop_oneof.html"><code>prop_oneof!</code></a>
+<p>The core building block is the
+<a href="https://docs.rs/proptest/latest/proptest/macro.prop_oneof.html"><code>prop_oneof!</code></a>
 macro, in which you list one case for each case in your <code>enum</code>. For <code>enum</code>s
 which have no data, the strategy for each case is
 <code>Just(YourEnum::TheCase)</code>. Enum cases with data generally require putting

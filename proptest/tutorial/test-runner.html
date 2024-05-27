@@ -168,11 +168,10 @@
                     <main>
                         <h1 id="using-the-test-runner"><a class="header" href="#using-the-test-runner">Using the Test Runner</a></h1>
 <p>Rather than manually shrinking, proptest’s
-<a href="test_runner/struct.TestRunner.html"><code>TestRunner</code></a> provides this
-functionality for us and additionally handles things like panics. The
-method we’re interested in is <code>run</code>. We simply
-give it the strategy and a function to test inputs and it takes care of the
-rest.</p>
+<a href="https://docs.rs/proptest/latest/proptest/test_runner/struct.TestRunner.html"><code>TestRunner</code></a>
+provides this functionality for us and additionally handles things like panics.
+The method we’re interested in is <code>run</code>. We simply give it the strategy and a
+function to test inputs and it takes care of the rest.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">extern crate proptest;
 </span>use proptest::test_runner::{Config, FileFailurePersistence,
                             TestError, TestRunner};

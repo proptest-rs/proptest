@@ -171,7 +171,8 @@
 limited. Creating such strategies with <code>prop_compose!</code> is possible but
 generally is not very readable, so in most cases defining the function by
 hand is preferable.</p>
-<p>The core building block is the <a href="macro.prop_oneof.html"><code>prop_oneof!</code></a>
+<p>The core building block is the
+<a href="https://docs.rs/proptest/latest/proptest/macro.prop_oneof.html"><code>prop_oneof!</code></a>
 macro, in which you list one case for each case in your <code>enum</code>. For <code>enum</code>s
 which have no data, the strategy for each case is
 <code>Just(YourEnum::TheCase)</code>. Enum cases with data generally require putting
