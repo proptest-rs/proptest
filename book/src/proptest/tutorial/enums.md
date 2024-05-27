@@ -5,7 +5,8 @@ limited. Creating such strategies with `prop_compose!` is possible but
 generally is not very readable, so in most cases defining the function by
 hand is preferable.
 
-The core building block is the [`prop_oneof!`](macro.prop_oneof.html)
+The core building block is the
+[`prop_oneof!`](https://docs.rs/proptest/latest/proptest/macro.prop_oneof.html)
 macro, in which you list one case for each case in your `enum`. For `enum`s
 which have no data, the strategy for each case is
 `Just(YourEnum::TheCase)`. Enum cases with data generally require putting
