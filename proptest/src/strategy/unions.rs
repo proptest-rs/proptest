@@ -495,8 +495,8 @@ mod test {
 
             match result {
                 Ok(true) => passed += 1,
-                Err(TestError::Fail(_, 15)) => converged_low += 1,
-                Err(TestError::Fail(_, 30)) => converged_high += 1,
+                Err(TestError::Fail(_, _, 15)) => converged_low += 1,
+                Err(TestError::Fail(_, _, 30)) => converged_high += 1,
                 e => panic!("Unexpected result: {:?}", e),
             }
         }
@@ -572,8 +572,8 @@ mod test {
 
             match result {
                 Ok(true) => passed += 1,
-                Err(TestError::Fail(_, 15)) => converged_low += 1,
-                Err(TestError::Fail(_, 30)) => converged_high += 1,
+                Err(TestError::Fail(_, _, 15)) => converged_low += 1,
+                Err(TestError::Fail(_, _, 30)) => converged_high += 1,
                 e => panic!("Unexpected result: {:?}", e),
             }
         }
