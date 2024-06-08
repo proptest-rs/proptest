@@ -760,6 +760,16 @@ impl TestRunner {
         fork_output: &mut ForkOutput,
         is_from_persisted_seed: bool,
     ) -> Option<Reason> {
+        // exit early if shrink disabled
+        if self.config.max_shrink_iters == 0 {
+            verbose_message!(
+                self,
+                INFO_LOG,
+                "Shrinking disabled by configuration"
+            );
+            return None
+        }
+
         #[cfg(feature = "std")]
         use std::time;
 
