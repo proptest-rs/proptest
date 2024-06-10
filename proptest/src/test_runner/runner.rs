@@ -281,6 +281,14 @@ where
 
     match result {
         Ok(()) => verbose_message!(runner, TRACE, "Test case passed"),
+        Err(TestCaseError::Interrupt(ref reason)) => {
+            verbose_message!(
+                runner,
+                INFO_LOG,
+                "Test case interrupted: {}",
+                reason
+            )
+        }
         Err(TestCaseError::Reject(ref reason)) => {
             verbose_message!(runner, INFO_LOG, "Test case rejected: {}", reason)
         }
@@ -620,6 +628,12 @@ impl TestRunner {
                 &mut fork_output,
                 false,
             );
+
+            if let Err(TestError::Interrupt(_)) = result {
+                // exit runs loop if test was interrupted
+                break;
+            }
+
             if let Err(TestError::Fail(_, ref value)) = result {
                 if let Some(ref mut failure_persistence) =
                     self.config.failure_persistence
@@ -745,6 +759,9 @@ impl TestRunner {
                     )
                     .unwrap_or(why);
                 Err(TestError::Fail(why, case.current()))
+            }
+            Err(TestCaseError::Interrupt(why)) => {
+                Err(TestError::Interrupt(why))
             }
             Err(TestCaseError::Reject(whence)) => {
                 self.reject_global(whence)?;
@@ -883,6 +900,7 @@ impl TestRunner {
                             break;
                         }
                     }
+                    Err(TestCaseError::Interrupt(_)) => {}
                 }
             }
         }
@@ -1092,6 +1110,56 @@ mod test {
             Ok(())
         });
         assert_eq!(Ok(()), result);
+    }
+
+    #[test]
+    fn test_interrupt_at_run() {
+        let mut runner = TestRunner::new(Config {
+            failure_persistence: None,
+            cases: 20,
+            ..Config::default()
+        });
+
+        let run_count = RefCell::new(0);
+        let result = runner.run(&(1u32..), |_v| {
+            *run_count.borrow_mut() += 1;
+            if *run_count.borrow() == 10 {
+                return Err(TestCaseError::Interrupt(Reason::from(
+                    "test interrupted",
+                )));
+            }
+            Ok(())
+        });
+        // only 10 runs performed
+        assert_eq!(run_count.into_inner(), 10);
+        // interrupt does not count as fail
+        assert_eq!(Ok(()), result);
+    }
+
+    #[test]
+    fn test_interrupt_with_failed_case() {
+        let mut runner = TestRunner::new(Config {
+            failure_persistence: None,
+            cases: 20,
+            ..Config::default()
+        });
+
+        let run_count = RefCell::new(0);
+        let _ = runner.run(&(0u32..10u32), |v| {
+            *run_count.borrow_mut() += 1;
+            if v < 5 {
+                if *run_count.borrow() == 10 {
+                    return Err(TestCaseError::Interrupt(Reason::from(
+                        "test interrupted",
+                    )));
+                }
+                Ok(())
+            } else {
+                Err(TestCaseError::fail("not less than 5"))
+            }
+        });
+        // no more than 10 runs
+        assert!(run_count.into_inner() <= 10);
     }
 
     #[test]
