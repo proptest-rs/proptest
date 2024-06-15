@@ -2,24 +2,16 @@
 
 ## Cargo
 
-To the `[dev-dependencies]` section of your `Cargo.toml`, add
-
+Run `cargo add --dev proptest-derive` or add
 ```toml
-proptest-derive = "0.2.0"
+proptest-derive = "0.4.0";
 ```
+to the `[dev-dependencies]` section of your `Cargo.toml`
 
-In a Rust 2015 crate, you must add
+### Versioning
 
-```
-#[cfg(test)] extern crate proptest;
-```
-
-to the top of the crate.
-
-### About Versioning
-
-`proptest-derive` is currently experimental and has its own version. Once it is
-more stable, it will be versioned in lock-step with the main `proptest` crate.
+`proptest-derive` is currently 0.x. Once it is more stable, it will
+be versioned in lock-step with the main `proptest` crate.
 
 ## Using derive
 
