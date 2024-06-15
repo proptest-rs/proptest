@@ -36,9 +36,14 @@ use crate::strategy::Strategy;
 /// which may be lifted in the future as the [generic associated types (GAT)]
 /// feature of Rust is implemented and stabilized.
 ///
+/// If you do not have unique constraints on how to generate the data for your
+/// custom types, consider using [the derive macro] to implement Arbitrary
+///
 /// [generic associated types (GAT)]: https://github.com/rust-lang/rust/issues/44265
 ///
 /// [`Strategy`]: ../strategy/trait.Strategy.html
+///
+/// [the derive macro]: https://docs.rs/proptest-derive/latest/proptest_derive/
 ///
 /// [HaskellQC]:
 /// https://hackage.haskell.org/package/QuickCheck/docs/Test-QuickCheck-Arbitrary.html

@@ -5,6 +5,9 @@
 - Setting `PROPTEST_MAX_DEFAULT_SIZE_RANGE` now customizes the default `SizeRange`
   used by the default strategies for collections (like `Vec`). The default remains 100.
 
+### Documentation
+- Reference the derive macro in Arbitrary's documentation
+
 ### Bug Fixes
 - Fixed issue where config contextualization would clobber existing failure persistence config
 
