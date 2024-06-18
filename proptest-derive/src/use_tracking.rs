@@ -10,11 +10,8 @@
 //! track uses of type variables that need `Arbitrary` bounds in our
 //! impls.
 
-// Perhaps ordermap would be better, but our maps are so small that we care
-// much more about the increased compile times incured by including ordermap.
-// We need to preserve insertion order in any case, so HashMap is not useful.
 use std::borrow::Borrow;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 
 use syn;
 
@@ -30,10 +27,13 @@ use crate::util;
 /// or similar and thus needs an `Arbitrary` bound added to them.
 pub struct UseTracker {
     /// Tracks 'usage' of a type variable name.
-    /// Allocation of this map will happen at once and no further
+    /// Allocation of this "map" will happen at once and no further
     /// allocation will happen after that. Only potential updates
     /// will happen after initial allocation.
-    used_map: BTreeMap<syn::Ident, bool>,
+    /// We need to preserve insertion order, thus using Vec instead of BTreeMap
+    /// or HashMap. A potential alternative would be indexmap crate, but our
+    /// maps are so small that it would not bring any significant benefit.
+    used_map: Vec<(syn::Ident, bool)>,
     /// Extra types to bound by `Arbitrary` in the `where` clause.
     where_types: HashSet<syn::Type>,
     /// The generics that we are doing this for.
@@ -76,7 +76,11 @@ impl UseTracker {
     /// a type variable and this call has no effect.
     fn use_tyvar(&mut self, tyvar: impl Borrow<syn::Ident>) {
         if self.track {
-            if let Some(used) = self.used_map.get_mut(tyvar.borrow()) {
+            if let Some(used) = self
+                .used_map
+                .iter_mut()
+                .find_map(|(ty, used)| (ty == tyvar.borrow()).then(|| used))
+            {
                 *used = true;
             }
         }
@@ -84,7 +88,7 @@ impl UseTracker {
 
     /// Returns true iff the type variable given exists.
     fn has_tyvar(&self, ty_var: impl Borrow<syn::Ident>) -> bool {
-        self.used_map.contains_key(ty_var.borrow())
+        self.used_map.iter().any(|(ty, _)| ty == ty_var.borrow())
     }
 
     /// Mark the type as used.
@@ -101,8 +105,11 @@ impl UseTracker {
         for_not: Option<syn::TypeParamBound>,
     ) -> DeriveResult<()> {
         {
-            let mut iter =
-                self.used_map.values().zip(self.generics.type_params_mut());
+            let mut iter = self
+                .used_map
+                .iter()
+                .map(|(_, used)| used)
+                .zip(self.generics.type_params_mut());
             if let Some(for_not) = for_not {
                 iter.try_for_each(|(&used, tv)| {
                     // Steal the attributes:
