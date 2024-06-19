@@ -6,6 +6,7 @@
 
 - Setting `PROPTEST_MAX_DEFAULT_SIZE_RANGE` now customizes the default `SizeRange`
   used by the default strategies for collections (like `Vec`). The default remains 100.
+- Empty ranges panic during tree creation instead of during sampling.
 
 ### Documentation
 - Reference the derive macro in Arbitrary's documentation

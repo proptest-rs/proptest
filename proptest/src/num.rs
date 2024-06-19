@@ -69,6 +69,13 @@ macro_rules! numeric_api {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if self.is_empty() {
+                    panic!(
+                        "Invalid use of empty range {}..{}.",
+                        self.start, self.end
+                    );
+                }
+
                 Ok(BinarySearch::new_clamped(
                     self.start,
                     $crate::num::sample_uniform::<$sample_typ>(
@@ -87,6 +94,14 @@ macro_rules! numeric_api {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if self.is_empty() {
+                    panic!(
+                        "Invalid use of empty range {}..={}.",
+                        self.start(),
+                        self.end()
+                    );
+                }
+
                 Ok(BinarySearch::new_clamped(
                     *self.start(),
                     $crate::num::sample_uniform_incl::<$sample_typ>(
@@ -1389,5 +1404,67 @@ mod test {
                 .. CheckStrategySanityOptions::default()
             }));
         }
+    }
+
+    mod panic_on_empty {
+        macro_rules! panic_on_empty {
+            ($t:tt) => {
+                mod $t {
+                    use crate::strategy::Strategy;
+                    use crate::test_runner::TestRunner;
+                    use std::panic;
+                    use std::string::String;
+
+                    const ZERO: $t = 0 as $t;
+                    const ONE: $t = 1 as $t;
+
+                    #[test]
+                    fn range() {
+                        assert_eq!(
+                            panic::catch_unwind(|| {
+                                let mut runner = TestRunner::deterministic();
+                                let _ = (ZERO..ZERO).new_tree(&mut runner);
+                            })
+                            .err()
+                            .and_then(|a| a
+                                .downcast_ref::<String>()
+                                .map(|s| {
+                                    s == "Invalid use of empty range 0..0."
+                                })),
+                            Some(true)
+                        );
+                    }
+
+                    #[test]
+                    fn range_inclusive() {
+                        assert_eq!(
+                            panic::catch_unwind(|| {
+                                let mut runner = TestRunner::deterministic();
+                                let _ = (ONE..=ZERO).new_tree(&mut runner);
+                            })
+                            .err()
+                            .and_then(|a| a
+                                .downcast_ref::<String>()
+                                .map(|s| {
+                                    s == "Invalid use of empty range 1..=0."
+                                })),
+                            Some(true)
+                        );
+                    }
+                }
+            };
+        }
+        panic_on_empty!(u8);
+        panic_on_empty!(i8);
+        panic_on_empty!(u16);
+        panic_on_empty!(i16);
+        panic_on_empty!(u32);
+        panic_on_empty!(i32);
+        panic_on_empty!(u64);
+        panic_on_empty!(i64);
+        panic_on_empty!(usize);
+        panic_on_empty!(isize);
+        panic_on_empty!(f32);
+        panic_on_empty!(f64);
     }
 }
