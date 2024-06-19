@@ -28,7 +28,13 @@
   - [State Machine testing](proptest/state-machine.md)
   - [Tips and Best Practices](proptest/tips-and-best-practices.md)
 
-- [proptest-derive](proptest-derive/index.md)
+- [`proptest-derive`](proptest-derive/index.md)
   - [Getting started](proptest-derive/getting-started.md)
   - [Modifier reference](proptest-derive/modifiers.md)
   - [Error index](proptest-derive/errors.md)
+
+- [`proptest-macro`](proptest-macro/index.md)
+  - [Getting started](proptest-macro/getting-started.md)
+
+- [`proptest-state-machine`](proptest-state-machine/index.md)
+  - [Getting started](proptest-state-machine/getting-started.md)

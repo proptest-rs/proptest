@@ -9,6 +9,8 @@ It is recommended to have a basic working understanding of the [`proptest`
 crate](/proptest/index.md) before getting into this part of the
 documentation.
 
-**This crate is currently somewhat experimental.** Expect rough edges,
-particularly in documentation. It is also more likely to see releases with
-breaking changes than the main `proptest` crate.
+**This crate is currently 0.x.** It may see breaking changes breaking changes from
+time to time.
+
+We are currently looking to stabilize proptest-derive -- if you have any suggestions
+or asks to be included in a 1.x stable release, [open an issue on our github repo](https://github.com/proptest-rs/proptest/issues/new)
