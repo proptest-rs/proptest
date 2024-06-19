@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 1.5.0
+
 ### New Features
 
 - Setting `PROPTEST_MAX_DEFAULT_SIZE_RANGE` now customizes the default `SizeRange`
@@ -7,6 +9,7 @@
 
 ### Documentation
 - Reference the derive macro in Arbitrary's documentation
+- Fix broken links in the book
 
 ### Bug Fixes
 - Fixed issue where config contextualization would clobber existing failure persistence config
