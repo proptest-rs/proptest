@@ -26,7 +26,7 @@ pub type W<T> = (u32, T);
 /// coupled with `Arc<T>`. The weight is currently given in `u32`.
 pub type WA<T> = (u32, Arc<T>);
 
-/// A `Strategy` which picks from one of several delegate `Stragegy`s.
+/// A `Strategy` which picks from one of several delegate `Strategy`s.
 ///
 /// See `Strategy::prop_union()`.
 #[derive(Clone, Debug)]
