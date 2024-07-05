@@ -37,7 +37,7 @@ thread_local! {
 /// }
 /// ```
 pub fn is_minimal_case() -> bool {
-    IS_MINIMAL_CASE.get()
+    IS_MINIMAL_CASE.with(|cell| cell.get())
 }
 
 /// Helper struct that helps to ensure panic safety when entering a minimal case.
@@ -49,13 +49,13 @@ pub(crate) struct MinimalCaseGuard;
 
 impl MinimalCaseGuard {
     pub(crate) fn begin_minimal_case() -> Self {
-        IS_MINIMAL_CASE.replace(true);
+        IS_MINIMAL_CASE.with(|cell| cell.replace(true));
         Self
     }
 }
 
 impl Drop for MinimalCaseGuard {
     fn drop(&mut self) {
-        IS_MINIMAL_CASE.replace(false);
+        IS_MINIMAL_CASE.with(|cell| cell.replace(false));
     }
 }
