@@ -1,0 +1,48 @@
+---
+source: proptest-macro/src/property_test/tests/snapshot_tests.rs
+expression: formatted
+---
+#[test]
+fn foo() {
+    #[derive(Debug)]
+    struct FooArgs {
+        field0: i32,
+        field1: String,
+    }
+    impl ::proptest::prelude::Arbitrary for FooArgs {
+        type Parameters = ();
+        type Strategy = ::proptest::strategy::BoxedStrategy<Self>;
+        fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+            use ::proptest::strategy::Strategy;
+            (::proptest::prelude::any::<i32>(), a + more()("complex") - expression!())
+                .prop_map(|(field0, field1)| Self { field0, field1 })
+                .boxed()
+        }
+    }
+    let config = ::proptest::test_runner::Config {
+        test_name: Some(concat!(module_path!(), "::", stringify!($test_name))),
+        source_file: Some(file!()),
+        ..::proptest::test_runner::Config::default()
+    };
+    let mut runner = ::proptest::test_runner::TestRunner::new(config);
+    let result = runner
+        .run(
+            &::proptest::strategy::Strategy::prop_map(
+                ::proptest::prelude::any::<FooArgs>(),
+                |values| {
+                    ::proptest::sugar::NamedArguments(stringify!(FooArgs), values)
+                },
+            ),
+            |::proptest::sugar::NamedArguments(_, FooArgs { field0: x, field1: y })| {
+                let result = {
+                    let x = 1;
+                };
+                let _ = result;
+                Ok(())
+            },
+        );
+    match result {
+        Ok(()) => {}
+        Err(e) => panic!("{}", e),
+    }
+}
