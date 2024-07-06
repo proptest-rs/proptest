@@ -59,7 +59,7 @@ bit-set = [ "dep:bit-set", "dep:bit-vec" ]
 [dependencies]
 bitflags = "2"
 unarray = "0.1.4"
-proptest-macro = { path = "../proptest-macro", optional = true }
+proptest-macro = { version = "0.1", optional = true }
 
 # [dependencies.hashmap_core]
 # version = "0.1.5"
