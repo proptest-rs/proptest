@@ -29,7 +29,7 @@ and minor feature requests. In that time, Rust has continued evolving with the s
 and maturation of the async ecosystem and generic associated types (GAT). We are
 evaluating what a 2.x release of proptest would look like and what features and
 changes would warrant a new major version. If you have ideas, suggestions, or asks,
-please [open an issue on our github repo](https://github.com/proptest-rs/proptest/issues/new)
+please [open an issue on our github repo](https://github.com/proptest-rs/proptest/issues/new).
 
 See the [changelog](https://github.com/proptest-rs/proptest/blob/master/proptest/CHANGELOG.md)
 for a full list of substantial historical changes, breaking and otherwise.
