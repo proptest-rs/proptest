@@ -14,12 +14,12 @@ Proptest has evolved to be more than a single library. Currently the following
 crates exist:
 - `proptest` - the core testing library containing traits, implementations of those
   traits for `core`, `alloc`, `std` and some popular 3rd party crates, a test runner
-  and some sugar to make working with the test runner and traits easier
-- `proptest-derive` - a derive macro for implementing `Arbitrary` when you don't
-  have unique requirements for generating data
-- `proptest-macro` - procedural macros that make writing proptests easier
+  and some sugar to make working with the test runner and traits easier.
+- `proptest-derive` - a derive macro for implementing `Arbitrary` when the applicable type does not
+  have unique requirements for generating data.
+- `proptest-macro` - procedural macros that make writing proptests easier.
 - `proptest-state-machine` - a lightweight framework built on top of `proptest`
-  for testing systems against a reference implementation
+  for testing systems against a reference implementation.
 
 ## Status of the proptest ecosystem
 
