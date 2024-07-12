@@ -16,6 +16,7 @@ fn foo() {
             use ::proptest::strategy::Strategy;
             (123, a + more()("complex") - expression!())
                 .prop_map(|(field0, field1)| Self { field0, field1 })
+                .boxed()
         }
     }
     let config = ::proptest::test_runner::Config {

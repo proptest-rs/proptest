@@ -14,8 +14,9 @@ fn foo() {
         type Strategy = ::proptest::strategy::BoxedStrategy<Self>;
         fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
             use ::proptest::strategy::Strategy;
-            (::proptest::prelude::any::<i32>, a + more()("complex") - expression!())
+            (::proptest::prelude::any::<i32>(), a + more()("complex") - expression!())
                 .prop_map(|(field0, field1)| Self { field0, field1 })
+                .boxed()
         }
     }
     let config = ::proptest::test_runner::Config {
