@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_str, spanned::Spanned, Attribute, Ident, ItemFn};
+use syn::{parse_quote, spanned::Spanned, Attribute, Ident, ItemFn};
 
 use super::{
     options::Options,
@@ -85,11 +85,8 @@ fn nth_field_name(span: impl Spanned, index: usize) -> Ident {
     Ident::new(&format!("field{index}"), span.span())
 }
 
-/// I couldn't find a better way to get just the `#[test]` attribute since [`syn::Attribute`]
-/// doesn't implement `Parse`
 fn test_attr() -> Attribute {
-    let mut f: ItemFn = parse_str("#[test] fn foo() {}").unwrap();
-    f.attrs.pop().unwrap()
+    parse_quote! { #[test] }
 }
 
 #[cfg(test)]

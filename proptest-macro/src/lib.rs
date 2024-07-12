@@ -11,6 +11,7 @@ mod property_test;
 /// Using the `property_test` macro:
 ///
 /// ```
+/// # use proptest_macro::property_test;
 /// #[property_test]
 /// fn foo(x: i32) {
 ///     assert_eq!(x, x);
@@ -19,7 +20,7 @@ mod property_test;
 ///
 /// is roughly equivalent to:
 ///
-/// ```
+/// ```ignore
 /// proptest! {
 ///     #[test]
 ///     fn foo(x in any::<i32>()) {
@@ -42,7 +43,7 @@ mod property_test;
 ///
 /// E.g. running 100 cases:
 ///
-/// ```rust
+/// ```rust,ignore
 /// #[property_test(config = "ProptestConfig { cases: 100, .. ProptestConfig::default() }")]
 /// fn foo(x: i32) {
 ///     assert_eq!(x, x);
@@ -55,6 +56,7 @@ mod property_test;
 /// provide a custom `Strategy` with `#[strategy = <expr>]` on an argument:
 ///
 /// ```
+/// # use proptest_macro::property_test;
 /// #[property_test]
 /// fn foo(#[strategy = "[0-9]*"] s: String) {
 ///     for c in s.chars() {
