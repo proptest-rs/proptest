@@ -1,4 +1,4 @@
-use syn::{parse_quote, ItemFn};
+use syn::parse_quote;
 
 use crate::property_test::{codegen, options::Options};
 

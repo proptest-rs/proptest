@@ -91,10 +91,8 @@ fn test_attr() -> Attribute {
 
 #[cfg(test)]
 mod tests {
-    use quote::ToTokens;
-    use syn::{parse2, parse_quote, parse_str, ItemStruct};
-
     use super::*;
+    use syn::{parse2, parse_quote, parse_str, ItemStruct};
 
     /// Simple helper that parses a function, and validates that the struct name and fields are
     /// correct
@@ -162,6 +160,7 @@ mod tests {
 #[cfg(test)]
 mod snapshot_tests {
     use super::*;
+    use syn::parse_str;
 
     macro_rules! snapshot_test {
         ($name:ident) => {
