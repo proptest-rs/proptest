@@ -1,0 +1,5 @@
+error: The `#[proptest]` macro can only be applied to a function with a single argument.
+  --> $DIR/multiple-args.rs:10:1
+   |
+10 | fn parse_date(date: String, _second_arg: String) {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

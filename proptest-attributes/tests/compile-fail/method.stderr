@@ -1,0 +1,5 @@
+error: The `#[proptest]` macro cannot be applied to a method.
+  --> $DIR/method.rs:17:21
+   |
+17 |     fn function_arn(&self) {
+   |                     ^^^^^
