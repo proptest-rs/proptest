@@ -358,7 +358,9 @@ impl<
                 DeleteTransition(ix - 1)
             };
             // If this delete is not acceptable, undo it and try again
-            if !self.check_acceptable(None) {
+            if !self
+                .check_acceptable(None, self.last_valid_initial_state.clone())
+            {
                 self.included_transitions.set(ix);
                 self.last_shrink = None;
                 return self.try_simplify();
@@ -389,7 +391,10 @@ impl<
                 self.shrink = self.next_shrink_transition(ix);
             } else if self.transitions[ix].simplify() {
                 self.last_shrink = Some(self.shrink);
-                if self.check_acceptable(Some(ix)) {
+                if self.check_acceptable(
+                    Some(ix),
+                    self.last_valid_initial_state.clone(),
+                ) {
                     self.acceptable_transitions[ix] =
                         (Accepted, self.transitions[ix].current());
                     return true;
@@ -409,8 +414,7 @@ impl<
 
         if let InitialState = self.shrink {
             if self.initial_state.simplify() {
-                if self.check_acceptable(None) {
-                    // Store the valid initial state
+                if self.check_acceptable(None, self.initial_state.current()) {
                     self.last_valid_initial_state =
                         self.initial_state.current();
                     self.last_shrink = Some(self.shrink);
@@ -418,6 +422,8 @@ impl<
                 } else {
                     // If the shrink is not acceptable, clear it out
                     self.last_shrink = None;
+
+                    // `initial_state` is "dirty" here but we won't ever use it again because it is unshrinkable from here.
                 }
             }
             self.is_initial_state_shrinkable = false;
@@ -436,7 +442,10 @@ impl<
         let mut ix_to_check = ix;
         loop {
             if self.included_transitions.test(ix_to_check)
-                && self.check_acceptable(Some(ix_to_check))
+                && self.check_acceptable(
+                    Some(ix_to_check),
+                    self.last_valid_initial_state.clone(),
+                )
             {
                 self.acceptable_transitions[ix_to_check] =
                     (Accepted, self.transitions[ix_to_check].current());
@@ -458,9 +467,8 @@ impl<
     /// Check if the sequence of included transitions is acceptable by the
     /// pre-conditions. When `ix` is not `None`, the transition at the given
     /// index is taken from its current value.
-    fn check_acceptable(&self, ix: Option<usize>) -> bool {
+    fn check_acceptable(&self, ix: Option<usize>, mut state: State) -> bool {
         let transitions = self.get_included_acceptable_transitions(ix);
-        let mut state = self.last_valid_initial_state.clone();
         for transition in transitions.iter() {
             let is_acceptable = (self.preconditions)(&state, transition);
             if is_acceptable {
@@ -588,7 +596,10 @@ impl<
             Some(Transition(ix)) => {
                 let ix = *ix;
                 if self.transitions[ix].complicate() {
-                    if self.check_acceptable(Some(ix)) {
+                    if self.check_acceptable(
+                        Some(ix),
+                        self.last_valid_initial_state.clone(),
+                    ) {
                         self.acceptable_transitions[ix] =
                             (Accepted, self.transitions[ix].current());
                         // Don't unset prev_shrink; we may be able to complicate
@@ -606,7 +617,7 @@ impl<
             }
             Some(InitialState) => {
                 if self.initial_state.complicate()
-                    && self.check_acceptable(None)
+                    && self.check_acceptable(None, self.initial_state.current())
                 {
                     self.last_valid_initial_state =
                         self.initial_state.current();

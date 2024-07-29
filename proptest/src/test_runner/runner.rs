@@ -768,6 +768,8 @@ impl TestRunner {
         #[cfg(feature = "std")]
         let start_time = time::Instant::now();
 
+        verbose_message!(self, TRACE, "Starting shrinking");
+
         if case.simplify() {
             loop {
                 #[cfg(feature = "std")]
@@ -858,12 +860,24 @@ impl TestRunner {
                     // the function under test is acceptable.
                     Ok(_) | Err(TestCaseError::Reject(..)) => {
                         if !case.complicate() {
+                            verbose_message!(
+                                self,
+                                TRACE,
+                                "Cannot complicate further"
+                            );
+
                             break;
                         }
                     }
                     Err(TestCaseError::Fail(why)) => {
                         last_failure = Some(why);
                         if !case.simplify() {
+                            verbose_message!(
+                                self,
+                                TRACE,
+                                "Cannot simplify further"
+                            );
+
                             break;
                         }
                     }
