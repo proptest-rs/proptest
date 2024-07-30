@@ -1,8 +1,12 @@
 [book]
-authors = ["Jason Lingle", "Mazdak Farrokhzad"]
+authors = [
+  "Jason Lingle",
+  "Mazdak Farrokhzad",
+  "Matthew Russo"
+]
 src = "src"
 title = "Proptest"
-description = "Usage documentation for the proptest and proptest-derive crates"
+description = "Usage documentation for the family of proptest libraries: proptest, proptest-derive, proptest-macro, and proptest-state-machine"
 
 [output.html]
 curly-quotes = true
