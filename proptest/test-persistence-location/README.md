@@ -1,4 +1,4 @@
-This directory contains two independent cargo worspaces, one which is a
+This directory contains two independent cargo workspaces, one which is a
 traditional single-crate workspace and another which is a multi-crate workspace
 (with only one crate, but what matters is the directory layout).
 
