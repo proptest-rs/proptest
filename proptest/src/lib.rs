@@ -42,15 +42,6 @@ extern crate std;
 #[macro_use]
 extern crate alloc;
 
-#[cfg(feature = "frunk")]
-#[macro_use]
-extern crate frunk_core;
-
-#[cfg(feature = "frunk")]
-#[macro_use]
-mod product_frunk;
-
-#[cfg(not(feature = "frunk"))]
 #[macro_use]
 mod product_tuple;
 

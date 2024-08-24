@@ -165,18 +165,9 @@ impl From<RangeToInclusive<usize>> for SizeRange {
     }
 }
 
-#[cfg(feature = "frunk")]
-impl Generic for SizeRange {
-    type Repr = RangeInclusive<usize>;
-
-    /// Converts the `SizeRange` into `Range<usize>`.
-    fn into(self) -> Self::Repr {
-        self.0
-    }
-
-    /// Converts `RangeInclusive<usize>` into `SizeRange`.
-    fn from(r: Self::Repr) -> Self {
-        r.into()
+impl From<SizeRange> for Range<usize> {
+    fn from(size_range: SizeRange) -> Self {
+        size_range.0
     }
 }
 
