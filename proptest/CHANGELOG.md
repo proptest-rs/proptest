@@ -1,5 +1,9 @@
 ## Unreleased
 
+### New Features
+
+- When running persisted regressions, the most recently added regression is now run first.
+
 ## 1.5.0
 
 ### New Features

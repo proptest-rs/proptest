@@ -593,7 +593,9 @@ impl TestRunner {
 
         let mut result_cache = self.new_cache();
 
-        for PersistedSeed(persisted_seed) in persisted_failure_seeds {
+        for PersistedSeed(persisted_seed) in
+            persisted_failure_seeds.into_iter().rev()
+        {
             self.rng.set_seed(persisted_seed);
             self.gen_and_run_case(
                 strategy,
