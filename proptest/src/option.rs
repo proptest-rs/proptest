@@ -40,17 +40,6 @@ impl Default for Probability {
     }
 }
 
-impl From<f64> for Probability {
-    /// Creates a `Probability` from a `f64`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the probability is outside interval `[0.0, 1.0]`.
-    fn from(prob: f64) -> Self {
-        Probability::new(prob)
-    }
-}
-
 impl Probability {
     /// Creates a `Probability` from a `f64`.
     ///
@@ -81,25 +70,14 @@ impl Probability {
     }
 }
 
-#[cfg(feature = "frunk")]
-use frunk_core::generic::Generic;
-
-#[cfg(feature = "frunk")]
-impl Generic for Probability {
-    type Repr = f64;
-
-    /// Converts the `Probability` into an `f64`.
-    fn into(self) -> Self::Repr {
-        self.0
-    }
-
+impl From<f64> for Probability {
     /// Creates a `Probability` from a `f64`.
     ///
     /// # Panics
     ///
     /// Panics if the probability is outside interval `[0.0, 1.0]`.
-    fn from(r: Self::Repr) -> Self {
-        r.into()
+    fn from(prob: f64) -> Self {
+        Probability::new(prob)
     }
 }
 

@@ -8,9 +8,7 @@
 // except according to those terms.
 
 //! Defines macros for product type creation, extraction, and the type signature
-//! itself. This version uses tuples. This mechanism is used to be very
-//! loosely coupled with `frunk_core` so that only `lib.rs` has to be changed
-//! in the event that Rust gets tuple-variadic generics.
+//! itself. This version uses tuples. 
 
 macro_rules! product_type {
     ($factor: ty) => {
