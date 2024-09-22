@@ -177,12 +177,11 @@ struct Foo&lt;'a&gt; {
     bar: &amp;'a str,
 }
 <span class="boring">}</span></code></pre></pre>
-<p>Due to the lack of <em><a href="https://github.com/rust-lang/rust/issues/44265">generic associated types (GATs)</a></em> on stable Rust,
-it is currently impossible to define a <code>Strategy</code> which generates a type
-that is lifetime-generic (e.g. <code>&amp;'a T</code>). Thus, proptest cannot implement
-<code>Arbitrary</code> for such types either and therefore you cannot <code>#[derive(Arbitrary)]</code>
-for such types. Once GATs are available, we will try to lift this restriction.
-To follow the progress, consult the <a href="https://github.com/proptest-rs/proptest/issues/9">tracking issue</a> on the matter.</p>
+<p>It is not yet possible to define a <code>Strategy</code> which generates a type that is
+lifetime-generic (e.g. <code>&amp;'a T</code>). Thus, proptest cannot implement <code>Arbitrary</code> for
+such types either and therefore you cannot <code>#[derive(Arbitrary)]</code> for such types.
+GATs are available in stable rust as of 1.65 and we will be revisiting how to support
+this. To follow the progress, consult the <a href="https://github.com/proptest-rs/proptest/issues/9">tracking issue</a> on the matter.</p>
 <h2 id="e0002"><a class="header" href="#e0002">E0002</a></h2>
 <p>This error occurs when <code>#[derive(Arbitrary)]</code> is used on a <code>union</code> type.
 An example:</p>
