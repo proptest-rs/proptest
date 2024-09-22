@@ -16,15 +16,13 @@ struct Foo<'a> {
 }
 ```
 
-[gats]: https://github.com/rust-lang/rust/issues/44265
 [issue#9]: https://github.com/proptest-rs/proptest/issues/9
 
-Due to the lack of *[generic associated types (GATs)][gats]* on stable Rust,
-it is currently impossible to define a `Strategy` which generates a type
-that is lifetime-generic (e.g. `&'a T`). Thus, proptest cannot implement
-`Arbitrary` for such types either and therefore you cannot `#[derive(Arbitrary)]`
-for such types. Once GATs are available, we will try to lift this restriction.
-To follow the progress, consult the [tracking issue][issue#9] on the matter.
+It is not yet possible to define a `Strategy` which generates a type that is
+lifetime-generic (e.g. `&'a T`). Thus, proptest cannot implement `Arbitrary` for
+such types either and therefore you cannot `#[derive(Arbitrary)]` for such types.
+GATs are available in stable rust as of 1.65 and we will be revisiting how to support
+this. To follow the progress, consult the [tracking issue][issue#9] on the matter.
 
 ## E0002
 
