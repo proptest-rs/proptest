@@ -83,7 +83,7 @@ fn step_to_char(step: &TestCaseResult) -> char {
     match *step {
         Ok(_) => '+',
         Err(TestCaseError::Reject(_)) => '!',
-        Err(TestCaseError::Fail(_)) => '-',
+        Err(TestCaseError::Fail(_, _)) => '-',
     }
 }
 

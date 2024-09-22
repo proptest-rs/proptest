@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018, 2019 The proptest developers
+// Copyright 2017, 2018, 2019, 2024 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -34,6 +34,8 @@ use crate::test_runner::reason::*;
 use crate::test_runner::replay;
 use crate::test_runner::result_cache::*;
 use crate::test_runner::rng::TestRng;
+
+use super::Backtrace;
 
 #[cfg(feature = "fork")]
 const ENV_FORK_FILE: &'static str = "_PROPTEST_FORKFILE";
@@ -210,6 +212,128 @@ where
     })
 }
 
+#[cfg(feature = "handle-panics")]
+mod panicky {
+    //! Implementation of scoped panic hooks
+    //!
+    //! 1. `with_hook` serves as entry point, it executes body closure with panic hook closure
+    //!     installed as scoped panic hook
+    //! 2. Upon first execution, current panic hook is replaced with `scoped_hook_dispatcher`
+    //!     in a thread-safe manner, and original hook is stored for later use
+    //! 3. When panic occurs, `scoped_hook_dispatcher` either delegates execution to scoped
+    //!     panic hook, if one is installed, or back to original hook stored earlier.
+    //!     This preserves original behavior when scoped hook isn't used
+    //! 4. When `with_hook` is used, it replaces stored scoped hook pointer with pointer to
+    //!     hook closure passed as parameter. Old hook pointer is set to be restored unconditionally
+    //!     via drop guard. Then, normal body closure is executed.
+    use std::boxed::Box;
+    use std::cell::Cell;
+    use std::panic::{set_hook, take_hook, PanicInfo};
+    use std::sync::Once;
+    use std::{mem, ptr};
+
+    thread_local! {
+        /// Pointer to currently installed scoped panic hook, if any
+        ///
+        /// NB: pointers to arbitrary fn's are fat, and Rust doesn't allow crafting null pointers
+        /// to fat objects. So we just store const pointer to tuple with whatever data we need
+        static SCOPED_HOOK_PTR: Cell<*const (*mut dyn FnMut(&PanicInfo<'_>),)> = Cell::new(ptr::null());
+    }
+
+    static INIT_ONCE: Once = Once::new();
+    /// Default panic hook, the one which was present before installing scoped one
+    ///
+    /// NB: no need for external sync, value is mutated only once, when init is performed
+    static mut DEFAULT_HOOK: Option<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>> =
+        None;
+    /// Replaces currently installed panic hook with `scoped_hook_dispatcher` once,
+    /// in a thread-safe manner
+    fn init() {
+        INIT_ONCE.call_once(|| {
+            let old_handler = take_hook();
+            set_hook(Box::new(scoped_hook_dispatcher));
+            unsafe {
+                DEFAULT_HOOK = Some(old_handler);
+            }
+        });
+    }
+    /// Panic hook which delegates execution to scoped hook,
+    /// if one installed, or to default hook
+    fn scoped_hook_dispatcher(info: &PanicInfo<'_>) {
+        let handler = SCOPED_HOOK_PTR.get();
+        if !handler.is_null() {
+            // It's assumed that if container's ptr is not null, ptr to `FnMut` is non-null too.
+            // Correctness **must** be ensured by hook switch code in `with_hook`
+            let hook = unsafe { &mut *(*handler).0 };
+            (hook)(info);
+            return;
+        }
+
+        if let Some(hook) = unsafe { DEFAULT_HOOK.as_ref() } {
+            (hook)(info);
+        }
+    }
+    /// Executes stored closure when dropped
+    struct Finally<F: FnOnce()>(Option<F>);
+
+    impl<F: FnOnce()> Finally<F> {
+        fn new(body: F) -> Self {
+            Self(Some(body))
+        }
+    }
+
+    impl<F: FnOnce()> Drop for Finally<F> {
+        fn drop(&mut self) {
+            if let Some(body) = self.0.take() {
+                body();
+            }
+        }
+    }
+    /// Executes main closure `body` while installing `guard` as scoped panic hook,
+    /// for execution duration.
+    ///
+    /// Any panics which happen during execution of `body` are passed to `guard` hook
+    /// to collect any info necessary, although unwind process is **NOT** interrupted.
+    /// See module documentation for details
+    ///
+    /// # Parameters
+    /// * `panic_hook` - scoped panic hook, functions for the duration of `body` execution
+    /// * `body` - actual logic covered by `panic_hook`
+    ///
+    /// # Returns
+    /// `body`'s return value
+    pub fn with_hook<R>(
+        mut panic_hook: impl FnMut(&PanicInfo<'_>),
+        body: impl FnOnce() -> R,
+    ) -> R {
+        init();
+        // Construct scoped hook pointer
+        let guard_tuple = (unsafe {
+            // `mem::transmute` is needed due to borrow checker restrictions to erase all lifetimes
+            mem::transmute(&mut panic_hook as *mut dyn FnMut(&PanicInfo<'_>))
+        },);
+        let old_tuple = SCOPED_HOOK_PTR.replace(&guard_tuple);
+        // Old scoped hook **must** be restored before leaving function scope to keep it sound
+        let _undo = Finally::new(|| {
+            SCOPED_HOOK_PTR.set(old_tuple);
+        });
+        body()
+    }
+}
+
+#[cfg(not(feature = "handle-panics"))]
+mod panicky {
+    use std::panic::PanicInfo;
+    /// Simply executes `body` and returns its execution result.
+    /// Hook parameter is ignored
+    pub fn with_hook<R>(
+        _: impl FnMut(&PanicInfo<'_>),
+        body: impl FnOnce() -> R,
+    ) -> R {
+        body()
+    }
+}
+
 #[cfg(feature = "std")]
 fn call_test<V, F, R>(
     runner: &mut TestRunner,
@@ -225,6 +349,7 @@ where
     F: Fn(V) -> TestCaseResult,
     R: Iterator<Item = TestCaseResult>,
 {
+    use core::mem;
     use std::time;
 
     let timeout = runner.config.timeout();
@@ -252,13 +377,21 @@ where
 
     let time_start = time::Instant::now();
 
+    let mut bt = Backtrace::empty();
     let mut result = unwrap_or!(
-        panic::catch_unwind(AssertUnwindSafe(|| test(case))),
-        what => Err(TestCaseError::Fail(
-            what.downcast::<&'static str>().map(|s| (*s).into())
+        panicky::with_hook(
+            |_| { bt = Backtrace::capture(); },
+            || panic::catch_unwind(AssertUnwindSafe(|| test(case)))
+        ),
+        what => {
+            let what = what.downcast::<&'static str>().map(|s| (*s).into())
                 .or_else(|what| what.downcast::<String>().map(|b| (*b).into()))
                 .or_else(|what| what.downcast::<Box<str>>().map(|b| (*b).into()))
-                .unwrap_or_else(|_| "<unknown panic value>".into()))));
+                .unwrap_or_else(|_| "<unknown panic value>".into());
+
+            Err(TestCaseError::Fail(what, mem::take(&mut bt)))
+        }
+    );
 
     // If there is a timeout and we exceeded it, fail the test here so we get
     // consistent behaviour. (The parent process cannot precisely time the test
@@ -284,8 +417,14 @@ where
         Err(TestCaseError::Reject(ref reason)) => {
             verbose_message!(runner, INFO_LOG, "Test case rejected: {}", reason)
         }
-        Err(TestCaseError::Fail(ref reason)) => {
-            verbose_message!(runner, INFO_LOG, "Test case failed: {}", reason)
+        Err(TestCaseError::Fail(ref reason, ref bt)) => {
+            verbose_message!(
+                runner,
+                INFO_LOG,
+                "Test case failed: {}\n{}",
+                reason,
+                bt
+            )
         }
     }
 
@@ -620,7 +759,7 @@ impl TestRunner {
                 &mut fork_output,
                 false,
             );
-            if let Err(TestError::Fail(_, ref value)) = result {
+            if let Err(TestError::Fail(_, _, ref value)) = result {
                 if let Some(ref mut failure_persistence) =
                     self.config.failure_persistence
                 {
@@ -733,8 +872,8 @@ impl TestRunner {
 
         match result {
             Ok(success_type) => Ok(success_type),
-            Err(TestCaseError::Fail(why)) => {
-                let why = self
+            Err(TestCaseError::Fail(why, bt)) => {
+                let (why, bt) = self
                     .shrink(
                         &mut case,
                         test,
@@ -743,8 +882,8 @@ impl TestRunner {
                         fork_output,
                         is_from_persisted_seed,
                     )
-                    .unwrap_or(why);
-                Err(TestError::Fail(why, case.current()))
+                    .unwrap_or((why, bt));
+                Err(TestError::Fail(why, bt, case.current()))
             }
             Err(TestCaseError::Reject(whence)) => {
                 self.reject_global(whence)?;
@@ -761,7 +900,7 @@ impl TestRunner {
         result_cache: &mut dyn ResultCache,
         fork_output: &mut ForkOutput,
         is_from_persisted_seed: bool,
-    ) -> Option<Reason> {
+    ) -> Option<(Reason, Backtrace)> {
         #[cfg(feature = "std")]
         use std::time;
 
@@ -871,8 +1010,8 @@ impl TestRunner {
                             break;
                         }
                     }
-                    Err(TestCaseError::Fail(why)) => {
-                        last_failure = Some(why);
+                    Err(TestCaseError::Fail(why, bt)) => {
+                        last_failure = Some((why, bt));
                         if !case.simplify() {
                             verbose_message!(
                                 self,
@@ -1108,7 +1247,14 @@ mod test {
             }
         });
 
-        assert_eq!(Err(TestError::Fail("not less than 5".into(), 5)), result);
+        assert_eq!(
+            Err(TestError::Fail(
+                "not less than 5".into(),
+                Backtrace::empty(),
+                5
+            )),
+            result
+        );
     }
 
     #[test]
@@ -1121,7 +1267,14 @@ mod test {
             assert!(v < 5, "not less than 5");
             Ok(())
         });
-        assert_eq!(Err(TestError::Fail("not less than 5".into(), 5)), result);
+        assert_eq!(
+            Err(TestError::Fail(
+                "not less than 5".into(),
+                Backtrace::empty(),
+                5
+            )),
+            result
+        );
     }
 
     #[test]
@@ -1141,7 +1294,7 @@ mod test {
         {
             TestRunner::new(config.clone())
                 .run(&(0i32..max), |_v| {
-                    Err(TestCaseError::Fail("persist a failure".into()))
+                    Err(TestCaseError::fail("persist a failure"))
                 })
                 .expect_err("didn't fail?");
         }
@@ -1190,7 +1343,7 @@ mod test {
                     if v.0 < max / 2 {
                         Ok(())
                     } else {
-                        Err(TestCaseError::Fail("too big".into()))
+                        Err(TestCaseError::fail("too big"))
                     }
                 })
                 .expect_err("didn't fail?")
@@ -1201,7 +1354,7 @@ mod test {
                     if v.0 >= max / 2 {
                         Ok(())
                     } else {
-                        Err(TestCaseError::Fail("too small".into()))
+                        Err(TestCaseError::fail("too small"))
                     }
                 })
                 .expect_err("didn't fail?")
@@ -1212,7 +1365,7 @@ mod test {
                     if v.0 < max / 2 {
                         Ok(())
                     } else {
-                        Err(TestCaseError::Fail("too big".into()))
+                        Err(TestCaseError::fail("too big"))
                     }
                 })
                 .expect_err("didn't fail?")
@@ -1223,7 +1376,7 @@ mod test {
                     if v.0 >= max / 2 {
                         Ok(())
                     } else {
-                        Err(TestCaseError::Fail("too small".into()))
+                        Err(TestCaseError::fail("too small"))
                     }
                 })
                 .expect_err("didn't fail?")
@@ -1302,7 +1455,7 @@ mod test {
             .unwrap();
 
         match failure {
-            TestError::Fail(_, value) => assert_eq!(500, value),
+            TestError::Fail(_, _, value) => assert_eq!(500, value),
             failure => panic!("Unexpected failure: {:?}", failure),
         }
     }
@@ -1330,7 +1483,7 @@ mod test {
             .unwrap();
 
         match failure {
-            TestError::Fail(_, value) => assert_eq!(500, value),
+            TestError::Fail(_, _, value) => assert_eq!(500, value),
             failure => panic!("Unexpected failure: {:?}", failure),
         }
     }
@@ -1358,7 +1511,7 @@ mod test {
             .unwrap();
 
         match failure {
-            TestError::Fail(_, value) => assert_eq!(500, value),
+            TestError::Fail(_, _, value) => assert_eq!(500, value),
             failure => panic!("Unexpected failure: {:?}", failure),
         }
     }
@@ -1389,7 +1542,7 @@ mod test {
             .unwrap();
 
         match failure {
-            TestError::Fail(_, value) => assert_eq!(500, value),
+            TestError::Fail(_, _, value) => assert_eq!(500, value),
             failure => panic!("Unexpected failure: {:?}", failure),
         }
     }
@@ -1430,7 +1583,7 @@ mod test {
             .unwrap();
 
         match failure {
-            TestError::Fail(_, value) => assert_eq!(500, value),
+            TestError::Fail(_, _, value) => assert_eq!(500, value),
             failure => panic!("Unexpected failure: {:?}", failure),
         }
     }
@@ -1463,7 +1616,7 @@ mod test {
                 });
 
             assert!(pass.get());
-            if let Err(TestError::Fail(_, val)) = result {
+            if let Err(TestError::Fail(_, _, val)) = result {
                 assert_eq!(6, val);
             } else {
                 panic!("Incorrect result: {:?}", result);
@@ -1540,7 +1693,7 @@ mod timeout_tests {
             Ok(())
         });
 
-        if let Err(TestError::Fail(_, value)) = result {
+        if let Err(TestError::Fail(_, _, value)) = result {
             // Ensure the final value was in fact a failing case.
             assert!(value > u32::MAX as u64);
         } else {

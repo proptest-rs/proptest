@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018 The proptest developers
+// Copyright 2017, 2018, 2024 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -13,6 +13,8 @@ use crate::std_facade::fmt;
 use std::string::ToString;
 
 use crate::test_runner::Reason;
+
+use super::Backtrace;
 
 /// Errors which can be returned from test cases to indicate non-successful
 /// completion.
@@ -30,7 +32,7 @@ pub enum TestCaseError {
     /// a new input and try again.
     Reject(Reason),
     /// The code under test failed the test.
-    Fail(Reason),
+    Fail(Reason, Backtrace),
 }
 
 /// Indicates the type of test that ran successfully.
@@ -76,7 +78,7 @@ impl TestCaseError {
     /// The string should indicate the location of the failure, but may
     /// generally be any string.
     pub fn fail(reason: impl Into<Reason>) -> Self {
-        TestCaseError::Fail(reason.into())
+        TestCaseError::Fail(reason.into(), Backtrace::empty())
     }
 }
 
@@ -86,7 +88,13 @@ impl fmt::Display for TestCaseError {
             TestCaseError::Reject(ref whence) => {
                 write!(f, "Input rejected at {}", whence)
             }
-            TestCaseError::Fail(ref why) => write!(f, "Case failed: {}", why),
+            TestCaseError::Fail(ref why, ref bt) => {
+                if bt.is_empty() {
+                    write!(f, "Case failed: {why}")
+                } else {
+                    write!(f, "Case failed: {why}\n{bt}")
+                }
+            }
         }
     }
 }
@@ -99,7 +107,7 @@ impl<E: ::std::error::Error> From<E> for TestCaseError {
 }
 
 /// A failure state from running test cases for a single test.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum TestError<T> {
     /// The test was aborted for the given reason, for example, due to too many
     /// inputs having been rejected.
@@ -107,16 +115,41 @@ pub enum TestError<T> {
     /// A failing test case was found. The string indicates where and/or why
     /// the test failed. The `T` is the minimal input found to reproduce the
     /// failure.
-    Fail(Reason, T),
+    Fail(Reason, Backtrace, T),
 }
+
+impl<T: PartialEq> PartialEq for TestError<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Abort(l0), Self::Abort(r0)) => l0 == r0,
+            (Self::Fail(l0, _, l2), Self::Fail(r0, _, r2)) => {
+                l0 == r0 && l2 == r2
+            }
+            (TestError::Abort(_), TestError::Fail(_, _, _))
+            | (TestError::Fail(_, _, _), TestError::Abort(_)) => false,
+        }
+    }
+}
+
+impl<T: Eq> Eq for TestError<T> {}
 
 impl<T: fmt::Debug> fmt::Display for TestError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             TestError::Abort(ref why) => write!(f, "Test aborted: {}", why),
-            TestError::Fail(ref why, ref what) => {
+            TestError::Fail(ref why, ref bt, ref what) => {
                 writeln!(f, "Test failed: {}.", why)?;
-                write!(f, "minimal failing input: {:#?}", what)
+
+                if !bt.is_empty() {
+                    writeln!(f, "\nstack backtrace:\n{bt}")?;
+                    // No need for extra newline, backtrace seems to print it anyway
+                } else {
+                    // Extra empty line between failure description and minimal failing input
+                    writeln!(f)?;
+                }
+
+                writeln!(f, "minimal failing input: {:#?}", what)?;
+                Ok(())
             }
         }
     }

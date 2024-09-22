@@ -705,7 +705,7 @@ mod test {
 
             match result {
                 Ok(true) => num_successes += 1,
-                Err(TestError::Fail(_, value)) => {
+                Err(TestError::Fail(_, _, value)) => {
                     // The minimal case always has between 5 (due to min
                     // length) and 9 (min element value = 1) elements, and
                     // always sums to exactly 9.
