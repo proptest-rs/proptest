@@ -261,7 +261,7 @@ impl<S: Strategy, R: Strategy, F: Fn(S::Value) -> R> Strategy
 mod test {
     use super::*;
 
-    use std::u32;
+    use std::u64;
 
     use crate::strategy::just::Just;
     use crate::test_runner::Config;
@@ -276,7 +276,7 @@ mod test {
         let mut failures = 0;
         let mut runner = TestRunner::new_with_rng(
             Config {
-                max_shrink_iters: u32::MAX - 1,
+                max_shrink_iters: u64::MAX - 1,
                 ..Config::default()
             },
             TestRng::deterministic_rng(RngAlgorithm::default()),
