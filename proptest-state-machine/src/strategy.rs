@@ -102,13 +102,13 @@ pub trait ReferenceStateMachine {
         BoxedStrategy<Self::State>,
         BoxedStrategy<Self::Transition>,
     > {
-        Sequential {
-            size: size.into(),
-            init_state: Self::init_state,
-            preconditions: Self::preconditions,
-            transitions: Self::transitions,
-            next: Self::apply,
-        }
+        Sequential::new(
+            size.into(),
+            Self::init_state,
+            Self::preconditions,
+            Self::transitions,
+            Self::apply,
+        )
     }
 }
 
@@ -144,6 +144,26 @@ pub struct Sequential<State, Transition, StateStrategy, TransitionStrategy> {
     preconditions: fn(state: &State, transition: &Transition) -> bool,
     transitions: fn(state: &State) -> TransitionStrategy,
     next: fn(state: State, transition: &Transition) -> State,
+}
+
+impl<State, Transition, StateStrategy, TransitionStrategy>
+    Sequential<State, Transition, StateStrategy, TransitionStrategy>
+{
+    pub fn new(
+        size: SizeRange,
+        init_state: fn() -> StateStrategy,
+        preconditions: fn(state: &State, transition: &Transition) -> bool,
+        transitions: fn(state: &State) -> TransitionStrategy,
+        next: fn(state: State, transition: &Transition) -> State,
+    ) -> Self {
+        Self {
+            size,
+            init_state,
+            preconditions,
+            transitions,
+            next,
+        }
+    }
 }
 
 impl<State, Transition, StateStrategy, TransitionStrategy> Debug
