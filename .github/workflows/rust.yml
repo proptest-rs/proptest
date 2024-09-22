@@ -3,7 +3,7 @@ name: Rust
 on:
   push:
   pull_request:
-    branches: [master]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
