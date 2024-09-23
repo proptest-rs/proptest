@@ -17,8 +17,11 @@ use crate::num;
 use crate::strategy::statics::{self, static_map};
 
 arbitrary!(Duration, SMapped<(u64, u32), Self>;
-    static_map(any::<(u64, u32)>(), |(a, b)| Duration::new(a, b))
-);
+    static_map(any::<(u64, u32)>(), |(a, b)|
+    // Duration::new panics if nanoseconds are over one billion (one second)
+    // and overflowing into the seconds would overflow the second counter.
+    Duration::new(a, b % 1_000_000_000)
+));
 
 // Instant::now() "never" returns the same Instant, so no shrinking may occur!
 arbitrary!(Instant; Self::now());
