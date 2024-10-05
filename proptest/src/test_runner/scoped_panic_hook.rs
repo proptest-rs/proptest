@@ -1,5 +1,5 @@
 #[cfg(feature = "handle-panics")]
-mod panicky {
+mod internal {
     //! Implementation of scoped panic hooks
     //!
     //! 1. `with_hook` serves as entry point, it executes body closure with panic hook closure
@@ -108,7 +108,7 @@ mod panicky {
 }
 
 #[cfg(not(feature = "handle-panics"))]
-mod panicky {
+mod internal {
     use std::panic::PanicInfo;
     /// Simply executes `body` and returns its execution result.
     /// Hook parameter is ignored
@@ -120,4 +120,4 @@ mod panicky {
     }
 }
 
-pub use panicky::with_hook;
+pub use internal::with_hook;
