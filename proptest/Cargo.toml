@@ -59,6 +59,10 @@ atomic64bit = []
 
 bit-set = [ "dep:bit-set", "dep:bit-vec" ]
 
+# Enables proper handling of panics
+# In particular, hides all intermediate panics flowing into stderr during shrink phase
+handle-panics = ["std"]
+
 [dependencies]
 bitflags = "2"
 unarray = "0.1.4"
