@@ -225,7 +225,14 @@ where
     F: Fn(V) -> TestCaseResult,
     R: Iterator<Item = TestCaseResult>,
 {
-    use std::time;
+    use std::{borrow::Cow, time};
+
+    fn panic_message(p: Box<dyn core::any::Any + Send>) -> Cow<'static, str> {
+        p.downcast::<&'static str>().map(|s| (*s).into())
+            .or_else(|what| what.downcast::<String>().map(|b| (*b).into()))
+            .or_else(|what| what.downcast::<Box<str>>().map(|b| String::from(*b).into()))
+            .unwrap_or_else(|_| "<unknown panic value>".into())
+    }
 
     let timeout = runner.config.timeout();
 
@@ -252,16 +259,14 @@ where
 
     let time_start = time::Instant::now();
 
+    let mut bt = super::backtrace::Backtrace::empty();
     let mut result = unwrap_or!(
         super::scoped_panic_hook::with_hook(
-            |_| { /* Silence out panic backtrace */ },
+            |_| { bt = super::backtrace::Backtrace::capture(); },
             || panic::catch_unwind(AssertUnwindSafe(|| test(case)))
         ),
-        what => Err(TestCaseError::Fail(
-            what.downcast::<&'static str>().map(|s| (*s).into())
-                .or_else(|what| what.downcast::<String>().map(|b| (*b).into()))
-                .or_else(|what| what.downcast::<Box<str>>().map(|b| (*b).into()))
-                .unwrap_or_else(|_| "<unknown panic value>".into()))));
+        what => Err(TestCaseError::Fail((panic_message(what), bt).into()))
+    );
 
     // If there is a timeout and we exceeded it, fail the test here so we get
     // consistent behaviour. (The parent process cannot precisely time the test

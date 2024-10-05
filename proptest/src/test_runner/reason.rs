@@ -7,8 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::std_facade::{fmt, Box, Cow, String};
 use super::backtrace::Backtrace;
+use crate::std_facade::{fmt, Box, Cow, String};
 
 /// The reason for why something, such as a generated value, was rejected.
 ///
@@ -23,23 +23,23 @@ pub struct Reason(Cow<'static, str>, Backtrace);
 
 impl Reason {
     /// Creates reason from provided message
-    /// 
+    ///
     /// # Parameters
     /// * `message` - anything convertible to message
-    /// 
+    ///
     /// # Returns
     /// Reason object
     pub fn new(message: impl Into<Cow<'static, str>>) -> Self {
         Self(message.into(), Backtrace::empty())
     }
     /// Creates reason from provided message and captures backtrace at callsite
-    /// 
+    ///
     /// NOTE: Backtrace is actually captured only if `backtrace` feature is enabled,
     /// otherwise it'll be empty
-    /// 
+    ///
     /// # Parameters
     /// * `message` - anything convertible to message
-    /// 
+    ///
     /// # Returns
     /// Reason object with provided message and captured backtrace
     #[inline(always)]
@@ -92,6 +92,12 @@ impl From<(&'static str, Backtrace)> for Reason {
     }
 }
 
+impl From<(Cow<'static, str>, Backtrace)> for Reason {
+    fn from((msg, bt): (Cow<'static, str>, Backtrace)) -> Self {
+        Self(msg, bt)
+    }
+}
+
 impl From<(String, Backtrace)> for Reason {
     fn from((s, b): (String, Backtrace)) -> Self {
         Self(s.into(), b)
@@ -124,7 +130,10 @@ impl From<Box<str>> for Reason {
 
 impl fmt::Debug for Reason {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_tuple("Reason").field(&self.0).field(&"Backtrace(...)").finish()
+        f.debug_tuple("Reason")
+            .field(&self.0)
+            .field(&"Backtrace(...)")
+            .finish()
     }
 }
 
