@@ -63,6 +63,11 @@ bit-set = [ "dep:bit-set", "dep:bit-vec" ]
 # In particular, hides all intermediate panics flowing into stderr during shrink phase
 handle-panics = ["std"]
 
+# Enables gathering of failure backtraces
+# * when test failure is reported via `prop_assert_*` macro
+# * when normal assertion fails or panic fires, if `handle-panics` feature is enabled too
+backtrace = ["std"]
+
 [dependencies]
 bitflags = "2"
 unarray = "0.1.4"
