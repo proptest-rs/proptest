@@ -3,6 +3,7 @@
 ### New Features
 
 - When running persisted regressions, the most recently added regression is now run first.
+- Added `handle-panics` feature which enables catching panics raised in tests and turning them into failures
 
 ## 1.5.0
 
