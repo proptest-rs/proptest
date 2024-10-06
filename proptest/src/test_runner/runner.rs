@@ -7,7 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::std_facade::{Arc, BTreeMap, Box, String, Vec};
+use crate::std_facade::{Arc, BTreeMap, Box, Vec};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 use core::{fmt, iter};
@@ -225,14 +225,7 @@ where
     F: Fn(V) -> TestCaseResult,
     R: Iterator<Item = TestCaseResult>,
 {
-    use std::{borrow::Cow, time};
-
-    fn panic_message(p: Box<dyn core::any::Any + Send>) -> Cow<'static, str> {
-        p.downcast::<&'static str>().map(|s| (*s).into())
-            .or_else(|what| what.downcast::<String>().map(|b| (*b).into()))
-            .or_else(|what| what.downcast::<Box<str>>().map(|b| String::from(*b).into()))
-            .unwrap_or_else(|_| "<unknown panic value>".into())
-    }
+    use std::time;
 
     let timeout = runner.config.timeout();
 
@@ -259,13 +252,15 @@ where
 
     let time_start = time::Instant::now();
 
-    let mut bt = super::backtrace::Backtrace::empty();
+    let mut reason = None;
     let mut result = unwrap_or!(
         super::scoped_panic_hook::with_hook(
-            |_| { bt = super::backtrace::Backtrace::capture(); },
+            |panic_info| { reason = Some(panic_info.into()); },
             || panic::catch_unwind(AssertUnwindSafe(|| test(case)))
         ),
-        what => Err(TestCaseError::Fail((panic_message(what), bt).into()))
+        _panic => Err(TestCaseError::Fail(reason.expect(
+            "Reaon should have been obtained from panic hook"
+        )))
     );
 
     // If there is a timeout and we exceeded it, fail the test here so we get
