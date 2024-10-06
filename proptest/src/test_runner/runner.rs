@@ -772,7 +772,7 @@ impl TestRunner {
                 INFO_LOG,
                 "Shrinking disabled by configuration"
             );
-            return None
+            return None;
         }
 
         #[cfg(feature = "std")]

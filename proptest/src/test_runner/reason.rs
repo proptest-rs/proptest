@@ -35,10 +35,10 @@ impl Reason {
         Self(message.into(), Backtrace::empty())
     }
     /// Creates reason from provided message, adding location info as its part
-    /// 
+    ///
     /// # Parameters
     /// * `message` - anything convertible to shared or owned string
-    /// 
+    ///
     /// # Returns
     /// Reason object
     #[track_caller]
@@ -60,7 +60,9 @@ impl Reason {
     /// Reason object with provided message, augmented with location info, and captured backtrace
     #[inline(always)]
     #[track_caller]
-    pub fn with_location_and_backtrace(message: impl Into<Cow<'static, str>>) -> Self {
+    pub fn with_location_and_backtrace(
+        message: impl Into<Cow<'static, str>>,
+    ) -> Self {
         Self(Self::with_location(message).0, Backtrace::capture())
     }
     /// Return the message for this `Reason`.
@@ -132,10 +134,13 @@ impl<'a, 'b> From<&'b std::panic::PanicInfo<'a>> for Reason {
     #[inline(always)]
     fn from(value: &'b std::panic::PanicInfo<'a>) -> Self {
         let payload = value.payload();
-        let message: String = payload.downcast_ref::<&'static str>()
+        let message: String = payload
+            .downcast_ref::<&'static str>()
             .map(|s| s.to_string())
             .or_else(|| payload.downcast_ref::<String>().map(|s| s.clone()))
-            .or_else(|| payload.downcast_ref::<Box<str>>().map(|s| s.to_string()))
+            .or_else(|| {
+                payload.downcast_ref::<Box<str>>().map(|s| s.to_string())
+            })
             .unwrap_or_else(|| "<unknown panic value>".to_string());
 
         let message = if let Some(loc) = value.location() {

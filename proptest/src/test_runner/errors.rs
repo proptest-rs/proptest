@@ -86,7 +86,9 @@ impl fmt::Display for TestCaseError {
             TestCaseError::Reject(ref whence) => {
                 write!(f, "Input rejected at {}", whence)
             }
-            TestCaseError::Fail(ref why) => write!(f, "Case failed: {}", why.display_detailed()),
+            TestCaseError::Fail(ref why) => {
+                write!(f, "Case failed: {}", why.display_detailed())
+            }
         }
     }
 }

@@ -12,6 +12,7 @@
 //! You do not normally need to access things in this module directly except
 //! when implementing new low-level strategies.
 
+mod backtrace;
 mod config;
 mod errors;
 mod failure_persistence;
@@ -22,7 +23,6 @@ mod result_cache;
 mod rng;
 mod runner;
 mod scoped_panic_hook;
-mod backtrace;
 
 pub use self::config::*;
 pub use self::errors::*;
