@@ -751,11 +751,9 @@ macro_rules! prop_assert {
 
     ($cond:expr, $($fmt:tt)*) => {
         if !$cond {
-            let message = format!($($fmt)*);
-            let message = format!("{} at {}:{}", message, file!(), line!());
             return ::core::result::Result::Err(
                 $crate::test_runner::TestCaseError::fail(
-                    $crate::test_runner::Reason::with_backtrace(message)
+                    $crate::test_runner::Reason::with_location_and_backtrace(format!($($fmt)*))
                 )
             );
         }
