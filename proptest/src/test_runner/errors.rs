@@ -86,7 +86,7 @@ impl fmt::Display for TestCaseError {
             TestCaseError::Reject(ref whence) => {
                 write!(f, "Input rejected at {}", whence)
             }
-            TestCaseError::Fail(ref why) => write!(f, "Case failed: {}", why),
+            TestCaseError::Fail(ref why) => write!(f, "Case failed: {}", why.display_detailed()),
         }
     }
 }
@@ -115,7 +115,7 @@ impl<T: fmt::Debug> fmt::Display for TestError<T> {
         match *self {
             TestError::Abort(ref why) => write!(f, "Test aborted: {}", why),
             TestError::Fail(ref why, ref what) => {
-                writeln!(f, "Test failed: {}.", why)?;
+                writeln!(f, "Test failed: {}", why.display_detailed())?;
                 write!(f, "minimal failing input: {:#?}", what)
             }
         }
