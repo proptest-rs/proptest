@@ -151,7 +151,7 @@ impl<'a> fmt::Display for DisplayReason<'a> {
         if bt.is_empty() {
             write!(f, "{msg}")
         } else {
-            write!(f, "{msg}\n{bt}")
+            write!(f, "{msg}\nstack backtrace:\n{bt}")
         }
     }
 }
