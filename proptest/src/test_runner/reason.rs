@@ -7,6 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::string::ToString;
+
 use super::backtrace::Backtrace;
 use crate::std_facade::{fmt, Box, Cow, String};
 
@@ -25,26 +27,41 @@ impl Reason {
     /// Creates reason from provided message
     ///
     /// # Parameters
-    /// * `message` - anything convertible to message
+    /// * `message` - anything convertible to shared or owned string
     ///
     /// # Returns
     /// Reason object
     pub fn new(message: impl Into<Cow<'static, str>>) -> Self {
         Self(message.into(), Backtrace::empty())
     }
-    /// Creates reason from provided message and captures backtrace at callsite
+    /// Creates reason from provided message, adding location info as its part
+    /// 
+    /// # Parameters
+    /// * `message` - anything convertible to shared or owned string
+    /// 
+    /// # Returns
+    /// Reason object
+    #[track_caller]
+    pub fn with_location(message: impl Into<Cow<'static, str>>) -> Self {
+        let message: Cow<'static, str> = message.into();
+        let loc = core::panic::Location::caller();
+        Self(format!("{message} at {loc}").into(), Backtrace::empty())
+    }
+    /// Creates reason from provided message, adding location info as its part,
+    /// and captures backtrace at callsite
     ///
     /// NOTE: Backtrace is actually captured only if `backtrace` feature is enabled,
     /// otherwise it'll be empty
     ///
     /// # Parameters
-    /// * `message` - anything convertible to message
+    /// * `message` - anything convertible to shared or owned string
     ///
     /// # Returns
-    /// Reason object with provided message and captured backtrace
+    /// Reason object with provided message, augmented with location info, and captured backtrace
     #[inline(always)]
-    pub fn with_backtrace(message: impl Into<Cow<'static, str>>) -> Self {
-        Self(message.into(), Backtrace::capture())
+    #[track_caller]
+    pub fn with_location_and_backtrace(message: impl Into<Cow<'static, str>>) -> Self {
+        Self(Self::with_location(message).0, Backtrace::capture())
     }
     /// Return the message for this `Reason`.
     ///
@@ -86,45 +103,48 @@ impl core::hash::Hash for Reason {
     }
 }
 
-impl From<(&'static str, Backtrace)> for Reason {
-    fn from((s, b): (&'static str, Backtrace)) -> Self {
-        Self(s.into(), b)
-    }
-}
-
 impl From<(Cow<'static, str>, Backtrace)> for Reason {
     fn from((msg, bt): (Cow<'static, str>, Backtrace)) -> Self {
         Self(msg, bt)
     }
 }
 
-impl From<(String, Backtrace)> for Reason {
-    fn from((s, b): (String, Backtrace)) -> Self {
-        Self(s.into(), b)
-    }
-}
-
-impl From<(Box<str>, Backtrace)> for Reason {
-    fn from((s, b): (Box<str>, Backtrace)) -> Self {
-        Self(String::from(s).into(), b)
-    }
-}
-
 impl From<&'static str> for Reason {
     fn from(s: &'static str) -> Self {
-        (s, Backtrace::empty()).into()
+        Self(s.into(), Backtrace::empty())
     }
 }
 
 impl From<String> for Reason {
     fn from(s: String) -> Self {
-        (s, Backtrace::empty()).into()
+        Self(s.into(), Backtrace::empty())
     }
 }
 
 impl From<Box<str>> for Reason {
     fn from(s: Box<str>) -> Self {
-        (s, Backtrace::empty()).into()
+        Self(String::from(s).into(), Backtrace::empty())
+    }
+}
+
+#[cfg(feature = "std")]
+impl<'a, 'b> From<&'b std::panic::PanicInfo<'a>> for Reason {
+    #[inline(always)]
+    fn from(value: &'b std::panic::PanicInfo<'a>) -> Self {
+        let payload = value.payload();
+        let message: String = payload.downcast_ref::<&'static str>()
+            .map(|s| s.to_string())
+            .or_else(|| payload.downcast_ref::<String>().map(|s| s.clone()))
+            .or_else(|| payload.downcast_ref::<Box<str>>().map(|s| s.to_string()))
+            .unwrap_or_else(|| "<unknown panic value>".to_string());
+
+        let message = if let Some(loc) = value.location() {
+            format!("{message} at {loc}")
+        } else {
+            message
+        };
+
+        Self(message.into(), Backtrace::capture())
     }
 }
 
