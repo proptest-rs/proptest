@@ -195,7 +195,7 @@ fn append_location<'a>(
         }
         // Message is multiline and doesn't end with '\n'
         Some(_) => format!("{message}\nat {loc}"),
-        // MEssage is not multiline
+        // Message is not multiline
         _ => format!("{message} at {loc}"),
     }
 }
