@@ -45,7 +45,10 @@ impl Reason {
     pub fn with_location(message: impl Into<Cow<'static, str>>) -> Self {
         let message: Cow<'static, str> = message.into();
         let loc = core::panic::Location::caller();
-        Self(format!("{message} at {loc}").into(), Backtrace::empty())
+        Self(
+            append_location(message.into_owned(), *loc).into(),
+            Backtrace::empty(),
+        )
     }
     /// Creates reason from provided message, adding location info as its part,
     /// and captures backtrace at callsite
@@ -144,7 +147,7 @@ impl<'a, 'b> From<&'b std::panic::PanicInfo<'a>> for Reason {
             .unwrap_or_else(|| "<unknown panic value>".to_string());
 
         let message = if let Some(loc) = value.location() {
-            format!("{message} at {loc}")
+            append_location(message, *loc)
         } else {
             message
         };
@@ -178,5 +181,21 @@ impl<'a> fmt::Display for DisplayReason<'a> {
         } else {
             write!(f, "{msg}\nstack backtrace:\n{bt}")
         }
+    }
+}
+
+fn append_location<'a>(
+    message: String,
+    loc: core::panic::Location<'a>,
+) -> String {
+    match message.rfind('\n') {
+        // Message is multiline and ends with '\n'
+        Some(pos) if pos == message.len() - '\n'.len_utf8() => {
+            format!("{message}at {loc}")
+        }
+        // Message is multiline and doesn't end with '\n'
+        Some(_) => format!("{message}\nat {loc}"),
+        // MEssage is not multiline
+        _ => format!("{message} at {loc}"),
     }
 }
