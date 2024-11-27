@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018, 2019 The proptest developers
+// Copyright 2017, 2018, 2019, 2024 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -7,7 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::std_facade::{Arc, BTreeMap, Box, String, Vec};
+use crate::std_facade::{Arc, BTreeMap, Box, Vec};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 use core::{fmt, iter};
@@ -252,13 +252,16 @@ where
 
     let time_start = time::Instant::now();
 
+    let mut reason = None;
     let mut result = unwrap_or!(
-        panic::catch_unwind(AssertUnwindSafe(|| test(case))),
-        what => Err(TestCaseError::Fail(
-            what.downcast::<&'static str>().map(|s| (*s).into())
-                .or_else(|what| what.downcast::<String>().map(|b| (*b).into()))
-                .or_else(|what| what.downcast::<Box<str>>().map(|b| (*b).into()))
-                .unwrap_or_else(|_| "<unknown panic value>".into()))));
+        super::scoped_panic_hook::with_hook(
+            |panic_info| { reason = Some(panic_info.into()); },
+            || panic::catch_unwind(AssertUnwindSafe(|| test(case)))
+        ),
+        _panic => Err(TestCaseError::Fail(reason.expect(
+            "Reaon should have been obtained from panic hook"
+        )))
+    );
 
     // If there is a timeout and we exceeded it, fail the test here so we get
     // consistent behaviour. (The parent process cannot precisely time the test
@@ -769,7 +772,7 @@ impl TestRunner {
                 INFO_LOG,
                 "Shrinking disabled by configuration"
             );
-            return None
+            return None;
         }
 
         #[cfg(feature = "std")]
