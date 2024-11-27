@@ -1,9 +1,13 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_str, spanned::Spanned, Attribute, Ident, ItemFn, PatType};
+use syn::{parse_quote, spanned::Spanned, Attribute, Ident, ItemFn};
 
-use super::{options::Options, utils::strip_args};
+use super::{
+    options::Options,
+    utils::{strip_args, Argument},
+};
 
+mod arbitrary;
 mod test_body;
 
 /// Generate the modified test function
@@ -20,9 +24,10 @@ pub(super) fn generate(item_fn: ItemFn, options: Options) -> TokenStream {
     let (mut argless_fn, args) = strip_args(item_fn);
 
     let struct_tokens = generate_struct(&argless_fn.sig.ident, &args);
-    let arb_tokens = generate_arbitrary_impl(&argless_fn.sig.ident, &args);
+    let arb_tokens =
+        arbitrary::gen_arbitrary_impl(&argless_fn.sig.ident, &args);
 
-    let struct_and_tokens = quote! {
+    let struct_and_arb = quote! {
         #struct_tokens
         #arb_tokens
     };
@@ -30,7 +35,7 @@ pub(super) fn generate(item_fn: ItemFn, options: Options) -> TokenStream {
     let new_body = test_body::body(
         *argless_fn.block,
         &args,
-        struct_and_tokens,
+        struct_and_arb,
         &argless_fn.sig.ident,
         &argless_fn.sig.output,
         &options,
@@ -43,12 +48,12 @@ pub(super) fn generate(item_fn: ItemFn, options: Options) -> TokenStream {
 }
 
 /// Generate the inner struct that represents the arguments of the function
-fn generate_struct(fn_name: &Ident, args: &[PatType]) -> TokenStream {
+fn generate_struct(fn_name: &Ident, args: &[Argument]) -> TokenStream {
     let struct_name = struct_name(fn_name);
 
     let fields = args.iter().enumerate().map(|(index, arg)| {
-        let field_name = nth_field_name(&arg.pat, index);
-        let ty = &arg.ty;
+        let field_name = nth_field_name(&arg.pat_ty.pat, index);
+        let ty = &arg.pat_ty.ty;
 
         quote! { #field_name: #ty, }
     });
@@ -57,37 +62,6 @@ fn generate_struct(fn_name: &Ident, args: &[PatType]) -> TokenStream {
         #[derive(Debug)]
         struct #struct_name {
             #(#fields)*
-        }
-    }
-}
-
-/// Generate the arbitrary impl for the struct
-fn generate_arbitrary_impl(fn_name: &Ident, args: &[PatType]) -> TokenStream {
-    let struct_name = struct_name(fn_name);
-
-    let arg_types = args.iter().map(|arg| {
-        let ty = &arg.ty;
-        quote!(#ty,)
-    });
-
-    let arg_types = quote! { #(#arg_types)* };
-
-    let arg_names = args.iter().enumerate().map(|(index, ty)| {
-        let name = nth_field_name(ty.span(), index);
-        quote!(#name,)
-    });
-
-    let arg_names = quote! { #(#arg_names)* };
-
-    quote! {
-        impl ::proptest::prelude::Arbitrary for #struct_name {
-            type Parameters = ();
-            type Strategy = ::proptest::strategy::Map<::proptest::arbitrary::StrategyFor<(#arg_types)>, fn((#arg_types)) -> Self>;
-
-            fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
-                use ::proptest::strategy::Strategy;
-                ::proptest::prelude::any::<(#arg_types)>().prop_map(|(#arg_names)| Self { #arg_names })
-            }
         }
     }
 }
@@ -111,19 +85,14 @@ fn nth_field_name(span: impl Spanned, index: usize) -> Ident {
     Ident::new(&format!("field{index}"), span.span())
 }
 
-/// I couldn't find a better way to get just the `#[test]` attribute since [`syn::Attribute`]
-/// doesn't implement `Parse`
 fn test_attr() -> Attribute {
-    let mut f: ItemFn = parse_str("#[test] fn foo() {}").unwrap();
-    f.attrs.pop().unwrap()
+    parse_quote! { #[test] }
 }
 
 #[cfg(test)]
 mod tests {
-    use quote::ToTokens;
-    use syn::{parse2, parse_str, ItemStruct};
-
     use super::*;
+    use syn::{parse2, parse_quote, parse_str, ItemStruct};
 
     /// Simple helper that parses a function, and validates that the struct name and fields are
     /// correct
@@ -180,31 +149,18 @@ mod tests {
 
     #[test]
     fn generates_arbitrary_impl() {
-        let f: ItemFn = parse_str("fn foo(x: i32, y: u8) {}").unwrap();
+        let f: ItemFn = parse_quote! { fn foo(x: i32, y: u8) {} };
         let (f, args) = strip_args(f);
-        let arb = generate_arbitrary_impl(&f.sig.ident, &args);
+        let arb = arbitrary::gen_arbitrary_impl(&f.sig.ident, &args);
 
-        let expected = quote! {
-            impl ::proptest::prelude::Arbitrary for FooArgs {
-                type Parameters = ();
-                type Strategy = ::proptest::strategy::Map<::proptest::arbitrary::StrategyFor<(i32, u8,)>, fn((i32, u8,)) -> Self>;
-
-                fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
-                    use ::proptest::strategy::Strategy;
-
-                    ::proptest::prelude::any::<(i32, u8,)>().prop_map(|(field0, field1,)| Self { field0, field1, })
-                }
-
-            }
-        };
-
-        assert_eq!(arb.to_string(), expected.to_string());
+        insta::assert_snapshot!(arb.to_string());
     }
 }
 
 #[cfg(test)]
 mod snapshot_tests {
     use super::*;
+    use syn::parse_str;
 
     macro_rules! snapshot_test {
         ($name:ident) => {
