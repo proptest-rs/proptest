@@ -10,50 +10,13 @@
 use crate::std_facade::Box;
 use core::u32;
 
-#[cfg(feature = "std")]
-use std::env;
-#[cfg(feature = "std")]
-use std::ffi::OsString;
-#[cfg(feature = "std")]
-use std::fmt;
-#[cfg(feature = "std")]
-use std::str::FromStr;
-
 use crate::test_runner::result_cache::{noop_result_cache, ResultCache};
 use crate::test_runner::rng::RngAlgorithm;
 use crate::test_runner::FailurePersistence;
-#[cfg(feature = "std")]
-use crate::test_runner::FileFailurePersistence;
-
-#[cfg(feature = "std")]
-const CASES: &str = "PROPTEST_CASES";
-#[cfg(feature = "std")]
-const MAX_LOCAL_REJECTS: &str = "PROPTEST_MAX_LOCAL_REJECTS";
-#[cfg(feature = "std")]
-const MAX_GLOBAL_REJECTS: &str = "PROPTEST_MAX_GLOBAL_REJECTS";
-#[cfg(feature = "std")]
-const MAX_FLAT_MAP_REGENS: &str = "PROPTEST_MAX_FLAT_MAP_REGENS";
-#[cfg(feature = "std")]
-const MAX_SHRINK_TIME: &str = "PROPTEST_MAX_SHRINK_TIME";
-#[cfg(feature = "std")]
-const MAX_SHRINK_ITERS: &str = "PROPTEST_MAX_SHRINK_ITERS";
-#[cfg(feature = "std")]
-const MAX_DEFAULT_SIZE_RANGE: &str = "PROPTEST_MAX_DEFAULT_SIZE_RANGE";
-#[cfg(feature = "fork")]
-const FORK: &str = "PROPTEST_FORK";
-#[cfg(feature = "timeout")]
-const TIMEOUT: &str = "PROPTEST_TIMEOUT";
-#[cfg(feature = "std")]
-const VERBOSE: &str = "PROPTEST_VERBOSE";
-#[cfg(feature = "std")]
-const RNG_ALGORITHM: &str = "PROPTEST_RNG_ALGORITHM";
-#[cfg(feature = "std")]
-const DISABLE_FAILURE_PERSISTENCE: &str =
-    "PROPTEST_DISABLE_FAILURE_PERSISTENCE";
 
 /// Override the config fields from environment variables, if any are set.
 /// Without the `std` feature this function returns config unchanged.
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", not(target_arch = "wasm32")))]
 pub fn contextualize_config(mut result: Config) -> Config {
     use std::env;
     use std::ffi::OsString;
@@ -61,6 +24,7 @@ pub fn contextualize_config(mut result: Config) -> Config {
     use std::str::FromStr;
 
     const CASES: &str = "PROPTEST_CASES";
+
     const MAX_LOCAL_REJECTS: &str = "PROPTEST_MAX_LOCAL_REJECTS";
     const MAX_GLOBAL_REJECTS: &str = "PROPTEST_MAX_GLOBAL_REJECTS";
     const MAX_FLAT_MAP_REGENS: &str = "PROPTEST_MAX_FLAT_MAP_REGENS";
@@ -182,7 +146,7 @@ pub fn contextualize_config(mut result: Config) -> Config {
 }
 
 /// Without the `std` feature this function returns config unchanged.
-#[cfg(not(feature = "std"))]
+#[cfg(not(all(feature = "std", not(target_arch = "wasm32"))))]
 pub fn contextualize_config(result: Config) -> Config {
     result
 }
@@ -218,7 +182,7 @@ fn default_default_config() -> Config {
 lazy_static! {
     static ref DEFAULT_CONFIG: Config = {
         let mut default_config = default_default_config();
-        default_config.failure_persistence = Some(Box::new(FileFailurePersistence::default()));
+        default_config.failure_persistence = Some(Box::new(crate::test_runner::FileFailurePersistence::default()));
         contextualize_config(default_config)
     };
 }
