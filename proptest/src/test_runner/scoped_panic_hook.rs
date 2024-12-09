@@ -64,6 +64,7 @@ mod internal {
             return;
         }
 
+        #[allow(static_mut_refs)]
         if let Some(hook) = unsafe { DEFAULT_HOOK.as_ref() } {
             (hook)(info);
         }
