@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018, 2019 The proptest developers
+// Copyright 2017, 2018, 2019, 2024 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -253,7 +253,10 @@ where
     let time_start = std::time::Instant::now();
 
     let mut result = unwrap_or!(
-        panic::catch_unwind(AssertUnwindSafe(|| test(case))),
+        super::scoped_panic_hook::with_hook(
+            |_| { /* Silence out panic backtrace */ },
+            || panic::catch_unwind(AssertUnwindSafe(|| test(case)))
+        ),
         what => Err(TestCaseError::Fail(
             what.downcast::<&'static str>().map(|s| (*s).into())
                 .or_else(|what| what.downcast::<String>().map(|b| (*b).into()))

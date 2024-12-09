@@ -21,6 +21,7 @@ mod replay;
 mod result_cache;
 mod rng;
 mod runner;
+mod scoped_panic_hook;
 
 pub use self::config::*;
 pub use self::errors::*;
