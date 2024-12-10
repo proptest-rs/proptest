@@ -1,6 +1,6 @@
 [package]
 name = "proptest-state-machine"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Tomáš Zemanovič"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
