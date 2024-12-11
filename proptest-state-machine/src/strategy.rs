@@ -41,7 +41,7 @@ use proptest::test_runner::TestRunner;
 ///
 /// The reference state machine generation runs before the generated transitions
 /// are attempted to be executed against the SUT (the concrete state machine)
-/// as defined by [`proptest::state_machine::StateMachineTest`].
+/// as defined by [`crate::StateMachineTest`].
 pub trait ReferenceStateMachine {
     /// The reference state machine's state type. This should contain the minimum
     /// required information needed to implement the state machine. It is used
@@ -91,7 +91,7 @@ pub trait ReferenceStateMachine {
     /// A sequential strategy runs the state machine transitions generated from
     /// the reference model sequentially in a test over a concrete state, which
     /// can be implemented with the help of
-    /// [`proptest::state_machine::StateMachineTest`] trait.
+    /// [`crate::StateMachineTest`] trait.
     ///
     /// You typically never need to override this method.
     fn sequential_strategy(

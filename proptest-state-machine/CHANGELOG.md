@@ -1,7 +1,9 @@
 ## Unreleased
 
+## 0.3.1
+
 - Fixed checking of pre-conditions with a shrinked or complicated initial state.
-  ([\#482](https://github.com/proptest-rs/proptest/pull/482/commits/9b61544d75f5e44aad742f4546f0e83f2639394c))
+  ([\#482](https://github.com/proptest-rs/proptest/pull/482))
 
 ## 0.3.0
 
