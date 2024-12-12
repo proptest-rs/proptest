@@ -7,9 +7,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use core::any::Any;
-use std::string::ToString;
-
 use super::backtrace::Backtrace;
 use crate::std_facade::{fmt, Box, Cow, String};
 
@@ -134,15 +131,16 @@ impl From<Box<str>> for Reason {
 }
 
 #[cfg(feature = "std")]
-impl<'a> From<&'a (dyn Any + Send)> for Reason {
-    fn from(value: &'a (dyn Any + Send)) -> Self {
+impl<'a> From<&'a (dyn std::any::Any + Send)> for Reason {
+    #[inline(always)]
+    fn from(value: &'a (dyn std::any::Any + Send)) -> Self {
+        use std::string::ToString;
+
         let message: String = value
             .downcast_ref::<&'static str>()
             .map(|s| s.to_string())
             .or_else(|| value.downcast_ref::<String>().map(|s| s.clone()))
-            .or_else(|| {
-                value.downcast_ref::<Box<str>>().map(|s| s.to_string())
-            })
+            .or_else(|| value.downcast_ref::<Box<str>>().map(|s| s.to_string()))
             .unwrap_or_else(|| "<unknown panic value>".to_string());
 
         Self(message.into(), Backtrace::empty())
@@ -152,6 +150,7 @@ impl<'a> From<&'a (dyn Any + Send)> for Reason {
 #[cfg(feature = "std")]
 impl<'a, 'b> From<&'b std::panic::PanicInfo<'a>> for Reason {
     #[inline(always)]
+    #[track_caller]
     fn from(value: &'b std::panic::PanicInfo<'a>) -> Self {
         let Self(mut message, _) = value.payload().into();
 
