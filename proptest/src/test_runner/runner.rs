@@ -225,6 +225,28 @@ where
 {
     use std::panic::{self, AssertUnwindSafe};
 
+    #[cfg(feature = "handle-panics")]
+    fn run_case(case: impl FnOnce() -> TestCaseResult) -> TestCaseResult {
+        let mut reason = None;
+        unwrap_or!(
+            super::scoped_panic_hook::with_hook(
+                |panic_info| { reason = Some(panic_info.into()); },
+                || panic::catch_unwind(AssertUnwindSafe(case))
+            ),
+            _panic => Err(TestCaseError::Fail(reason.expect(
+                "Reason should have been obtained from panic hook"
+            )))
+        )
+    }
+
+    #[cfg(not(feature = "handle-panics"))]
+    fn run_case(case: impl FnOnce() -> TestCaseResult) -> TestCaseResult {
+        unwrap_or!(
+            panic::catch_unwind(AssertUnwindSafe(case)),
+            panic => Err(TestCaseError::Fail(panic.as_ref().into()))
+        )
+    }
+
     #[cfg(feature = "timeout")]
     let timeout = runner.config.timeout();
 
@@ -252,16 +274,7 @@ where
     #[cfg(feature = "timeout")]
     let time_start = std::time::Instant::now();
 
-    let mut reason = None;
-    let mut result = unwrap_or!(
-        super::scoped_panic_hook::with_hook(
-            |panic_info| { reason = Some(panic_info.into()); },
-            || panic::catch_unwind(AssertUnwindSafe(|| test(case)))
-        ),
-        _panic => Err(TestCaseError::Fail(reason.expect(
-            "Reason should have been obtained from panic hook"
-        )))
-    );
+    let mut result = run_case(|| test(case));
 
     // If there is a timeout and we exceeded it, fail the test here so we get
     // consistent behaviour. (The parent process cannot precisely time the test
