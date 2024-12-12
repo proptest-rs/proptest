@@ -34,37 +34,31 @@ thread_local! {
 }
 
 static INIT_ONCE: Once = Once::new();
-/// Default panic hook, the one which was present before installing scoped one
-///
-/// NB: no need for external sync, value is mutated only once, when init is performed
-static mut DEFAULT_HOOK: Option<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>> =
-    None;
 /// Replaces currently installed panic hook with `scoped_hook_dispatcher` once,
 /// in a thread-safe manner
 fn init() {
     INIT_ONCE.call_once(|| {
         let old_handler = take_hook();
-        set_hook(Box::new(scoped_hook_dispatcher));
-        unsafe {
-            DEFAULT_HOOK = Some(old_handler);
-        }
+        set_hook(Box::new(move |panic_info| {
+            if !scoped_hook_dispatcher(panic_info) {
+                old_handler(panic_info)
+            }
+        }));
     });
 }
 /// Panic hook which delegates execution to scoped hook,
 /// if one installed, or to default hook
-fn scoped_hook_dispatcher(info: &PanicInfo<'_>) {
-    let handler = SCOPED_HOOK_PTR.get();
-    if !handler.is_null() {
-        // It's assumed that if container's ptr is not null, ptr to `FnMut` is non-null too.
-        // Correctness **must** be ensured by hook switch code in `with_hook`
-        let hook = unsafe { &mut *(*handler).0 };
-        (hook)(info);
-        return;
+fn scoped_hook_dispatcher(info: &PanicInfo<'_>) -> bool {
+    let handler = SCOPED_HOOK_PTR.with(Cell::get);
+    if handler.is_null() {
+        return false;
     }
+    // It's assumed that if container's ptr is not null, ptr to `FnMut` is non-null too.
+    // Correctness **must** be ensured by hook switch code in `with_hook`
+    let hook = unsafe { &mut *(*handler).0 };
+    (hook)(info);
 
-    if let Some(hook) = unsafe { DEFAULT_HOOK.as_ref() } {
-        (hook)(info);
-    }
+    true
 }
 /// Executes stored closure when dropped
 struct Finally<F: FnOnce()>(Option<F>);
@@ -105,10 +99,10 @@ pub fn with_hook<R>(
         // `mem::transmute` is needed due to borrow checker restrictions to erase all lifetimes
         mem::transmute(&mut panic_hook as *mut dyn FnMut(&PanicInfo<'_>))
     },);
-    let old_tuple = SCOPED_HOOK_PTR.replace(&guard_tuple);
+    let old_tuple = SCOPED_HOOK_PTR.with(|c| c.replace(&guard_tuple));
     // Old scoped hook **must** be restored before leaving function scope to keep it sound
     let _undo = Finally::new(|| {
-        SCOPED_HOOK_PTR.set(old_tuple);
+        SCOPED_HOOK_PTR.with(|c| c.set(old_tuple));
     });
     body()
 }
