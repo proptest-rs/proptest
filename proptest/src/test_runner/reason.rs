@@ -7,6 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use core::any::Any;
 use std::string::ToString;
 
 use super::backtrace::Backtrace;
@@ -133,26 +134,32 @@ impl From<Box<str>> for Reason {
 }
 
 #[cfg(feature = "std")]
-impl<'a, 'b> From<&'b std::panic::PanicInfo<'a>> for Reason {
-    #[inline(always)]
-    fn from(value: &'b std::panic::PanicInfo<'a>) -> Self {
-        let payload = value.payload();
-        let message: String = payload
+impl<'a> From<&'a (dyn Any + Send)> for Reason {
+    fn from(value: &'a (dyn Any + Send)) -> Self {
+        let message: String = value
             .downcast_ref::<&'static str>()
             .map(|s| s.to_string())
-            .or_else(|| payload.downcast_ref::<String>().map(|s| s.clone()))
+            .or_else(|| value.downcast_ref::<String>().map(|s| s.clone()))
             .or_else(|| {
-                payload.downcast_ref::<Box<str>>().map(|s| s.to_string())
+                value.downcast_ref::<Box<str>>().map(|s| s.to_string())
             })
             .unwrap_or_else(|| "<unknown panic value>".to_string());
 
-        let message = if let Some(loc) = value.location() {
-            append_location(message, *loc)
-        } else {
-            message
-        };
+        Self(message.into(), Backtrace::empty())
+    }
+}
 
-        Self(message.into(), Backtrace::capture())
+#[cfg(feature = "std")]
+impl<'a, 'b> From<&'b std::panic::PanicInfo<'a>> for Reason {
+    #[inline(always)]
+    fn from(value: &'b std::panic::PanicInfo<'a>) -> Self {
+        let Self(mut message, _) = value.payload().into();
+
+        if let Some(loc) = value.location() {
+            message = append_location(message.into_owned(), *loc).into();
+        }
+
+        Self(message, Backtrace::capture())
     }
 }
 
