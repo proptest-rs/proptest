@@ -113,6 +113,7 @@ impl Impl {
         // The double-curly-braces are not strictly required, but allow the expression to be
         // annotated with an attribute.
         let q = quote! {
+            #[allow(non_local_definitions)]
             #[allow(non_upper_case_globals)]
             #[allow(clippy::arc_with_non_send_sync)]
             const _: () = {

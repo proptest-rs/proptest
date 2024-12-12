@@ -29,8 +29,7 @@ attr-macro = ["proptest-macro"]
 unstable = []
 
 # Enables the use of standard-library dependent features
-std = ["rand/std", "lazy_static",
-       "regex-syntax", "num-traits/std"]
+std = ["rand/std", "lazy_static", "regex-syntax", "num-traits/std"]
 
 # std or libm required for mul_add.
 no_std = ["num-traits/libm"]
@@ -57,7 +56,7 @@ timeout = ["fork", "rusty-fork/timeout"]
 # need it excluded, however.
 atomic64bit = []
 
-bit-set = [ "dep:bit-set", "dep:bit-vec" ]
+bit-set = ["dep:bit-set", "dep:bit-vec"]
 
 # Enables proper handling of panics
 # In particular, hides all intermediate panics flowing into stderr during shrink phase

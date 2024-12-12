@@ -11,8 +11,6 @@ use crate::std_facade::{Arc, BTreeMap, Box, Vec};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 use core::{fmt, iter};
-#[cfg(feature = "std")]
-use std::panic::{self, AssertUnwindSafe};
 
 #[cfg(feature = "fork")]
 use rusty_fork;
@@ -225,8 +223,9 @@ where
     F: Fn(V) -> TestCaseResult,
     R: Iterator<Item = TestCaseResult>,
 {
-    use std::time;
+    use std::panic::{self, AssertUnwindSafe};
 
+    #[cfg(feature = "timeout")]
     let timeout = runner.config.timeout();
 
     if let Some(result) = replay_from_fork.next() {
@@ -250,7 +249,8 @@ where
         return result.clone().map(|_| TestCaseOk::CacheHitSuccess);
     }
 
-    let time_start = time::Instant::now();
+    #[cfg(feature = "timeout")]
+    let time_start = std::time::Instant::now();
 
     let mut reason = None;
     let mut result = unwrap_or!(
@@ -259,13 +259,14 @@ where
             || panic::catch_unwind(AssertUnwindSafe(|| test(case)))
         ),
         _panic => Err(TestCaseError::Fail(reason.expect(
-            "Reaon should have been obtained from panic hook"
+            "Reason should have been obtained from panic hook"
         )))
     );
 
     // If there is a timeout and we exceeded it, fail the test here so we get
     // consistent behaviour. (The parent process cannot precisely time the test
     // cases itself.)
+    #[cfg(feature = "timeout")]
     if timeout > 0 && result.is_ok() {
         let elapsed = time_start.elapsed();
         let elapsed_millis = elapsed.as_secs() as u32 * 1000
@@ -775,35 +776,27 @@ impl TestRunner {
             return None;
         }
 
-        #[cfg(feature = "std")]
-        use std::time;
-
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
+        let start_time = std::time::Instant::now();
         let mut last_failure = None;
         let mut iterations = 0;
-        #[cfg(feature = "std")]
-        let start_time = time::Instant::now();
 
         verbose_message!(self, TRACE, "Starting shrinking");
 
         if case.simplify() {
             loop {
-                #[cfg(feature = "std")]
-                let timed_out = if self.config.max_shrink_time > 0 {
+                let mut timed_out: Option<u64> = None;
+                #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
+                if self.config.max_shrink_time > 0 {
                     let elapsed = start_time.elapsed();
                     let elapsed_ms = elapsed
                         .as_secs()
                         .saturating_mul(1000)
                         .saturating_add(elapsed.subsec_millis().into());
                     if elapsed_ms > self.config.max_shrink_time as u64 {
-                        Some(elapsed_ms)
-                    } else {
-                        None
+                        timed_out = Some(elapsed_ms);
                     }
-                } else {
-                    None
-                };
-                #[cfg(not(feature = "std"))]
-                let timed_out: Option<u64> = None;
+                }
 
                 let bail = if iterations >= self.config.max_shrink_iters() {
                     #[cfg(feature = "std")]

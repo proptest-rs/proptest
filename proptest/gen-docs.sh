@@ -10,7 +10,7 @@ set -eux
 if test "$1" = "nostd"; then
     crate=proptest-nostd
     cargo='cargo +nightly'
-    cargoflags='--no-default-features --features=alloc,unstable'
+    cargoflags='--no-default-features --features=no_std,alloc,unstable'
 else
     crate=proptest
     cargo=cargo

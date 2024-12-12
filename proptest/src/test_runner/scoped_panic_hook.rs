@@ -119,6 +119,7 @@ mod internal {
 #[cfg(not(feature = "handle-panics"))]
 mod internal {
     use std::panic::PanicInfo;
+
     /// Simply executes `body` and returns its execution result.
     /// Hook parameter is ignored
     pub fn with_hook<R>(
