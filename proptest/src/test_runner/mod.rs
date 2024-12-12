@@ -22,7 +22,7 @@ mod replay;
 mod result_cache;
 mod rng;
 mod runner;
-#[cfg(feature = "std")]
+#[cfg(feature = "handle-panics")]
 mod scoped_panic_hook;
 
 pub use self::config::*;
