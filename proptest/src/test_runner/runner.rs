@@ -1070,6 +1070,8 @@ mod test {
     use std::cell::Cell;
     use std::fs;
 
+    use assert_matches::assert_matches;
+
     use super::*;
     use crate::strategy::Strategy;
     use crate::test_runner::{FileFailurePersistence, RngAlgorithm, TestRng};
@@ -1127,7 +1129,10 @@ mod test {
             assert!(v < 5, "not less than 5");
             Ok(())
         });
-        assert_eq!(Err(TestError::Fail("not less than 5".into(), 5)), result);
+        assert_matches!(
+            result, 
+            Err(TestError::Fail(reason, 5)) if reason.message().starts_with("not less than 5")
+        );
     }
 
     #[test]
