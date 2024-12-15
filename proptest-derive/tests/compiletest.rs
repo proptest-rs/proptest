@@ -15,7 +15,7 @@ fn run_mode(src: &'static str, mode: &'static str) {
 
     config.mode = mode.parse().expect("invalid mode");
     config.target_rustcflags =
-        Some("-L ../target/debug/deps --edition=2018".to_owned());
+        Some("-L ../target/debug/deps --extern proptest --edition=2021".to_owned());
     if let Ok(name) = env::var("TESTNAME") {
         config.filters = vec![name];
     }
