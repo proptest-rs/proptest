@@ -117,7 +117,7 @@ impl Impl {
             #[allow(non_upper_case_globals)]
             #[allow(clippy::arc_with_non_send_sync)]
             const _: () = {
-            extern crate proptest as _proptest;
+            use proptest as _proptest;
 
             impl #impl_generics _proptest::arbitrary::Arbitrary
             for #typ #ty_generics #where_clause {
