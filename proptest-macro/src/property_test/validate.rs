@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use quote::quote_spanned;
+use quote::{quote_spanned, ToTokens};
 use syn::{spanned::Spanned, FnArg, ItemFn, Meta};
 
 use super::utils::is_strategy;
@@ -55,8 +55,13 @@ fn validate_parameter_attrs(f: &mut ItemFn) -> Result<(), TokenStream> {
                 // a "good" strategy - if we see more than one, emit an error
                 Meta::NameValue(_) => {
                     if first_strategy_seen {
+                        let pat =
+                            pat_ty.pat.clone().into_token_stream().to_string();
+                        let message = format!(
+                            "{pat} has duplicate `#[strategy = ...] attribute`"
+                        );
                         error.extend(quote_spanned! {
-                            attr.span() => compile_error!("duplicate `#[strategy = ...]` definition");
+                            attr.span() => compile_error!(#message);
                         });
                     } else {
                         final_attrs.push(attr);
