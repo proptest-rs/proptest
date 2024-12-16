@@ -3,15 +3,15 @@
 ## 0.5.1
 
 - Fix non-local impl nightly warning with allow(non_local_definitions)
-  ((\#531)[https://github.com/proptest-rs/proptest/pull/531])
+  ([\#531](https://github.com/proptest-rs/proptest/pull/531))
 - Adds support for re-exporting crate. `proptest-derive` now works correctly
   when `proptest` is re-exported from another crate. This removes the
   requirement for `proptest` to be a direct dependency.
-  ((\#530)[https://github.com/proptest-rs/proptest/pull/530])
+  ([\#530](https://github.com/proptest-rs/proptest/pull/530))
 - Fix bounds generation for generics in derive(Arbitrary). The implementation
   of UseTracker expects that iteration over items of used_map gives items in
   insertion order. However, the order of BTreeSet is based on Ord, not
-  insertion. ((\#511)[https://github.com/proptest-rs/proptest/pull/511])
+  insertion. ([\#511](https://github.com/proptest-rs/proptest/pull/511))
 
 ## 0.5
 
