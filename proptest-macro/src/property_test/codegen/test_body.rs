@@ -1,11 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
-    parse2, spanned::Spanned, Block, Expr, Ident, PatType, ReturnType, Type,
-    TypeTuple,
+    parse2, spanned::Spanned, Block, Expr, Ident, ReturnType, Type, TypeTuple,
 };
 
-use crate::property_test::options::Options;
+use crate::property_test::{options::Options, utils::Argument};
 
 use super::{nth_field_name, struct_name};
 
@@ -13,11 +12,11 @@ use super::{nth_field_name, struct_name};
 /// the usual glue that `proptest!` adds
 pub(super) fn body(
     block: Block,
-    args: &[PatType],
+    args: &[Argument],
     struct_and_impl: TokenStream,
     fn_name: &Ident,
     ret_ty: &ReturnType,
-    options: &Options, 
+    options: &Options,
 ) -> Block {
     let struct_name = struct_name(fn_name);
 
@@ -25,8 +24,8 @@ pub(super) fn body(
 
     // convert each arg to `field0: x`
     let struct_fields = args.iter().enumerate().map(|(index, arg)| {
-        let pat = &arg.pat;
-        let field_name = nth_field_name(arg.pat.span(), index);
+        let pat = &arg.pat_ty.pat;
+        let field_name = nth_field_name(arg.pat_ty.pat.span(), index);
         quote!(#field_name: #pat,)
     });
 
@@ -66,6 +65,7 @@ pub(super) fn body(
     } );
 
     // unwrap here is fine because the double braces create a block
+    // std::fs::write("/tmp/pt-debug", tokens.to_string());
     parse2(tokens).unwrap()
 }
 
@@ -104,4 +104,3 @@ fn make_config(config: Option<&Expr>) -> TokenStream {
         };
     }
 }
-

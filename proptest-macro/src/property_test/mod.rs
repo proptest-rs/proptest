@@ -22,10 +22,10 @@ macro_rules! parse {
 }
 
 pub fn property_test(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let item_fn = parse!(item);
+    let mut item_fn = parse!(item);
     let options = parse!(attr);
 
-    if let Err(compile_error) = validate(&item_fn) {
+    if let Err(compile_error) = validate(&mut item_fn) {
         return compile_error;
     }
 
