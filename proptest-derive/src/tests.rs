@@ -82,7 +82,7 @@ test! {
         #[allow(non_upper_case_globals)]
         #[allow(clippy::arc_with_non_send_sync)]
         const _: () = {
-            extern crate proptest as _proptest;
+            use proptest as _proptest;
         impl _proptest::arbitrary::Arbitrary for MyUnitStruct {
             type Parameters = ();
             type Strategy = fn() -> Self;
@@ -104,7 +104,7 @@ test! {
         #[allow(non_upper_case_globals)]
         #[allow(clippy::arc_with_non_send_sync)]
         const _: () = {
-            extern crate proptest as _proptest;
+            use proptest as _proptest;
         impl _proptest::arbitrary::Arbitrary for MyTupleUnitStruct {
             type Parameters = ();
             type Strategy = fn() -> Self;
@@ -126,7 +126,7 @@ test! {
         #[allow(non_upper_case_globals)]
         #[allow(clippy::arc_with_non_send_sync)]
         const _: () = {
-            extern crate proptest as _proptest;
+            use proptest as _proptest;
         impl _proptest::arbitrary::Arbitrary for MyNamedUnitStruct {
             type Parameters = ();
             type Strategy = fn() -> Self;

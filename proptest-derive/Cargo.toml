@@ -1,15 +1,15 @@
 [package]
-name          = "proptest-derive"
-version       = "0.5.0"
-authors       = ["Mazdak Farrokhzad <twingoow@gmail.com>"]
-license       = "MIT OR Apache-2.0"
-readme        = "README.md"
+name = "proptest-derive"
+version = "0.5.1"
+authors = ["Mazdak Farrokhzad <twingoow@gmail.com>"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
 
-repository    = "https://github.com/proptest-rs/proptest"
+repository = "https://github.com/proptest-rs/proptest"
 documentation = "https://proptest-rs.github.io/proptest/proptest-derive/index.html"
 
-keywords      = ["derive", "arbitrary", "proptest", "testing", "quickcheck"]
-categories    = ["development-tools::testing"]
+keywords = ["derive", "arbitrary", "proptest", "testing", "quickcheck"]
+categories = ["development-tools::testing"]
 
 description = """
 Custom-derive for the Arbitrary trait of proptest.

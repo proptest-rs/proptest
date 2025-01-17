@@ -1,11 +1,39 @@
 ## Unreleased
 
-### New Features
-
-- When running persisted regressions, the most recently added regression is now run first.
-- Added `handle-panics` feature which enables catching panics raised in tests and turning them into failures
 - Added `backtrace` feature which enables capturing backtraces for both test failures and panics,
   if `handle-panics` feature is enabled
+
+## 1.6.0
+
+### New Features
+
+- Added `handle-panics` feature which enables catching panics raised in tests
+  and turning them into failures. ([\#525](https://github.com/proptest-rs/proptest/pull/525))
+- Exit early if shrink disabled. ([\#520](https://github.com/proptest-rs/proptest/pull/520))
+- Add `Config::with_failure_persistence`. A convenience constructor making use
+  of a generic parameter over `FailurePersistence` impls and hiding the
+  `Some(Box::new(...))`. ([\#508](https://github.com/proptest-rs/proptest/pull/508))
+- Add From's for SizeRange and Probability. ([\#498]([https://github.com/proptest-rs/proptest/pull/498))
+- When running persisted regressions, the most recently added regression is now
+  run first. ([\#496](https://github.com/proptest-rs/proptest/pull/496]))
+
+### Bug Fixes
+
+- Fix WebAssembly support. Hides a few paths, that fail at runtime on
+  wasm32-unknown-unknown, under conditional compilation. \([#519](https://github.com/proptest-rs/proptest/pull/519))
+- Fix incorrectly reading environment configuration. Previously controlling
+  proptest configuration via env vars was not properly applied. This caused
+  vars like `PROPTEST_MAX_DEFAULT_SIZE_RANGE` to be not be properly applied,
+  leading to unexpected behavior. ([\#457](https://github.com/proptest-rs/proptest/pull/457))
+- Allow trailing comma in prop_assert_eq/ne like std. ([\#510](https://github.com/proptest-rs/proptest/pull/510))
+
+### Other Notes
+
+- Add `no_std` to `alloc` contexts. `no_std` must be used explicitly with
+  `alloc`. Updated CI and documentation to reflect this. ([\#528](https://github.com/proptest-rs/proptest/pull/528))
+- Make `libm` optional in a `std` environment. ([\#524](https://github.com/proptest-rs/proptest/pull/524))
+- Update `bit-set` and `bit-vec` to `0.8.0`. ([\#501](https://github.com/proptest-rs/proptest/pull/501))
+- Removed unused `frunk` feature. ([\#498](https://github.com/proptest-rs/proptest/pull/498))
 
 ## 1.5.0
 
@@ -16,10 +44,12 @@
 - Empty ranges panic during tree creation instead of during sampling.
 
 ### Documentation
+
 - Reference the derive macro in Arbitrary's documentation
 - Fix broken links in the book
 
 ### Bug Fixes
+
 - Fixed issue where config contextualization would clobber existing failure persistence config
 
 ## 1.4.0
