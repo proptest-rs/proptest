@@ -393,8 +393,15 @@ impl FileFailurePersistence {
                 }
             },
 
-            Direct(path) => Some(Path::new(path).to_owned()),
-
+            Direct(path) => {
+                // assert that path exits
+                let path_owned: PathBuf = Path::new(path).to_owned();
+                assert!(
+                    path_owned.exists(),
+                    "FileFailurePersistence::Direct set, but file does not exist. Please provide: \n{}", path_owned.display()
+                );
+                Some(path_owned)
+            }
             _NonExhaustive => {
                 panic!("FailurePersistence set to _NonExhaustive")
             }
