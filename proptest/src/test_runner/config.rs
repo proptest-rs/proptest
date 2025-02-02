@@ -188,13 +188,11 @@ fn default_default_config() -> Config {
 // The default config, computed by combining environment variables and
 // defaults.
 #[cfg(feature = "std")]
-lazy_static! {
-    static ref DEFAULT_CONFIG: Config = {
-        let mut default_config = default_default_config();
-        default_config.failure_persistence = Some(Box::new(crate::test_runner::FileFailurePersistence::default()));
-        contextualize_config(default_config)
-    };
-}
+static DEFAULT_CONFIG: std::sync::LazyLock<Config> = std::sync::LazyLock::new(|| {
+    let mut default_config = default_default_config();
+    default_config.failure_persistence = Some(Box::new(crate::test_runner::FileFailurePersistence::default()));
+    contextualize_config(default_config)
+});
 
 /// The seed for the RNG, can either be random or specified as a u64.
 #[derive(Debug, Clone, Copy, PartialEq)]

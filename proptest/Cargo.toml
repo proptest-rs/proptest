@@ -29,7 +29,7 @@ attr-macro = ["proptest-macro"]
 unstable = []
 
 # Enables the use of standard-library dependent features
-std = ["rand/std", "rand/os_rng", "lazy_static", "regex-syntax", "num-traits/std"]
+std = ["rand/std", "rand/os_rng", "regex-syntax", "num-traits/std"]
 
 # std or libm required for mul_add.
 no_std = ["num-traits/libm"]
@@ -66,7 +66,6 @@ handle-panics = ["std"]
 bitflags = { workspace = true }
 unarray = { workspace = true }
 proptest-macro = { workspace = true, optional = true }
-lazy_static = { workspace = true, optional = true }
 num-traits = { workspace = true }
 regex-syntax = { workspace = true, optional = true }
 bit-set = { workspace = true, optional = true }
