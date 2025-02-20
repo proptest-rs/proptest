@@ -7,3 +7,8 @@ members = [
 ]
 
 exclude = ["proptest/test-persistence-location/*"]
+
+[patch.crates-io]
+# https://github.com/rust-random/rand/pull/1598
+rand      = { git = "https://github.com/baloo/rand", branch = "baloo/rand/distribution-usize" }
+rand_core = { git = "https://github.com/baloo/rand", branch = "baloo/rand/distribution-usize" }

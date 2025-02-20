@@ -94,15 +94,15 @@ version = "0.8.0"
 optional = true
 
 [dependencies.rand]
-version = "0.8"
+version = "0.9"
 default-features = false
-features = ["alloc"]
+features = ["alloc", "os_rng"]
 
 [dependencies.rand_xorshift]
-version = "0.3"
+version = "0.4"
 
 [dependencies.rand_chacha]
-version = "0.3"
+version = "0.9"
 default-features = false
 
 [dependencies.rusty-fork]

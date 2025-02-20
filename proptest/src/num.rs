@@ -15,8 +15,8 @@
 mod float_samplers;
 
 use crate::test_runner::TestRunner;
-use rand::distributions::uniform::{SampleUniform, Uniform};
-use rand::distributions::{Distribution, Standard};
+use rand::distr::uniform::{Error, SampleUniform, Uniform};
+use rand::distr::{Distribution, StandardUniform};
 
 /// Generate a random value of `X`, sampled uniformly from the half
 /// open range `[low, high)` (excluding `high`). Panics if `low >= high`.
@@ -24,8 +24,8 @@ pub(crate) fn sample_uniform<X: SampleUniform>(
     run: &mut TestRunner,
     start: X,
     end: X,
-) -> X {
-    Uniform::new(start, end).sample(run.rng())
+) -> Result<X, Error> {
+    Ok(Uniform::new(start, end)?.sample(run.rng()))
 }
 
 /// Generate a random value of `X`, sampled uniformly from the closed
@@ -34,8 +34,8 @@ pub fn sample_uniform_incl<X: SampleUniform>(
     run: &mut TestRunner,
     start: X,
     end: X,
-) -> X {
-    Uniform::new_inclusive(start, end).sample(run.rng())
+) -> Result<X, Error> {
+    Ok(Uniform::new_inclusive(start, end)?.sample(run.rng()))
 }
 
 macro_rules! int_any {
@@ -53,7 +53,7 @@ macro_rules! int_any {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-                Ok(BinarySearch::new(runner.rng().gen()))
+                Ok(BinarySearch::new(runner.rng().random()))
             }
         }
     };
@@ -83,6 +83,7 @@ macro_rules! numeric_api {
                         self.start.into(),
                         self.end.into(),
                     )
+                    .expect("BUG: start above end")
                     .into(),
                     self.end - $epsilon,
                 ))
@@ -109,6 +110,7 @@ macro_rules! numeric_api {
                         (*self.start()).into(),
                         (*self.end()).into(),
                     )
+                    .expect("BUG: start above end")
                     .into(),
                     *self.end(),
                 ))
@@ -127,6 +129,7 @@ macro_rules! numeric_api {
                         self.start.into(),
                         ::core::$typ::MAX.into(),
                     )
+                    .expect("BUG: start above end")
                     .into(),
                     ::core::$typ::MAX,
                 ))
@@ -145,6 +148,7 @@ macro_rules! numeric_api {
                         ::core::$typ::MIN.into(),
                         self.end.into(),
                     )
+                    .expect("BUG: start above end")
                     .into(),
                     self.end,
                 ))
@@ -163,6 +167,7 @@ macro_rules! numeric_api {
                         ::core::$typ::MIN.into(),
                         self.end.into(),
                     )
+                    .expect("BUG: start above end")
                     .into(),
                     self.end,
                 ))
@@ -418,7 +423,7 @@ impl FloatTypes {
 
 trait FloatLayout
 where
-    Standard: Distribution<Self::Bits>,
+    StandardUniform: Distribution<Self::Bits>,
 {
     type Bits: Copy;
 
@@ -675,7 +680,7 @@ macro_rules! float_any {
                     ].new_tree(runner)?.current();
 
                 let mut generated_value: <$typ as FloatLayout>::Bits =
-                    runner.rng().gen();
+                    runner.rng().random();
                 generated_value &= sign_mask | class_mask;
                 generated_value |= sign_or | class_or;
                 let exp = generated_value & $typ::EXP_MASK;

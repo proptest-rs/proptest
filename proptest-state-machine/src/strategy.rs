@@ -199,7 +199,8 @@ impl<
 
         let (min_size, end) = self.size.start_end_incl();
         // Sample the maximum number of the transitions from the size range
-        let max_size = sample_uniform_incl(runner, min_size, end);
+        let max_size = sample_uniform_incl(runner, min_size, end)
+            .expect("BUG: min_size larger than end");
         let mut transitions = Vec::with_capacity(max_size);
         let mut acceptable_transitions = Vec::with_capacity(max_size);
         let included_transitions = VarBitSet::saturated(max_size);

@@ -9,7 +9,7 @@
 
 use crate::std_facade::{Arc, String, ToOwned, Vec};
 use core::result::Result;
-use core::{fmt, str, u8, convert::TryInto};
+use core::{convert::TryInto, fmt, str, u8};
 
 use rand::{self, Rng, RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
@@ -199,30 +199,6 @@ impl RngCore for TestRng {
             } => {
                 let res = rng.fill_bytes(dest);
                 record.extend_from_slice(&dest);
-                res
-            }
-        }
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
-        match self.rng {
-            TestRngImpl::XorShift(ref mut rng) => rng.try_fill_bytes(dest),
-
-            TestRngImpl::ChaCha(ref mut rng) => rng.try_fill_bytes(dest),
-
-            TestRngImpl::PassThrough { .. } => {
-                self.fill_bytes(dest);
-                Ok(())
-            }
-
-            TestRngImpl::Recorder {
-                ref mut rng,
-                ref mut record,
-            } => {
-                let res = rng.try_fill_bytes(dest);
-                if res.is_ok() {
-                    record.extend_from_slice(&dest);
-                }
                 res
             }
         }
@@ -434,16 +410,16 @@ impl TestRng {
             Self {
                 rng: match algorithm {
                     RngAlgorithm::XorShift => {
-                        TestRngImpl::XorShift(XorShiftRng::from_entropy())
+                        TestRngImpl::XorShift(XorShiftRng::from_os_rng())
                     }
                     RngAlgorithm::ChaCha => {
-                        TestRngImpl::ChaCha(ChaChaRng::from_entropy())
+                        TestRngImpl::ChaCha(ChaChaRng::from_os_rng())
                     }
                     RngAlgorithm::PassThrough => {
                         panic!("cannot create default instance of PassThrough")
                     }
                     RngAlgorithm::Recorder => TestRngImpl::Recorder {
-                        rng: ChaChaRng::from_entropy(),
+                        rng: ChaChaRng::from_os_rng(),
                         record: Vec::new(),
                     },
                     RngAlgorithm::_NonExhaustive => unreachable!(),
@@ -575,7 +551,7 @@ impl TestRng {
     pub(crate) fn new_rng_seed(&mut self) -> Seed {
         match self.rng {
             TestRngImpl::XorShift(ref mut rng) => {
-                let mut seed = rng.gen::<[u8; 16]>();
+                let mut seed = rng.random::<[u8; 16]>();
 
                 // Directly using XorShiftRng::from_seed() at this point would
                 // result in rng and the returned value being exactly the same.
@@ -590,7 +566,7 @@ impl TestRng {
                 Seed::XorShift(seed)
             }
 
-            TestRngImpl::ChaCha(ref mut rng) => Seed::ChaCha(rng.gen()),
+            TestRngImpl::ChaCha(ref mut rng) => Seed::ChaCha(rng.random()),
 
             TestRngImpl::PassThrough {
                 ref mut off,
@@ -608,7 +584,7 @@ impl TestRng {
             }
 
             TestRngImpl::Recorder { ref mut rng, .. } => {
-                Seed::Recorder(rng.gen())
+                Seed::Recorder(rng.random())
             }
         }
     }
@@ -685,7 +661,7 @@ mod test {
             {
                 let mut rng1 = orig.clone();
                 let mut rng2 = rng1.gen_rng();
-                assert_ne!(rng1.gen::<Value>(), rng2.gen::<Value>());
+                assert_ne!(rng1.random::<Value>(), rng2.random::<Value>());
             }
 
             {
@@ -693,10 +669,10 @@ mod test {
                 let mut rng2 = rng1.gen_rng();
                 let mut rng3 = rng1.gen_rng();
                 let mut rng4 = rng2.gen_rng();
-                let a = rng1.gen::<Value>();
-                let b = rng2.gen::<Value>();
-                let c = rng3.gen::<Value>();
-                let d = rng4.gen::<Value>();
+                let a = rng1.random::<Value>();
+                let b = rng2.random::<Value>();
+                let c = rng3.random::<Value>();
+                let d = rng4.random::<Value>();
                 assert_ne!(a, b);
                 assert_ne!(a, c);
                 assert_ne!(a, d);
@@ -721,9 +697,9 @@ mod test {
         assert_eq!(0xDEADBEEFCAFE7856, rng.next_u64());
 
         let mut buf = [0u8; 4];
-        rng.try_fill_bytes(&mut buf[0..4]).unwrap();
+        rng.fill_bytes(&mut buf[0..4]);
         assert_eq!([1, 2, 3, 0], buf);
-        rng.try_fill_bytes(&mut buf[0..4]).unwrap();
+        rng.fill_bytes(&mut buf[0..4]);
         assert_eq!([0, 0, 0, 0], buf);
     }
 }

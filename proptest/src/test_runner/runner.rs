@@ -773,7 +773,7 @@ impl TestRunner {
                 INFO_LOG,
                 "Shrinking disabled by configuration"
             );
-            return None
+            return None;
         }
 
         #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
@@ -1243,8 +1243,8 @@ mod test {
     fn new_rng_makes_separate_rng() {
         use rand::Rng;
         let mut runner = TestRunner::default();
-        let from_1 = runner.new_rng().gen::<[u8; 16]>();
-        let from_2 = runner.rng().gen::<[u8; 16]>();
+        let from_1 = runner.new_rng().random::<[u8; 16]>();
+        let from_2 = runner.rng().random::<[u8; 16]>();
         assert_ne!(from_1, from_2);
     }
 
@@ -1257,7 +1257,7 @@ mod test {
         let recorder_rng = TestRng::default_rng(RngAlgorithm::Recorder);
         let mut runner =
             TestRunner::new_with_rng(default_config.clone(), recorder_rng);
-        let random_byte_array1 = runner.rng().gen::<[u8; 16]>();
+        let random_byte_array1 = runner.rng().random::<[u8; 16]>();
         let bytes_used = runner.bytes_used();
         assert!(bytes_used.len() >= 16); // could use more bytes for some reason
 
@@ -1266,7 +1266,7 @@ mod test {
             TestRng::from_seed(RngAlgorithm::PassThrough, &bytes_used);
         let mut runner =
             TestRunner::new_with_rng(default_config, passthrough_rng);
-        let random_byte_array2 = runner.rng().gen::<[u8; 16]>();
+        let random_byte_array2 = runner.rng().random::<[u8; 16]>();
 
         // make sure the same value was created
         assert_eq!(random_byte_array1, random_byte_array2);

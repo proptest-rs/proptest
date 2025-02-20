@@ -205,7 +205,7 @@ impl<T: BitSetLike> Strategy for BitSetStrategy<T> {
         let mut inner = T::new_bitset(self.max);
         for bit in self.min..self.max {
             if self.mask.as_ref().map_or(true, |mask| mask.test(bit))
-                && runner.rng().gen()
+                && runner.rng().random()
             {
                 inner.set(bit);
             }
@@ -279,7 +279,8 @@ impl<T: BitSetLike> Strategy for SampledBitSetStrategy<T> {
             runner,
             self.size.start(),
             self.size.end_incl(),
-        );
+        )
+        .expect("BUG: start above end");
         if bits.len() < count {
             panic!("not enough bits to sample");
         }

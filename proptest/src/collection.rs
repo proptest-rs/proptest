@@ -551,7 +551,8 @@ impl<T: Strategy> Strategy for VecStrategy<T> {
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let (start, end) = self.size.start_end_incl();
-        let max_size = sample_uniform_incl(runner, start, end);
+        let max_size = sample_uniform_incl(runner, start, end)
+            .expect("BUG: start above end");
         let mut elements = Vec::with_capacity(max_size);
         while elements.len() < max_size {
             elements.push(self.element.new_tree(runner)?);
