@@ -208,11 +208,7 @@ pub enum RngSeed {
 impl std::str::FromStr for RngSeed {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "random" {
-            Ok(RngSeed::Random)
-        } else {
-            s.parse().map(RngSeed::Fixed).map_err(|_| ())
-        }
+        s.parse::<u64>().map(RngSeed::Fixed).map_err(|_| ())
     }
 }
 
@@ -437,7 +433,7 @@ pub struct Config {
     pub rng_algorithm: RngAlgorithm,
 
     /// Seed used for the RNG. Set by using the PROPTEST_RNG_SEED environment variable
-    /// If `random` is supplied, a random seed is generated (this is the default option).
+    /// If the environment variable is undefined, a random seed is generated (this is the default option).
     pub rng_seed: RngSeed,
 
     // Needs to be public so FRU syntax can be used.
