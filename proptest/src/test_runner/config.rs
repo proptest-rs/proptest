@@ -8,7 +8,7 @@
 // except according to those terms.
 
 use crate::std_facade::Box;
-use core::u32;
+use core::{fmt, str, u32};
 
 use crate::test_runner::result_cache::{noop_result_cache, ResultCache};
 use crate::test_runner::rng::RngAlgorithm;
@@ -205,15 +205,15 @@ pub enum RngSeed {
     Fixed(u64)
 }
 
-impl std::str::FromStr for RngSeed {
+impl str::FromStr for RngSeed {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.parse::<u64>().map(RngSeed::Fixed).map_err(|_| ())
     }
 }
 
-impl std::fmt::Display for RngSeed {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for RngSeed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RngSeed::Random => write!(f, "random"),
             RngSeed::Fixed(n) => write!(f, "{}", n),
