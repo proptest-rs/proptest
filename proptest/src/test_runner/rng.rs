@@ -10,7 +10,7 @@
 use crate::std_facade::{Arc, String, ToOwned, Vec};
 use core::result::Result;
 use core::{fmt, str, u8, convert::TryInto};
-
+use crate::test_runner::{config, RngSeed};
 use rand::{self, Rng, RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
 use rand_xorshift::XorShiftRng;
@@ -428,23 +428,34 @@ impl TestRng {
     }
 
     /// Construct a default TestRng from entropy.
-    pub(crate) fn default_rng(algorithm: RngAlgorithm) -> Self {
+    pub(crate) fn default_rng(seed: config::RngSeed, algorithm: RngAlgorithm) -> Self {
         #[cfg(feature = "std")]
         {
             Self {
                 rng: match algorithm {
                     RngAlgorithm::XorShift => {
-                        TestRngImpl::XorShift(XorShiftRng::from_entropy())
+                        let rng = match seed {
+                            RngSeed::Random => XorShiftRng::from_entropy(),
+                            RngSeed::Fixed(seed) => XorShiftRng::seed_from_u64(seed),
+                        };
+                        TestRngImpl::XorShift(rng)
                     }
                     RngAlgorithm::ChaCha => {
-                        TestRngImpl::ChaCha(ChaChaRng::from_entropy())
+                        let rng = match seed {
+                            RngSeed::Random => ChaChaRng::from_entropy(),
+                            RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
+                        };
+                        TestRngImpl::ChaCha(rng)
                     }
                     RngAlgorithm::PassThrough => {
                         panic!("cannot create default instance of PassThrough")
                     }
-                    RngAlgorithm::Recorder => TestRngImpl::Recorder {
-                        rng: ChaChaRng::from_entropy(),
-                        record: Vec::new(),
+                    RngAlgorithm::Recorder => {
+                        let rng =  match seed {
+                            RngSeed::Random => ChaChaRng::from_entropy(),
+                            RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
+                        };
+                        TestRngImpl::Recorder {rng, record: Vec::new()}
                     },
                     RngAlgorithm::_NonExhaustive => unreachable!(),
                 },

@@ -314,8 +314,9 @@ impl TestRunner {
     /// hard-coded seed. This seed is not contractually guaranteed and may be
     /// changed between releases without notice.
     pub fn new(config: Config) -> Self {
+        let seed = config.rng_seed;
         let algorithm = config.rng_algorithm;
-        TestRunner::new_with_rng(config, TestRng::default_rng(algorithm))
+        TestRunner::new_with_rng(config, TestRng::default_rng(seed, algorithm))
     }
 
     /// Create a fresh `TestRunner` with the standard deterministic RNG.
@@ -1254,7 +1255,7 @@ mod test {
 
         // create value with recorder rng
         let default_config = Config::default();
-        let recorder_rng = TestRng::default_rng(RngAlgorithm::Recorder);
+        let recorder_rng = TestRng::default_rng(RngSeed::Random, RngAlgorithm::Recorder);
         let mut runner =
             TestRunner::new_with_rng(default_config.clone(), recorder_rng);
         let random_byte_array1 = runner.rng().gen::<[u8; 16]>();

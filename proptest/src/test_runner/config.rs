@@ -8,7 +8,7 @@
 // except according to those terms.
 
 use crate::std_facade::Box;
-use core::u32;
+use core::{fmt, str, u32};
 
 use crate::test_runner::result_cache::{noop_result_cache, ResultCache};
 use crate::test_runner::rng::RngAlgorithm;
@@ -37,6 +37,7 @@ pub fn contextualize_config(mut result: Config) -> Config {
     const TIMEOUT: &str = "PROPTEST_TIMEOUT";
     const VERBOSE: &str = "PROPTEST_VERBOSE";
     const RNG_ALGORITHM: &str = "PROPTEST_RNG_ALGORITHM";
+    const RNG_SEED: &str = "PROPTEST_RNG_SEED";
     const DISABLE_FAILURE_PERSISTENCE: &str =
         "PROPTEST_DISABLE_FAILURE_PERSISTENCE";
 
@@ -135,6 +136,13 @@ pub fn contextualize_config(mut result: Config) -> Config {
                 "RngAlgorithm",
                 RNG_ALGORITHM,
             );
+        } else if var == RNG_SEED {
+            parse_or_warn(
+                &value,
+                &mut result.rng_seed,
+                "u64",
+                RNG_SEED,
+            );
         } else if var == DISABLE_FAILURE_PERSISTENCE {
             result.failure_persistence = None;
         } else if var.starts_with("PROPTEST_") {
@@ -172,6 +180,7 @@ fn default_default_config() -> Config {
         #[cfg(feature = "std")]
         verbose: 0,
         rng_algorithm: RngAlgorithm::default(),
+        rng_seed: RngSeed::Random,
         _non_exhaustive: (),
     }
 }
@@ -185,6 +194,31 @@ lazy_static! {
         default_config.failure_persistence = Some(Box::new(crate::test_runner::FileFailurePersistence::default()));
         contextualize_config(default_config)
     };
+}
+
+/// The seed for the RNG, can either be random or specified as a u64.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RngSeed {
+    /// Default case, use a random value
+    Random,
+    /// Use a specific value to generate a seed
+    Fixed(u64)
+}
+
+impl str::FromStr for RngSeed {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse::<u64>().map(RngSeed::Fixed).map_err(|_| ())
+    }
+}
+
+impl fmt::Display for RngSeed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RngSeed::Random => write!(f, "random"),
+            RngSeed::Fixed(n) => write!(f, "{}", n),
+        }
+    }
 }
 
 /// Configuration for how a proptest test should be run.
@@ -397,6 +431,10 @@ pub struct Config {
     /// (The variable is only considered when the `std` feature is enabled,
     /// which it is by default.)
     pub rng_algorithm: RngAlgorithm,
+
+    /// Seed used for the RNG. Set by using the PROPTEST_RNG_SEED environment variable
+    /// If the environment variable is undefined, a random seed is generated (this is the default option).
+    pub rng_seed: RngSeed,
 
     // Needs to be public so FRU syntax can be used.
     #[doc(hidden)]
