@@ -10,7 +10,7 @@ documentation = "https://docs.rs/proptest/latest/proptest/"
 keywords = ["property", "testing", "quickcheck", "fuzz", "hypothesis"]
 categories = ["development-tools::testing"]
 edition = "2018"
-rust-version = "1.65"
+rust-version = "1.66"
 exclude = ["/gen-*.sh", "/readme-*.md"]
 
 description = """
@@ -63,65 +63,25 @@ bit-set = ["dep:bit-set", "dep:bit-vec"]
 handle-panics = ["std"]
 
 [dependencies]
-bitflags = "2"
-unarray = "0.1.4"
-proptest-macro = { version = "0.1", path = "../proptest-macro", optional = true }
-
-# [dependencies.hashmap_core]
-# version = "0.1.5"
-# optional = true
-
-[dependencies.lazy_static]
-version = "1.2"
-optional = true
-
-[dependencies.num-traits]
-version = "0.2.15"
-default-features = false
-
-[dependencies.regex-syntax]
-# If you change this, make sure to also bump the `regex` dependency to a
-# version that also uses this version of regex-syntax.
-version = "0.8"
-optional = true
-
-[dependencies.bit-set]
-version = "0.8.0"
-optional = true
-
-[dependencies.bit-vec]
-version = "0.8.0"
-optional = true
-
-[dependencies.rand]
-version = "0.8"
-default-features = false
-features = ["alloc"]
-
-[dependencies.rand_xorshift]
-version = "0.3"
-
-[dependencies.rand_chacha]
-version = "0.3"
-default-features = false
-
-[dependencies.rusty-fork]
-version = "0.3.0"
-optional = true
-default-features = false
-
-[dependencies.tempfile]
-version = "3.0"
-optional = true
-
-[dependencies.x86]
-version = "0.52.0"
-optional = true
+bitflags = { workspace = true }
+unarray = { workspace = true }
+proptest-macro = { workspace = true, optional = true }
+lazy_static= { workspace = true, optional = true }
+num-traits= { workspace = true }
+regex-syntax= { workspace = true, optional = true }
+bit-set= { workspace = true, optional = true }
+bit-vec= { workspace = true, optional = true }
+rand= { workspace = true, features = ["alloc"] }
+rand_xorshift= { workspace = true }
+rand_chacha= { workspace = true }
+rusty-fork= { workspace = true, optional = true }
+tempfile= { workspace = true, optional = true }
+x86= { workspace = true, optional = true }
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
-regex = "1.0"
-trybuild = "=1.0.0"
+regex = { workspace = true }
+trybuild = { workspace = true }

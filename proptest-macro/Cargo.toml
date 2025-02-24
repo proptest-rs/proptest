@@ -9,17 +9,17 @@ repository = "https://github.com/proptest-rs/proptest"
 homepage = "https://proptest-rs.github.io/proptest/proptest/index.html"
 keywords = ["property", "testing", "quickcheck", "fuzz", "hypothesis"]
 categories = ["development-tools::testing"]
-rust-version = "1.65"
+rust-version = "1.66"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-syn = { version = "2", features = ["full"] }
-quote = "1"
-proc-macro2 = "1"
-convert_case = "0.6"
+syn = { workspace = true, features = ["full"] }
+quote = { workspace = true }
+proc-macro2 = { workspace = true }
+convert_case = { workspace = true }
 
 [dev-dependencies]
-insta = "1"
-prettyplease = "0.2"
+insta = { workspace = true }
+prettyplease = { workspace = true }
