@@ -402,15 +402,13 @@ impl FileFailurePersistence {
     }
 }
 
-lazy_static! {
-    /// Used to guard access to the persistence file(s) so that a single
-    /// process will not step on its own toes.
-    ///
-    /// We don't have much protecting us should two separate process try to
-    /// write to the same file at once (depending on how atomic append mode is
-    /// on the OS), but this should be extremely rare.
-    static ref PERSISTENCE_LOCK: RwLock<()> = RwLock::new(());
-}
+/// Used to guard access to the persistence file(s) so that a single
+/// process will not step on its own toes.
+///
+/// We don't have much protecting us should two separate process try to
+/// write to the same file at once (depending on how atomic append mode is
+/// on the OS), but this should be extremely rare.
+static PERSISTENCE_LOCK: RwLock<()> = RwLock::new(());
 
 #[cfg(test)]
 mod tests {
@@ -423,22 +421,20 @@ mod tests {
         misplaced_file: PathBuf,
     }
 
-    lazy_static! {
-        static ref TEST_PATHS: TestPaths = {
-            let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-            let lib_root = crate_root.join("src");
-            let src_subdir = lib_root.join("strategy");
-            let src_file = lib_root.join("foo.rs");
-            let subdir_file = src_subdir.join("foo.rs");
-            let misplaced_file = crate_root.join("foo.rs");
-            TestPaths {
-                crate_root,
-                src_file,
-                subdir_file,
-                misplaced_file,
-            }
-        };
-    }
+    static TEST_PATHS: std::sync::LazyLock<TestPaths> = std::sync::LazyLock::new(|| {
+        let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let lib_root = crate_root.join("src");
+        let src_subdir = lib_root.join("strategy");
+        let src_file = lib_root.join("foo.rs");
+        let subdir_file = src_subdir.join("foo.rs");
+        let misplaced_file = crate_root.join("foo.rs");
+        TestPaths {
+            crate_root,
+            src_file,
+            subdir_file,
+            misplaced_file,
+        }
+    });
 
     #[test]
     fn persistence_file_location_resolved_correctly() {
@@ -502,10 +498,7 @@ mod tests {
     #[test]
     fn relative_source_files_absolutified() {
         const TEST_RUNNER_PATH: &[&str] = &["src", "test_runner", "mod.rs"];
-        lazy_static! {
-            static ref TEST_RUNNER_RELATIVE: PathBuf =
-                TEST_RUNNER_PATH.iter().collect();
-        }
+        static TEST_RUNNER_RELATIVE: std::sync::LazyLock<PathBuf> = std::sync::LazyLock::new(|| TEST_RUNNER_PATH.iter().collect());
         const CARGO_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
         let expected = ::std::iter::once(CARGO_DIR)
@@ -517,7 +510,7 @@ mod tests {
             &*expected,
             absolutize_source_file_with_cwd(
                 || Ok(Path::new(CARGO_DIR).to_owned()),
-                &TEST_RUNNER_RELATIVE
+                &*TEST_RUNNER_RELATIVE
             )
             .unwrap()
         );
@@ -527,7 +520,7 @@ mod tests {
             &*expected,
             absolutize_source_file_with_cwd(
                 || Ok(Path::new(CARGO_DIR).join("target")),
-                &TEST_RUNNER_RELATIVE
+                &*TEST_RUNNER_RELATIVE
             )
             .unwrap()
         );
