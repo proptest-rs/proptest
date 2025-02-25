@@ -48,6 +48,12 @@ jobs:
         run: cd proptest && cargo test --verbose
       - name: Run macro tests
         run: cd proptest-macro && cargo test --verbose
+      - name: Run tests handle-panics
+        run: cd proptest && cargo test --verbose --features handle-panics
+      - name: Run tests backtrace
+        run: cd proptest && cargo test --verbose --features backtrace
+      - name: Run tests handle-panics+backtrace
+        run: cd proptest && cargo test --verbose --features "handle-panics backtrace"
       - name: Build coverage no-default-features
         if: ${{ matrix.build == 'stable' }}
         env:

@@ -7,12 +7,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::std_facade::{Arc, BTreeMap, Box, String, Vec};
+use crate::std_facade::{Arc, BTreeMap, Box, Vec};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 use core::{fmt, iter};
-#[cfg(feature = "std")]
-use std::panic::{self, AssertUnwindSafe};
 
 #[cfg(feature = "fork")]
 use rusty_fork;
@@ -225,6 +223,30 @@ where
     F: Fn(V) -> TestCaseResult,
     R: Iterator<Item = TestCaseResult>,
 {
+    use std::panic::{self, AssertUnwindSafe};
+
+    #[cfg(feature = "handle-panics")]
+    fn run_case(case: impl FnOnce() -> TestCaseResult) -> TestCaseResult {
+        let mut reason = None;
+        unwrap_or!(
+            super::scoped_panic_hook::with_hook(
+                |panic_info| { reason = Some(panic_info.into()); },
+                || panic::catch_unwind(AssertUnwindSafe(case))
+            ),
+            _panic => Err(TestCaseError::Fail(reason.expect(
+                "Reason should have been obtained from panic hook"
+            )))
+        )
+    }
+
+    #[cfg(not(feature = "handle-panics"))]
+    fn run_case(case: impl FnOnce() -> TestCaseResult) -> TestCaseResult {
+        unwrap_or!(
+            panic::catch_unwind(AssertUnwindSafe(case)),
+            panic => Err(TestCaseError::Fail(panic.as_ref().into()))
+        )
+    }
+
     #[cfg(feature = "timeout")]
     let timeout = runner.config.timeout();
 
@@ -252,16 +274,7 @@ where
     #[cfg(feature = "timeout")]
     let time_start = std::time::Instant::now();
 
-    let mut result = unwrap_or!(
-        super::scoped_panic_hook::with_hook(
-            |_| { /* Silence out panic backtrace */ },
-            || panic::catch_unwind(AssertUnwindSafe(|| test(case)))
-        ),
-        what => Err(TestCaseError::Fail(
-            what.downcast::<&'static str>().map(|s| (*s).into())
-                .or_else(|what| what.downcast::<String>().map(|b| (*b).into()))
-                .or_else(|what| what.downcast::<Box<str>>().map(|b| (*b).into()))
-                .unwrap_or_else(|_| "<unknown panic value>".into()))));
+    let mut result = run_case(|| test(case));
 
     // If there is a timeout and we exceeded it, fail the test here so we get
     // consistent behaviour. (The parent process cannot precisely time the test
@@ -774,7 +787,7 @@ impl TestRunner {
                 INFO_LOG,
                 "Shrinking disabled by configuration"
             );
-            return None
+            return None;
         }
 
         #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
@@ -1071,6 +1084,8 @@ mod test {
     use std::cell::Cell;
     use std::fs;
 
+    use assert_matches::assert_matches;
+
     use super::*;
     use crate::strategy::Strategy;
     use crate::test_runner::{FileFailurePersistence, RngAlgorithm, TestRng};
@@ -1128,7 +1143,10 @@ mod test {
             assert!(v < 5, "not less than 5");
             Ok(())
         });
-        assert_eq!(Err(TestError::Fail("not less than 5".into(), 5)), result);
+        assert_matches!(
+            result, 
+            Err(TestError::Fail(reason, 5)) if reason.message().starts_with("not less than 5")
+        );
     }
 
     #[test]

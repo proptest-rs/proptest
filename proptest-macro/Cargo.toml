@@ -23,3 +23,7 @@ convert_case = "0.6"
 [dev-dependencies]
 insta = "1"
 prettyplease = "0.2"
+# Transitive dependency of `insta`, v0.15.10 requires MSRV 1.66
+console = "=0.15.8"
+# Transitive dependency of `insta`, v0.1.14+ requires some features unstable on Rust 1.65
+unicode-width = "=0.1.13"

@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Added `backtrace` feature which enables capturing backtraces for both test failures and panics,
+  if `handle-panics` feature is enabled
+
 ## 1.6.0
 
 ### New Features

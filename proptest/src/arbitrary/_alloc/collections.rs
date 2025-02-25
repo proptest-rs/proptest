@@ -19,6 +19,7 @@ use crate::std_facade::{
     binary_heap, btree_map, btree_set, fmt, linked_list, vec, vec_deque, Arc,
     BTreeMap, BTreeSet, BinaryHeap, Box, LinkedList, Rc, Vec, VecDeque,
 };
+#[cfg(feature = "std")]
 use core::hash::Hash;
 use core::ops::{Bound, RangeInclusive};
 
