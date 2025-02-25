@@ -18,7 +18,7 @@ proc-macro = true
 syn = { version = "2", features = ["full"] }
 quote = "1"
 proc-macro2 = "1"
-convert_case = "0.6"
+convert_case = "0.7"
 
 [dev-dependencies]
 insta = "1"
