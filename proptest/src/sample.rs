@@ -405,7 +405,7 @@ impl Selector {
         let mut rng = self.rng.clone();
 
         for item in it {
-            let score = bias.saturating_add(rng.gen());
+            let score = bias.saturating_add(rng.random());
             if best.is_none() || score < min_score {
                 best = Some(item);
                 min_score = score;
