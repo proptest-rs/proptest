@@ -127,7 +127,7 @@ pub trait Strategy: fmt::Debug {
     ///       // Note that this particular case would be better implemented as
     ///       // `(0i32..10, -10i32..10).prop_map(|(a, b)| (a, a + b))`
     ///       // but is shown here for simplicity.
-    ///       |centre, rng| (centre, centre + rng.gen_range(-10, 10))))
+    ///       |centre, rng| (centre, centre + rng.random_range(-10, 10))))
     ///   {
     ///       // Test stuff
     ///   }
