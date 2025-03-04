@@ -158,6 +158,8 @@ pub fn select<T: Clone + fmt::Debug + 'static>(
 ) -> Select<T> {
     let cow = values.into();
 
+    assert!(!cow.is_empty(), "Cannot select from empty collection");
+
     Select(statics::Map::new(0..cow.len(), SelectMapFn(Arc::new(cow))))
 }
 
