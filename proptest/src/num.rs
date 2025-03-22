@@ -15,8 +15,8 @@
 mod float_samplers;
 
 use crate::test_runner::TestRunner;
-use rand::distributions::uniform::{SampleUniform, Uniform};
-use rand::distributions::{Distribution, Standard};
+use rand::distr::uniform::{SampleUniform, Uniform};
+use rand::distr::{Distribution, StandardUniform};
 
 /// Generate a random value of `X`, sampled uniformly from the half
 /// open range `[low, high)` (excluding `high`). Panics if `low >= high`.
@@ -25,7 +25,7 @@ pub(crate) fn sample_uniform<X: SampleUniform>(
     start: X,
     end: X,
 ) -> X {
-    Uniform::new(start, end).sample(run.rng())
+    Uniform::new(start, end).expect("not uniform").sample(run.rng())
 }
 
 /// Generate a random value of `X`, sampled uniformly from the closed
@@ -35,7 +35,7 @@ pub fn sample_uniform_incl<X: SampleUniform>(
     start: X,
     end: X,
 ) -> X {
-    Uniform::new_inclusive(start, end).sample(run.rng())
+    Uniform::new_inclusive(start, end).expect("not uniform").sample(run.rng())
 }
 
 macro_rules! int_any {
@@ -53,7 +53,7 @@ macro_rules! int_any {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-                Ok(BinarySearch::new(runner.rng().gen()))
+                Ok(BinarySearch::new(runner.rng().random()))
             }
         }
     };
@@ -418,7 +418,7 @@ impl FloatTypes {
 
 trait FloatLayout
 where
-    Standard: Distribution<Self::Bits>,
+    StandardUniform: Distribution<Self::Bits>,
 {
     type Bits: Copy;
 
@@ -675,7 +675,7 @@ macro_rules! float_any {
                     ].new_tree(runner)?.current();
 
                 let mut generated_value: <$typ as FloatLayout>::Bits =
-                    runner.rng().gen();
+                    runner.rng().random();
                 generated_value &= sign_mask | class_mask;
                 generated_value |= sign_or | class_or;
                 let exp = generated_value & $typ::EXP_MASK;
