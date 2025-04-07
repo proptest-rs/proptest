@@ -268,22 +268,6 @@ impl Seed {
     }
 
     pub(crate) fn from_persistence(string: &str) -> Option<Seed> {
-        fn from_base16(dst: &mut [u8], src: &str) -> Option<()> {
-            if dst.len() * 2 != src.len() {
-                return None;
-            }
-
-            for (dst_byte, src_pair) in
-                dst.into_iter().zip(src.as_bytes().chunks(2))
-            {
-                *dst_byte =
-                    u8::from_str_radix(str::from_utf8(src_pair).ok()?, 16)
-                        .ok()?;
-            }
-
-            Some(())
-        }
-
         let parts =
             string.trim().split(char::is_whitespace).collect::<Vec<_>>();
         RngAlgorithm::from_persistence_key(&parts[0]).and_then(
@@ -347,12 +331,6 @@ impl Seed {
     }
 
     pub(crate) fn to_persistence(&self) -> String {
-        fn to_base16(dst: &mut String, src: &[u8]) {
-            for byte in src {
-                dst.push_str(&format!("{:02x}", byte));
-            }
-        }
-
         match *self {
             Seed::XorShift(ref seed) => {
                 let dwords = [
@@ -437,6 +415,7 @@ impl TestRng {
                         let rng = match seed {
                             RngSeed::Random => XorShiftRng::from_entropy(),
                             RngSeed::Fixed(seed) => XorShiftRng::seed_from_u64(seed),
+                            RngSeed::FullHexEncodedSeed(seed) => XorShiftRng::from_seed(seed.try_into().expect("Invalid seed length provided. XorShiftRng uses a 16-byte seed")),
                         };
                         TestRngImpl::XorShift(rng)
                     }
@@ -444,6 +423,7 @@ impl TestRng {
                         let rng = match seed {
                             RngSeed::Random => ChaChaRng::from_entropy(),
                             RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
+                            RngSeed::FullHexEncodedSeed(seed) => ChaChaRng::from_seed(seed.try_into().expect("Invalid seed length provided. ChaChaRng uses a 16-byte seed")),
                         };
                         TestRngImpl::ChaCha(rng)
                     }
@@ -454,6 +434,7 @@ impl TestRng {
                         let rng =  match seed {
                             RngSeed::Random => ChaChaRng::from_entropy(),
                             RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
+                            RngSeed::FullHexEncodedSeed(seed) => ChaChaRng::from_seed(seed.try_into().expect("Invalid seed length provided. ChaChaRng uses a 16-byte seed")),
                         };
                         TestRngImpl::Recorder {rng, record: Vec::new()}
                     },
@@ -652,6 +633,28 @@ impl TestRng {
             },
         }
     }
+}
+
+pub(crate) fn to_base16(dst: &mut String, src: &[u8]) {
+    for byte in src {
+        dst.push_str(&format!("{:02x}", byte));
+    }
+}
+
+pub(crate) fn from_base16(dst: &mut [u8], src: &str) -> Option<()> {
+    if dst.len() * 2 != src.len() {
+        return None;
+    }
+
+    for (dst_byte, src_pair) in
+        dst.into_iter().zip(src.as_bytes().chunks(2))
+    {
+        *dst_byte =
+            u8::from_str_radix(str::from_utf8(src_pair).ok()?, 16)
+                .ok()?;
+    }
+
+    Some(())
 }
 
 #[cfg(test)]

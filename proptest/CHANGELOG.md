@@ -1,5 +1,11 @@
 ## Unreleased
 
+### New Features
+
+- Added the ability to provide a full hex-encoded seed via PROPTEST_RNG_SEED,
+  allowing users to roundtrip a seed persisted after a failed run via the
+  command line.
+
 ## 1.6.0
 
 ### New Features
