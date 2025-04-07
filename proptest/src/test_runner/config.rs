@@ -137,12 +137,45 @@ pub fn contextualize_config(mut result: Config) -> Config {
                 RNG_ALGORITHM,
             );
         } else if var == RNG_SEED {
+            // this is a hacky workaround to deal with the fact that the
+            // entire code path surrounding parsing and contextualizing
+            // the RngSeed is only fallible within the parse function, however
+            // RngSeed, specifically the hex-encoded version, needs to ensure
+            // that the hex-encoded string matches the length of the seed that
+            // the configured `RngAlgorithm` expects.
+            //
+            // to work around this, we'll stash the existing seed, attempt to parse
+            // then attempt to validate, and if there is a validation failure,
+            // reset the config value back to the existing seed
+            let existing_seed = result.rng_seed;
+
             parse_or_warn(
                 &value,
                 &mut result.rng_seed,
-                "u64",
+                "RngSeed",
                 RNG_SEED,
             );
+
+            if let RngSeed::FullHexEncodedSeed(seed) = &result.rng_seed {
+                match result.rng_algorithm {
+                    RngAlgorithm::XorShift => {
+                        // 16-byte seed, hex-encoded with 2 chars per byte
+                        if seed.len() != 16 {
+                            eprintln!("proptest: Invalid FullHexEncodedSeed length. Expected a 16-byte seed but got: {:?}, len={}", seed, seed.len());
+                            result.rng_seed = existing_seed;
+                        }
+                    }
+                    RngAlgorithm::ChaCha => {
+                        // 32-byte seed, hex-encoded with 2 chars per byte
+                        if seed.len() != 32 {
+                            eprintln!("proptest: Invalid FullHexEncodedSeed length. Expected a 32-byte seed but got: {:?}, len={}", seed, seed.len());
+                            result.rng_seed = existing_seed;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
         } else if var == DISABLE_FAILURE_PERSISTENCE {
             result.failure_persistence = None;
         } else if var.starts_with("PROPTEST_") {
@@ -196,19 +229,55 @@ lazy_static! {
     };
 }
 
-/// The seed for the RNG, can either be random or specified as a u64.
+/// The seed for the RNG. Can either be random, specified as a u64, or specified
+/// as a hex-encoded string.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RngSeed {
     /// Default case, use a random value
     Random,
-    /// Use a specific value to generate a seed
-    Fixed(u64)
+    /// Use a u64 to generate a seed
+    ///
+    /// NB [03-30-25] Before `FullSeed`, this was the only way to provide a seed.
+    /// A u64 isn't sufficient to represent all posible seeds though, with most
+    /// seeds being a 32-byte buffer. This name must stay as `Fixed` since this
+    /// is part of the public API but a more appropriate name would be
+    /// `AbbreviatedNumericSeed`
+    Fixed(u64),
+    /// Use the provided hex-encoded string as the seed. This must be exactly the
+    /// size expected by the configured rng algorithm.
+    ///
+    /// The seed written to persistence files is a hex-encoded string, meaning you
+    /// can pass a seed from those files to a TestRunner with this variant.
+    FullHexEncodedSeed(&'static [u8]),
 }
 
 impl str::FromStr for RngSeed {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.parse::<u64>().map(RngSeed::Fixed).map_err(|_| ())
+        let mut split = s.split("-");
+
+        match split.next() {
+            // input of the form `hex-{s}` is a full hex-encoded seed
+            Some("hex") => {
+                let seed_bytes = match split.next() {
+                    Some(s) => {
+                        let mut buf = vec![0_u8; s.len() / 2];
+                        crate::test_runner::rng::from_base16(&mut buf[0..], &s);
+                        buf
+                    }
+                    None => return Err(()),
+                };
+
+                if split.next().is_some() {
+                    return Err(());
+                }
+
+                Ok(RngSeed::FullHexEncodedSeed(seed_bytes.leak()))
+            }
+            // any other input should be a u64 that a seed will be generated from
+            Some(_) => s.parse::<u64>().map(RngSeed::Fixed).map_err(|_| ()),
+            None => unreachable!("its not possible to ever return None on the first invocation of `next`. empty strings still return an empty string"),
+        }
     }
 }
 
@@ -216,7 +285,12 @@ impl fmt::Display for RngSeed {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RngSeed::Random => write!(f, "random"),
-            RngSeed::Fixed(n) => write!(f, "{}", n),
+            RngSeed::Fixed(n) => write!(f, "u64-{}", n),
+            RngSeed::FullHexEncodedSeed(n) => {
+                let mut s = std::string::String::new();
+                crate::test_runner::to_base16(&mut s, n);
+                write!(f, "hex-{}", s)
+            }
         }
     }
 }
@@ -434,6 +508,11 @@ pub struct Config {
 
     /// Seed used for the RNG. Set by using the PROPTEST_RNG_SEED environment variable
     /// If the environment variable is undefined, a random seed is generated (this is the default option).
+    ///
+    /// PROPTEST_RNG_SEED supports two formats:
+    /// - `hex-{s}` where the string {s} is a hex-encoded seed, matching the expected length of a
+    ///   seed for the configured rng algorithm.
+    /// - `{n}` where the u64 number {n} is used to create a seed for the configured run algorithm
     pub rng_seed: RngSeed,
 
     // Needs to be public so FRU syntax can be used.
