@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
     "proptest",
     "proptest-derive",
@@ -17,15 +18,15 @@ convert_case = "0.6"
 criterion = "0.5"
 insta = "1"
 lazy_static = "1.2"
-message-io = "0.18.0"
+message-io = "0.19.0"
 num-traits = { version = "0.2.15", default-features = false }
 prettyplease = "0.2"
 proc-macro2 = "1.0"
 proptest-macro = { version = "0.1", path = "proptest-macro" }
 quote = "1.0"
-rand = { version = "0.8", default-features = false }
-rand_chacha = { version = "0.3", default-features = false }
-rand_xorshift = "0.3"
+rand = "0.9"
+rand_chacha = "0.9"
+rand_xorshift = "0.4"
 regex = "1.0"
 regex-syntax = "0.8"
 rusty-fork = { version = "0.3.0", default-features = false }
