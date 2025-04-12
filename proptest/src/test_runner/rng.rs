@@ -684,9 +684,9 @@ mod test {
         assert_eq!(0xDEADBEEFCAFE7856, rng.next_u64());
 
         let mut buf = [0u8; 4];
-        rng.try_fill_bytes(&mut buf[0..4]).unwrap();
+        rng.fill_bytes(&mut buf[0..4]);
         assert_eq!([1, 2, 3, 0], buf);
-        rng.try_fill_bytes(&mut buf[0..4]).unwrap();
+        rng.fill_bytes(&mut buf[0..4]);
         assert_eq!([0, 0, 0, 0], buf);
     }
 }
