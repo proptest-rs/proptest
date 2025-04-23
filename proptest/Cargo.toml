@@ -9,7 +9,7 @@ homepage = "https://proptest-rs.github.io/proptest/proptest/index.html"
 documentation = "https://docs.rs/proptest/latest/proptest/"
 keywords = ["property", "testing", "quickcheck", "fuzz", "hypothesis"]
 categories = ["development-tools::testing"]
-edition = "2018"
+edition = "2021"
 rust-version = "1.66"
 exclude = ["/gen-*.sh", "/readme-*.md"]
 
@@ -66,17 +66,17 @@ handle-panics = ["std"]
 bitflags = { workspace = true }
 unarray = { workspace = true }
 proptest-macro = { workspace = true, optional = true }
-lazy_static= { workspace = true, optional = true }
-num-traits= { workspace = true }
-regex-syntax= { workspace = true, optional = true }
-bit-set= { workspace = true, optional = true }
-bit-vec= { workspace = true, optional = true }
-rand= { workspace = true, features = ["alloc"] }
-rand_xorshift= { workspace = true }
-rand_chacha= { workspace = true }
-rusty-fork= { workspace = true, optional = true }
-tempfile= { workspace = true, optional = true }
-x86= { workspace = true, optional = true }
+lazy_static = { workspace = true, optional = true }
+num-traits = { workspace = true }
+regex-syntax = { workspace = true, optional = true }
+bit-set = { workspace = true, optional = true }
+bit-vec = { workspace = true, optional = true }
+rand = { workspace = true, features = ["alloc"] }
+rand_xorshift = { workspace = true }
+rand_chacha = { workspace = true }
+rusty-fork = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
+x86 = { workspace = true, optional = true }
 
 [package.metadata.docs.rs]
 all-features = true

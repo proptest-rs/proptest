@@ -21,16 +21,16 @@ jobs:
           - nightly
         include:
           - build: pinned
-            os: ubuntu-20.04
+            os: ubuntu-24.04
             rust: 1.66.0
           - build: stable
-            os: ubuntu-20.04
+            os: ubuntu-24.04
             rust: stable
           - build: beta
-            os: ubuntu-20.04
+            os: ubuntu-24.04
             rust: beta
           - build: nightly
-            os: ubuntu-20.04
+            os: ubuntu-24.04
             rust: nightly
 
     steps:
@@ -75,3 +75,25 @@ jobs:
       - name: Clean and Run tests for derive with features enabled
         if: ${{ matrix.build == 'nightly' }}
         run: cd proptest-derive && cargo clean && cargo test --features boxed_union
+      - name: Run state machine tests
+        if: ${{ matrix.build != 'pinned' }}
+        run: cd proptest-state-machine && cargo test --verbose
+
+  # State machine testing on MSRV 1.81, until the general MSRV
+  # is caught up to 1.81.0
+  state-machine:
+    name: State Machine (MSRV 1.81)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Install Rust 1.81.0
+        uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: 1.81.0
+      - name: Build state machine
+        run: cd proptest-state-machine && cargo build --verbose
+      - name: Run state machine tests
+        run: cd proptest-state-machine && cargo test --verbose

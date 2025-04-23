@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Bump all dependencies to latest compatible with MSRV 1.66.
+
 ## 1.6.0
 
 ### New Features

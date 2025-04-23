@@ -4,6 +4,8 @@ version = "0.5.1"
 authors = ["Mazdak Farrokhzad <twingoow@gmail.com>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+edition = "2021"
+rust-version = "1.66"
 
 repository = "https://github.com/proptest-rs/proptest"
 documentation = "https://proptest-rs.github.io/proptest/proptest-derive/index.html"
@@ -16,7 +18,6 @@ Custom-derive for the Arbitrary trait of proptest.
 """
 
 homepage = "https://proptest-rs.github.io/proptest/proptest-derive/index.html"
-edition = "2018"
 
 [lib]
 proc-macro = true
