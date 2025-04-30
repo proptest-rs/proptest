@@ -4,12 +4,12 @@ description = "Procedural macros for the proptest crate"
 version = "0.1.0"
 authors = ["The Proptest Developers"]
 edition = "2021"
+rust-version = "1.66"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/proptest-rs/proptest"
 homepage = "https://proptest-rs.github.io/proptest/proptest/index.html"
 keywords = ["property", "testing", "quickcheck", "fuzz", "hypothesis"]
 categories = ["development-tools::testing"]
-rust-version = "1.66"
 
 [lib]
 proc-macro = true

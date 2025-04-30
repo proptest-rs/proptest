@@ -16,6 +16,7 @@ use crate::test_runner::failure_persistence::{
 
 /// Failure persistence option that loads and saves nothing at all.
 #[derive(Debug, Default, PartialEq)]
+#[allow(dead_code)]
 struct NoopFailurePersistence;
 
 impl FailurePersistence for NoopFailurePersistence {

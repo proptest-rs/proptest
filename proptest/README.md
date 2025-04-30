@@ -33,7 +33,7 @@ for a full list of substantial historical changes, breaking and otherwise.
 
 ### MSRV
 
-The current MSRV of this crate is 1.64.
+The current MSRV of this crate is 1.66.
 The MSRV is guaranteed to not exceed `<current stable release> - 7`, though in practice it may be lower than this - your mileage may vary.
 If we change this policy in a backwards incompatible way (e.g. changing it to `<current stable release> - 1`), this constitutes a breaking change, and would be a major version bump (e.g. 1.1 -> 2.0).
 
@@ -196,8 +196,8 @@ proptest! {
 }
 ```
 
-The thing to the right-hand side of `in` is actually a *regular
-expression*, and `s` is chosen from strings which match it. So in our
+The thing to the right-hand side of `in` is actually a _regular
+expression_, and `s` is chosen from strings which match it. So in our
 previous test, `"\\PC*"` was generating arbitrary strings composed of
 arbitrary non-control characters. Now, we generate things in the YYYY-MM-DD
 format.
