@@ -28,7 +28,7 @@ impl Strategy for Any {
     type Value = bool;
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-        Ok(BoolValueTree::new(runner.rng().gen()))
+        Ok(BoolValueTree::new(runner.rng().random()))
     }
 }
 
@@ -50,7 +50,7 @@ impl Strategy for Weighted {
     type Value = bool;
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-        Ok(BoolValueTree::new(runner.rng().gen_bool(self.0)))
+        Ok(BoolValueTree::new(runner.rng().random_bool(self.0)))
     }
 }
 
