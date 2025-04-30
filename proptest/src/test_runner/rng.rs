@@ -648,7 +648,7 @@ mod test {
             {
                 let mut rng1 = orig.clone();
                 let mut rng2 = rng1.gen_rng();
-                assert_ne!(rng1.gen::<Value>(), rng2.gen::<Value>());
+                assert_ne!(rng1.random::<Value>(), rng2.random::<Value>());
             }
 
             {
@@ -656,10 +656,10 @@ mod test {
                 let mut rng2 = rng1.gen_rng();
                 let mut rng3 = rng1.gen_rng();
                 let mut rng4 = rng2.gen_rng();
-                let a = rng1.gen::<Value>();
-                let b = rng2.gen::<Value>();
-                let c = rng3.gen::<Value>();
-                let d = rng4.gen::<Value>();
+                let a = rng1.random::<Value>();
+                let b = rng2.random::<Value>();
+                let c = rng3.random::<Value>();
+                let d = rng4.random::<Value>();
                 assert_ne!(a, b);
                 assert_ne!(a, c);
                 assert_ne!(a, d);
