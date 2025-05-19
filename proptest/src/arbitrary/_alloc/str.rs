@@ -43,7 +43,7 @@ arbitrary!(Utf8Error, SFnPtrMap<(StrategyFor<u16>, ELSeqs), Utf8Error>;
 #[cfg(test)]
 mod test {
     no_panic_test!(
-        parse_bool_errror => ParseBoolError,
+        parse_bool_error => ParseBoolError,
         utf8_error => Utf8Error
     );
 }
