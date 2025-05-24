@@ -18,7 +18,11 @@ convert_case = "0.6"
 criterion = "0.5"
 insta = "1"
 lazy_static = "1.2"
-message-io = "0.19.0"
+message-io = { version = "0.19.0", default-features = false, features = [
+    "tcp",
+    "udp",
+    "websocket",
+] }
 num-traits = { version = "0.2.15", default-features = false }
 prettyplease = "0.2"
 proc-macro2 = "1.0"

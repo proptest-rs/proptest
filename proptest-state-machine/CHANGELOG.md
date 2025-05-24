@@ -1,6 +1,6 @@
 ## Unreleased
 
-- Set MSRV to 1.81, which is what minimally compiles and completes testing.
+- Set MSRV to 1.82, which is what minimally compiles and completes testing.
 
 ## 0.3.1
 

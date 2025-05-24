@@ -12,9 +12,9 @@ use proptest_derive::Arbitrary;
 
 fn main() {}
 
-
 #[derive(Arbitrary)] //~ `Foo` doesn't implement `Debug` [E0277]
 struct Foo { //~^ `Foo` doesn't implement `Debug` [E0277]
-             //~^ `Foo` doesn't implement `Debug` [E0277]
+             //~| `Foo` doesn't implement `Debug` [E0277]
+             //~^^ `Foo` doesn't implement `Debug` [E0277]
     x: usize
 }
