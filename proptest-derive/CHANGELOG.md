@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Fixed URLs in proptest-derive error messages ([\#574](https://github.com/proptest-rs/proptest/pull/574))
+
 ## 0.5.1
 
 - Fix non-local impl nightly warning with allow(non_local_definitions)

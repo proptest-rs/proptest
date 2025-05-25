@@ -206,15 +206,11 @@ impl Context {
 /// to the given `$message`.
 macro_rules! mk_err_msg {
     ($code: ident, $msg: expr) => {
-        concat!(
-            "[proptest_derive, ",
+        format!(
+            "[proptest_derive, {}] during #[derive(Arbitrary)]:\n{} Please see: https://proptest-rs.github.io/proptest/proptest-derive/errors.html#{} for more information.",
             stringify!($code),
-            "]",
-            " during #[derive(Arbitrary)]:\n",
             $msg,
-            " Please see: https://PATH/TO/foo#",
-            stringify!($code),
-            " for more information."
+            (stringify!($code)).to_lowercase()
         )
     };
 }
@@ -229,7 +225,7 @@ macro_rules! fatal {
     ($error: ident ($($arg: ident: $arg_ty: ty),*), $code: ident,
      $msg: expr, $($fmt: tt)+) => {
         pub fn $error<T>(ctx: Ctx, $($arg: $arg_ty),*) -> DeriveResult<T> {
-            ctx.fatal(format!(mk_err_msg!($code, $msg), $($fmt)+))
+            ctx.fatal(mk_err_msg!($code, format!($msg, $($fmt)+)))
         }
     };
 }
@@ -244,7 +240,7 @@ macro_rules! error {
     ($error: ident ($($arg: ident: $arg_ty: ty),*), $code: ident,
      $msg: expr, $($fmt: tt)+) => {
         pub fn $error(ctx: Ctx, $($arg: $arg_ty),*) {
-            ctx.error(format!(mk_err_msg!($code, $msg), $($fmt)+))
+            ctx.error(mk_err_msg!($code, format!($msg, $($fmt)+)))
         }
     };
 }
@@ -677,3 +673,14 @@ error!(
      since `params` cannot be used in `<string>`.",
     item
 );
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_mk_err_msg_format() {
+        assert_eq!(
+            mk_err_msg!(E0001, "This is a sample error message."),
+            "[proptest_derive, E0001] during #[derive(Arbitrary)]:\nThis is a sample error message. Please see: https://proptest-rs.github.io/proptest/proptest-derive/errors.html#e0001 for more information."
+        );
+    }
+}
