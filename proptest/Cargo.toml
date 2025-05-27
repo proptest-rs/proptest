@@ -29,7 +29,7 @@ attr-macro = ["proptest-macro"]
 unstable = []
 
 # Enables the use of standard-library dependent features
-std = ["rand/std", "lazy_static", "regex-syntax", "num-traits/std"]
+std = ["rand/std", "rand/os_rng", "lazy_static", "regex-syntax", "num-traits/std"]
 
 # std or libm required for mul_add.
 no_std = ["num-traits/libm"]
