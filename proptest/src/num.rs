@@ -15,7 +15,8 @@
 mod float_samplers;
 
 use crate::test_runner::TestRunner;
-use rand::distr::{Distribution, StandardUniform, uniform::{SampleUniform, Uniform}};
+use rand::distr::uniform::{SampleUniform, Uniform};
+use rand::distr::{Distribution, StandardUniform};
 
 /// Generate a random value of `X`, sampled uniformly from the half
 /// open range `[low, high)` (excluding `high`). Panics if `low >= high`.
@@ -56,7 +57,7 @@ macro_rules! int_any {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-                Ok(BinarySearch::new(runner.rng().random()))
+                Ok(BinarySearch::new(runner.rng().gen()))
             }
         }
     };
@@ -369,11 +370,13 @@ signed_integer_bin_search!(i16);
 signed_integer_bin_search!(i32);
 signed_integer_bin_search!(i64);
 signed_integer_bin_search!(i128);
+signed_integer_bin_search!(isize);
 unsigned_integer_bin_search!(u8);
 unsigned_integer_bin_search!(u16);
 unsigned_integer_bin_search!(u32);
 unsigned_integer_bin_search!(u64);
 unsigned_integer_bin_search!(u128);
+unsigned_integer_bin_search!(usize);
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -676,7 +679,7 @@ macro_rules! float_any {
                     ].new_tree(runner)?.current();
 
                 let mut generated_value: <$typ as FloatLayout>::Bits =
-                    runner.rng().random();
+                    runner.rng().gen();
                 generated_value &= sign_mask | class_mask;
                 generated_value |= sign_or | class_or;
                 let exp = generated_value & $typ::EXP_MASK;
@@ -1111,6 +1114,8 @@ mod test {
         contract_sanity!(i32);
         contract_sanity!(u64);
         contract_sanity!(i64);
+        contract_sanity!(usize);
+        contract_sanity!(isize);
         contract_sanity!(f32);
         contract_sanity!(f64);
     }
@@ -1459,6 +1464,8 @@ mod test {
         panic_on_empty!(i32);
         panic_on_empty!(u64);
         panic_on_empty!(i64);
+        panic_on_empty!(usize);
+        panic_on_empty!(isize);
         panic_on_empty!(f32);
         panic_on_empty!(f64);
     }
