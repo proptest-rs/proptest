@@ -264,7 +264,7 @@ macro_rules! float_sampler {
 
                     let mut test_rng = TestRng::deterministic_rng(RngAlgorithm::default());
                     let (low, high) = (-1., 10.);
-                    let uniform = FloatUniform::new($wrapper(low), $wrapper(high));
+                    let uniform = FloatUniform::new($wrapper(low), $wrapper(high)).unwrap();
 
                     let samples = (0..100)
                         .map(|_| $typ::from(uniform.sample(&mut test_rng)));
@@ -279,7 +279,7 @@ macro_rules! float_sampler {
 
                     let mut test_rng = TestRng::deterministic_rng(RngAlgorithm::default());
                     let (low, high) = (1., 1. + $typ::EPSILON);
-                    let uniform = FloatUniform::new($wrapper(low), $wrapper(high));
+                    let uniform = FloatUniform::new($wrapper(low), $wrapper(high)).unwrap();
 
                     let mut samples = (0..100)
                         .map(|_| $typ::from(uniform.sample(&mut test_rng)));
@@ -292,7 +292,7 @@ macro_rules! float_sampler {
 
                     let mut test_rng = TestRng::deterministic_rng(RngAlgorithm::default());
                     let (low, high) = (-1., 10.);
-                    let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high));
+                    let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high)).unwrap();
 
                     let samples = (0..100)
                         .map(|_| $typ::from(uniform.sample(&mut test_rng)));
@@ -307,7 +307,7 @@ macro_rules! float_sampler {
 
                     let mut test_rng = TestRng::deterministic_rng(RngAlgorithm::default());
                     let (low, high) = (1., 1. + $typ::EPSILON);
-                    let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high));
+                    let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high)).unwrap();
 
                     let mut samples = (0..100)
                         .map(|_| $typ::from(uniform.sample(&mut test_rng)));
@@ -320,7 +320,7 @@ macro_rules! float_sampler {
 
                     let mut test_rng = TestRng::deterministic_rng(RngAlgorithm::default());
                     let (low, high) = (1. - $typ::EPSILON, 1. + $typ::EPSILON);
-                    let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high));
+                    let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high)).unwrap();
 
                     let mut samples = (0..100)
                         .map(|_| $typ::from(uniform.sample(&mut test_rng)));
@@ -333,7 +333,7 @@ macro_rules! float_sampler {
 
                     let mut test_rng = TestRng::deterministic_rng(RngAlgorithm::default());
                     let (low, high) = (0., MAX_PRECISE_INT as $typ);
-                    let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high));
+                    let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high)).unwrap();
 
                     let mut samples = (0..100)
                         .map(|_| $typ::from(uniform.sample(&mut test_rng)))
