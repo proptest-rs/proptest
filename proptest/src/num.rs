@@ -15,8 +15,8 @@
 mod float_samplers;
 
 use crate::test_runner::TestRunner;
-use rand::distributions::uniform::{SampleUniform, Uniform};
-use rand::distributions::{Distribution, Standard};
+use rand::distr::uniform::{SampleUniform, Uniform};
+use rand::distr::{Distribution, StandardUniform};
 
 /// Generate a random value of `X`, sampled uniformly from the half
 /// open range `[low, high)` (excluding `high`). Panics if `low >= high`.
@@ -25,7 +25,9 @@ pub(crate) fn sample_uniform<X: SampleUniform>(
     start: X,
     end: X,
 ) -> X {
-    Uniform::new(start, end).sample(run.rng())
+    Uniform::new(start, end)
+        .expect("Invalid range for Uniform")
+        .sample(run.rng())
 }
 
 /// Generate a random value of `X`, sampled uniformly from the closed
@@ -35,7 +37,9 @@ pub fn sample_uniform_incl<X: SampleUniform>(
     start: X,
     end: X,
 ) -> X {
-    Uniform::new_inclusive(start, end).sample(run.rng())
+    Uniform::new_inclusive(start, end)
+        .expect("Invalid range for Uniform")
+        .sample(run.rng())
 }
 
 macro_rules! int_any {
@@ -418,7 +422,7 @@ impl FloatTypes {
 
 trait FloatLayout
 where
-    Standard: Distribution<Self::Bits>,
+    StandardUniform: Distribution<Self::Bits>,
 {
     type Bits: Copy;
 

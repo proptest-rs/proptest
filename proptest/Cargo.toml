@@ -72,6 +72,7 @@ regex-syntax = { workspace = true, optional = true }
 bit-set = { workspace = true, optional = true }
 bit-vec = { workspace = true, optional = true }
 rand = { workspace = true, features = ["alloc"] }
+rand_core = { workspace = true }
 rand_xorshift = { workspace = true }
 rand_chacha = { workspace = true }
 rusty-fork = { workspace = true, optional = true }
