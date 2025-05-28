@@ -80,6 +80,7 @@ macro_rules! int_any {
 
     // 3) Everything else: fall back to `.random()`
     ($typ:ident) => {
+        use rand::Rng;
         #[derive(Clone, Copy, Debug)]
         #[must_use = "strategies do nothing unless used"]
         pub struct Any(());
@@ -373,8 +374,6 @@ macro_rules! signed_integer_bin_search {
     ($typ:ident) => {
         #[allow(missing_docs)]
         pub mod $typ {
-            use rand::Rng;
-
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
 
@@ -475,8 +474,6 @@ macro_rules! unsigned_integer_bin_search {
     ($typ:ident) => {
         #[allow(missing_docs)]
         pub mod $typ {
-            use rand::Rng;
-
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
 
