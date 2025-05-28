@@ -630,6 +630,24 @@ impl TestRng {
             },
         }
     }
+
+    /// Generate a full-width random `usize`.
+    pub fn next_usize(&mut self) -> usize {
+        // On 64-bit targets, use next_u64(); on 32-bit, use next_u32().
+        #[cfg(target_pointer_width = "64")]
+        {
+            self.next_u64() as usize
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            self.next_u32() as usize
+        }
+    }
+
+    /// Generate a full-width random `isize`.
+    pub fn next_isize(&mut self) -> isize {
+        self.next_usize() as isize
+    }    
 }
 
 #[cfg(test)]
