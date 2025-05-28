@@ -15,8 +15,8 @@
 mod float_samplers;
 
 use crate::test_runner::TestRunner;
-use rand::distributions::uniform::{SampleUniform, Uniform};
-use rand::distributions::{Distribution, Standard};
+use rand::distr::uniform::{SampleUniform, Uniform};
+use rand::distr::{Distribution, StandardUniform};
 
 /// Generate a random value of `X`, sampled uniformly from the half
 /// open range `[low, high)` (excluding `high`). Panics if `low >= high`.
@@ -25,7 +25,9 @@ pub(crate) fn sample_uniform<X: SampleUniform>(
     start: X,
     end: X,
 ) -> X {
-    Uniform::new(start, end).sample(run.rng())
+    Uniform::new(start, end)
+        .expect("Invalid range for Uniform")
+        .sample(run.rng())
 }
 
 /// Generate a random value of `X`, sampled uniformly from the closed
@@ -35,37 +37,234 @@ pub fn sample_uniform_incl<X: SampleUniform>(
     start: X,
     end: X,
 ) -> X {
-    Uniform::new_inclusive(start, end).sample(run.rng())
+    Uniform::new_inclusive(start, end)
+        .expect("Invalid range for Uniform")
+        .sample(run.rng())
 }
 
 macro_rules! int_any {
-    ($typ: ident) => {
-        /// Type of the `ANY` constant.
+    // 1) Special-case `usize`
+    (usize) => {
         #[derive(Clone, Copy, Debug)]
         #[must_use = "strategies do nothing unless used"]
         pub struct Any(());
-        /// Generates integers with completely arbitrary values, uniformly
-        /// distributed over the whole range.
         pub const ANY: Any = Any(());
 
         impl Strategy for Any {
-            type Tree = BinarySearch;
+            type Tree  = BinarySearch;
+            type Value = usize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                // call your new full-width method
+                Ok(BinarySearch::new(runner.rng().next_usize()))
+            }
+        }
+    };
+
+    // 2) (Optionally) special-case `isize`
+    (isize) => {
+        #[derive(Clone, Copy, Debug)]
+        #[must_use = "strategies do nothing unless used"]
+        pub struct Any(());
+        pub const ANY: Any = Any(());
+
+        impl Strategy for Any {
+            type Tree  = BinarySearch;
+            type Value = isize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                Ok(BinarySearch::new(runner.rng().next_isize()))
+            }
+        }
+    };
+
+    // 3) Everything else: fall back to `.random()`
+    ($typ:ident) => {
+        use rand::Rng;
+        #[derive(Clone, Copy, Debug)]
+        #[must_use = "strategies do nothing unless used"]
+        pub struct Any(());
+        pub const ANY: Any = Any(());
+
+        impl Strategy for Any {
+            type Tree  = BinarySearch;
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-                Ok(BinarySearch::new(runner.rng().gen()))
+                Ok(BinarySearch::new(runner.rng().random()))
             }
         }
     };
 }
 
 macro_rules! numeric_api {
+    // ——— Two-argument forwarding ———
+    (usize, $epsilon:expr) => {
+        numeric_api!(usize, usize, $epsilon);
+    };
+    (isize, $epsilon:expr) => {
+        numeric_api!(isize, isize, $epsilon);
+    };
     ($typ:ident, $epsilon:expr) => {
         numeric_api!($typ, $typ, $epsilon);
     };
+
+    // ——— Three-arg specialization for usize ———
+    (usize, $sample_typ:ty, $epsilon:expr) => {
+        impl Strategy for ::core::ops::Range<usize> {
+            type Tree  = BinarySearch;
+            type Value = usize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if self.start >= self.end {
+                    panic!("Invalid use of empty range {}..{}.", self.start, self.end);
+                }
+                Ok(BinarySearch::new_clamped(
+                    self.start,
+                    runner.rng().next_usize(),
+                    self.end - $epsilon,
+                ))
+            }
+        }
+
+        impl Strategy for ::core::ops::RangeInclusive<usize> {
+            type Tree  = BinarySearch;
+            type Value = usize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                let s = *self.start();
+                let e = *self.end();
+                if s > e {
+                    panic!("Invalid use of empty range {}..={}.", s, e);
+                }
+                Ok(BinarySearch::new_clamped(
+                    s,
+                    runner.rng().next_usize(),
+                    e,
+                ))
+            }
+        }
+
+        impl Strategy for ::core::ops::RangeFrom<usize> {
+            type Tree  = BinarySearch;
+            type Value = usize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                Ok(BinarySearch::new_clamped(
+                    self.start,
+                    runner.rng().next_usize(),
+                    ::core::usize::MAX,
+                ))
+            }
+        }
+
+        impl Strategy for ::core::ops::RangeTo<usize> {
+            type Tree  = BinarySearch;
+            type Value = usize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                Ok(BinarySearch::new_clamped(
+                    ::core::usize::MIN,
+                    runner.rng().next_usize(),
+                    self.end,
+                ))
+            }
+        }
+
+        impl Strategy for ::core::ops::RangeToInclusive<usize> {
+            type Tree  = BinarySearch;
+            type Value = usize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                Ok(BinarySearch::new_clamped(
+                    ::core::usize::MIN,
+                    runner.rng().next_usize(),
+                    self.end,
+                ))
+            }
+        }
+    };
+
+    // ——— Three-arg specialization for isize ———
+    (isize, $sample_typ:ty, $epsilon:expr) => {
+        impl Strategy for ::core::ops::Range<isize> {
+            type Tree  = BinarySearch;
+            type Value = isize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                if self.start >= self.end {
+                    panic!("Invalid use of empty range {}..{}.", self.start, self.end);
+                }
+                Ok(BinarySearch::new_clamped(
+                    self.start,
+                    runner.rng().next_isize(),
+                    self.end - $epsilon,
+                ))
+            }
+        }
+
+        impl Strategy for ::core::ops::RangeInclusive<isize> {
+            type Tree  = BinarySearch;
+            type Value = isize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                let s = *self.start();
+                let e = *self.end();
+                if s > e {
+                    panic!("Invalid use of empty range {}..={}.", s, e);
+                }
+                Ok(BinarySearch::new_clamped(
+                    s,
+                    runner.rng().next_isize(),
+                    e,
+                ))
+            }
+        }
+
+        impl Strategy for ::core::ops::RangeFrom<isize> {
+            type Tree  = BinarySearch;
+            type Value = isize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                Ok(BinarySearch::new_clamped(
+                    self.start,
+                    runner.rng().next_isize(),
+                    ::core::isize::MAX,
+                ))
+            }
+        }
+
+        impl Strategy for ::core::ops::RangeTo<isize> {
+            type Tree  = BinarySearch;
+            type Value = isize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                Ok(BinarySearch::new_clamped(
+                    ::core::isize::MIN,
+                    runner.rng().next_isize(),
+                    self.end,
+                ))
+            }
+        }
+
+        impl Strategy for ::core::ops::RangeToInclusive<isize> {
+            type Tree  = BinarySearch;
+            type Value = isize;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                Ok(BinarySearch::new_clamped(
+                    ::core::isize::MIN,
+                    runner.rng().next_isize(),
+                    self.end,
+                ))
+            }
+        }
+    };
+
+    // ——— Generic three-arg fallback for all other integer types ———
     ($typ:ident, $sample_typ:ty, $epsilon:expr) => {
         impl Strategy for ::core::ops::Range<$typ> {
-            type Tree = BinarySearch;
+            type Tree  = BinarySearch;
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
@@ -90,7 +289,7 @@ macro_rules! numeric_api {
         }
 
         impl Strategy for ::core::ops::RangeInclusive<$typ> {
-            type Tree = BinarySearch;
+            type Tree  = BinarySearch;
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
@@ -116,7 +315,7 @@ macro_rules! numeric_api {
         }
 
         impl Strategy for ::core::ops::RangeFrom<$typ> {
-            type Tree = BinarySearch;
+            type Tree  = BinarySearch;
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
@@ -134,7 +333,7 @@ macro_rules! numeric_api {
         }
 
         impl Strategy for ::core::ops::RangeTo<$typ> {
-            type Tree = BinarySearch;
+            type Tree  = BinarySearch;
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
@@ -152,7 +351,7 @@ macro_rules! numeric_api {
         }
 
         impl Strategy for ::core::ops::RangeToInclusive<$typ> {
-            type Tree = BinarySearch;
+            type Tree  = BinarySearch;
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
@@ -175,8 +374,6 @@ macro_rules! signed_integer_bin_search {
     ($typ:ident) => {
         #[allow(missing_docs)]
         pub mod $typ {
-            use rand::Rng;
-
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
 
@@ -277,8 +474,6 @@ macro_rules! unsigned_integer_bin_search {
     ($typ:ident) => {
         #[allow(missing_docs)]
         pub mod $typ {
-            use rand::Rng;
-
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
 
@@ -418,7 +613,7 @@ impl FloatTypes {
 
 trait FloatLayout
 where
-    Standard: Distribution<Self::Bits>,
+    StandardUniform: Distribution<Self::Bits>,
 {
     type Bits: Copy;
 
@@ -675,7 +870,7 @@ macro_rules! float_any {
                     ].new_tree(runner)?.current();
 
                 let mut generated_value: <$typ as FloatLayout>::Bits =
-                    runner.rng().gen();
+                    runner.rng().random();
                 generated_value &= sign_mask | class_mask;
                 generated_value |= sign_or | class_or;
                 let exp = generated_value & $typ::EXP_MASK;
