@@ -873,7 +873,7 @@ macro_rules! float_any {
                     ].new_tree(runner)?.current();
 
                 let mut generated_value: <$typ as FloatLayout>::Bits =
-                    runner.rng().gen();
+                    runner.rng().random();
                 generated_value &= sign_mask | class_mask;
                 generated_value |= sign_or | class_or;
                 let exp = generated_value & $typ::EXP_MASK;
