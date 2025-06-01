@@ -1,5 +1,10 @@
 ## Unreleased
 
+## 1.7.0
+
+### Other Notes
+
+- Updated `rand` dependency from 0.8 to 0.9.
 - Bump all dependencies to latest compatible with MSRV 1.66.
 
 ## 1.6.0

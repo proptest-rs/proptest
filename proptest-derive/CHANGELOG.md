@@ -1,6 +1,12 @@
 ## Unreleased
 
+## 0.6.0
+
+### Other Notes
+
 - Fixed URLs in proptest-derive error messages ([\#574](https://github.com/proptest-rs/proptest/pull/574))
+- Updated `rand` dependency from 0.8 to 0.9.
+- Bump all dependencies to latest compatible with MSRV 1.66.
 
 ## 0.5.1
 
