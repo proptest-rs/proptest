@@ -1,6 +1,11 @@
 ## Unreleased
 
+## 0.4.0
+
+### Other Notes
+
 - Set MSRV to 1.82, which is what minimally compiles and completes testing.
+- Updated `rand` dependency from 0.8 to 0.9.
 
 ## 0.3.1
 
