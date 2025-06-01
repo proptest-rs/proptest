@@ -15,8 +15,8 @@
 mod float_samplers;
 
 use crate::test_runner::TestRunner;
-use rand::distributions::uniform::{SampleUniform, Uniform};
-use rand::distributions::{Distribution, Standard};
+use rand::distr::uniform::{SampleUniform, Uniform};
+use rand::distr::{Distribution, StandardUniform};
 
 /// Generate a random value of `X`, sampled uniformly from the half
 /// open range `[low, high)` (excluding `high`). Panics if `low >= high`.
@@ -25,7 +25,7 @@ pub(crate) fn sample_uniform<X: SampleUniform>(
     start: X,
     end: X,
 ) -> X {
-    Uniform::new(start, end).sample(run.rng())
+    Uniform::new(start, end).expect("not uniform").sample(run.rng())
 }
 
 /// Generate a random value of `X`, sampled uniformly from the closed
@@ -35,11 +35,65 @@ pub fn sample_uniform_incl<X: SampleUniform>(
     start: X,
     end: X,
 ) -> X {
-    Uniform::new_inclusive(start, end).sample(run.rng())
+    Uniform::new_inclusive(start, end).expect("not uniform").sample(run.rng())
+}
+
+macro_rules! sample_uniform {
+    ($name: ident, $incl:ident, $from:ty, $to:ty) => {
+        fn $name<X>(
+            run: &mut TestRunner,
+            start: $to,
+            end: $to,
+        ) -> $to {
+            Uniform::<$from>::new(start as $from, end as $from).expect("not uniform").sample(run.rng()) as $to
+        }
+
+        fn $incl<X>(
+            run: &mut TestRunner,
+            start: $to,
+            end: $to,
+        ) -> $to {
+            Uniform::<$from>::new_inclusive(start as $from, end as $from).expect("not uniform").sample(run.rng()) as $to
+        }        
+    }
+}
+
+#[cfg(target_pointer_width = "64")]
+sample_uniform!(usize_sample_uniform, usize_sample_uniform_incl, u64, usize);
+#[cfg(target_pointer_width = "32")]
+sample_uniform!(usize_sample_uniform, usize_sample_uniform_incl, u32, usize);
+#[cfg(target_pointer_width = "16")]
+sample_uniform!(usize_sample_uniform, usize_sample_uniform_incl, u16, usize);
+
+#[cfg(target_pointer_width = "64")]
+sample_uniform!(isize_sample_uniform, isize_sample_uniform_incl, i64, isize);
+#[cfg(target_pointer_width = "32")]
+sample_uniform!(isize_sample_uniform, isize_sample_uniform_incl, i32, isize);
+#[cfg(target_pointer_width = "16")]
+sample_uniform!(isize_sample_uniform, isize_sample_uniform_incl, i16, isize);
+
+macro_rules! supported_int_any {
+    ($runner:ident, $typ:ty) => {
+        $runner.rng().random()
+    };
+}
+
+#[cfg(target_pointer_width = "64")]
+macro_rules! unsupported_int_any {
+    ($runner:ident, $typ:ty) => {
+        $runner.rng().next_u64() as $typ
+    };
+}
+
+#[cfg(not(target_pointer_width = "64"))]
+macro_rules! unsupported_int_any {
+    ($runner:ident, $typ:ty) => {
+        $runner.rng().next_u32() as $typ
+    };
 }
 
 macro_rules! int_any {
-    ($typ: ident) => {
+    ($typ: ident, $int_any: ident) => {
         /// Type of the `ANY` constant.
         #[derive(Clone, Copy, Debug)]
         #[must_use = "strategies do nothing unless used"]
@@ -53,7 +107,7 @@ macro_rules! int_any {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-                Ok(BinarySearch::new(runner.rng().gen()))
+                Ok(BinarySearch::new($int_any!(runner, $typ)))
             }
         }
     };
@@ -64,6 +118,12 @@ macro_rules! numeric_api {
         numeric_api!($typ, $typ, $epsilon);
     };
     ($typ:ident, $sample_typ:ty, $epsilon:expr) => {
+        numeric_api!($typ, $sample_typ, $epsilon, sample_uniform, sample_uniform_incl);
+    };
+    ($typ:ident, $epsilon:expr, $uniform:ident, $incl:ident) => {
+        numeric_api!($typ, $typ, $epsilon, $uniform, $incl);
+    };
+    ($typ:ident, $sample_typ:ty, $epsilon:expr, $uniform:ident, $incl:ident) => {
         impl Strategy for ::core::ops::Range<$typ> {
             type Tree = BinarySearch;
             type Value = $typ;
@@ -78,7 +138,7 @@ macro_rules! numeric_api {
 
                 Ok(BinarySearch::new_clamped(
                     self.start,
-                    $crate::num::sample_uniform::<$sample_typ>(
+                    $crate::num::$uniform::<$sample_typ>(
                         runner,
                         self.start.into(),
                         self.end.into(),
@@ -104,7 +164,7 @@ macro_rules! numeric_api {
 
                 Ok(BinarySearch::new_clamped(
                     *self.start(),
-                    $crate::num::sample_uniform_incl::<$sample_typ>(
+                    $crate::num::$incl::<$sample_typ>(
                         runner,
                         (*self.start()).into(),
                         (*self.end()).into(),
@@ -122,7 +182,7 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     self.start,
-                    $crate::num::sample_uniform_incl::<$sample_typ>(
+                    $crate::num::$incl::<$sample_typ>(
                         runner,
                         self.start.into(),
                         ::core::$typ::MAX.into(),
@@ -140,7 +200,7 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     ::core::$typ::MIN,
-                    $crate::num::sample_uniform::<$sample_typ>(
+                    $crate::num::$uniform::<$sample_typ>(
                         runner,
                         ::core::$typ::MIN.into(),
                         self.end.into(),
@@ -158,7 +218,7 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     ::core::$typ::MIN,
-                    $crate::num::sample_uniform_incl::<$sample_typ>(
+                    $crate::num::$incl::<$sample_typ>(
                         runner,
                         ::core::$typ::MIN.into(),
                         self.end.into(),
@@ -173,14 +233,17 @@ macro_rules! numeric_api {
 
 macro_rules! signed_integer_bin_search {
     ($typ:ident) => {
+        signed_integer_bin_search!($typ, supported_int_any, sample_uniform, sample_uniform_incl);
+    };
+    ($typ:ident, $int_any: ident, $uniform: ident, $incl: ident) => {
         #[allow(missing_docs)]
         pub mod $typ {
-            use rand::Rng;
+            use rand::{Rng, RngCore};
 
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
 
-            int_any!($typ);
+            int_any!($typ, $int_any);
 
             /// Shrinks an integer towards 0, using binary search to find
             /// boundary points.
@@ -268,21 +331,24 @@ macro_rules! signed_integer_bin_search {
                 }
             }
 
-            numeric_api!($typ, 1);
+            numeric_api!($typ, 1, $uniform, $incl);
         }
     };
 }
 
 macro_rules! unsigned_integer_bin_search {
     ($typ:ident) => {
+        unsigned_integer_bin_search!($typ, supported_int_any, sample_uniform, sample_uniform_incl);
+    };
+    ($typ:ident, $int_any: ident, $uniform: ident, $incl: ident) => {
         #[allow(missing_docs)]
         pub mod $typ {
-            use rand::Rng;
+            use rand::{Rng, RngCore};
 
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
 
-            int_any!($typ);
+            int_any!($typ, $int_any);
 
             /// Shrinks an integer towards 0, using binary search to find
             /// boundary points.
@@ -356,7 +422,7 @@ macro_rules! unsigned_integer_bin_search {
                 }
             }
 
-            numeric_api!($typ, 1);
+            numeric_api!($typ, 1, $uniform, $incl);
         }
     };
 }
@@ -366,13 +432,13 @@ signed_integer_bin_search!(i16);
 signed_integer_bin_search!(i32);
 signed_integer_bin_search!(i64);
 signed_integer_bin_search!(i128);
-signed_integer_bin_search!(isize);
+signed_integer_bin_search!(isize, unsupported_int_any, isize_sample_uniform, isize_sample_uniform_incl);
 unsigned_integer_bin_search!(u8);
 unsigned_integer_bin_search!(u16);
 unsigned_integer_bin_search!(u32);
 unsigned_integer_bin_search!(u64);
 unsigned_integer_bin_search!(u128);
-unsigned_integer_bin_search!(usize);
+unsigned_integer_bin_search!(usize, unsupported_int_any, usize_sample_uniform, usize_sample_uniform_incl);
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -418,7 +484,7 @@ impl FloatTypes {
 
 trait FloatLayout
 where
-    Standard: Distribution<Self::Bits>,
+    StandardUniform: Distribution<Self::Bits>,
 {
     type Bits: Copy;
 
@@ -675,7 +741,7 @@ macro_rules! float_any {
                     ].new_tree(runner)?.current();
 
                 let mut generated_value: <$typ as FloatLayout>::Bits =
-                    runner.rng().gen();
+                    runner.rng().random();
                 generated_value &= sign_mask | class_mask;
                 generated_value |= sign_or | class_or;
                 let exp = generated_value & $typ::EXP_MASK;

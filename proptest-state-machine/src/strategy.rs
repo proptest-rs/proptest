@@ -354,11 +354,21 @@ impl<
                         }
                     }
                 }
-                // Set the next shrink to the transition before the last seen
-                // transition (subtract 2 from `kept_count`)
-                self.shrink = DeleteTransition(
-                    kept_count.checked_sub(2).unwrap_or_default(),
-                );
+                // Set the next shrink based on how many transitions were seen:
+                // - If 0 seen: go directly to shrinking the initial state.
+                // - If 1 seen: can't delete any more, so shrink individual transitions.
+                // - If >1 seen: delete the transition before the last seen transition.
+                //   (subtract 2 from `kept_count` because the last seen transition
+                //   caused the failure).
+                if kept_count == 0 {
+                    self.shrink = InitialState;
+                } else if kept_count == 1 {
+                    self.shrink = Transition(0);
+                } else {
+                    self.shrink = DeleteTransition(
+                        kept_count.checked_sub(2).unwrap_or_default(),
+                    );
+                }
             }
 
             // Remove the seen transitions counter for shrinking runs
@@ -806,16 +816,29 @@ mod test {
         let seen_after_first_complication =
             transitions.into_iter().collect::<Vec<_>>();
 
-        // After the unseen transitions are removed, the shrink to delete the
-        // transition before the last seen one is applied
-        let last = seen_before_complication.pop().unwrap();
-        seen_before_complication.pop();
-        seen_before_complication.push(last);
-
-        assert_eq!(
-            seen_before_complication, seen_after_first_complication,
-            "only seen transitions should be present after first simplification"
-        );
+        // After the unseen transitions are removed, the shrink behavior depends
+        // on how many transitions were seen:
+        // - If > 1 seen: delete the transition before the last seen one
+        // - If = 1 seen: can't delete any more, may start individual transition shrinking
+        if seen_before_complication.len() > 1 {
+            let last = seen_before_complication.pop().unwrap();
+            seen_before_complication.pop();
+            seen_before_complication.push(last);
+            assert_eq!(
+                seen_before_complication, seen_after_first_complication,
+                "only seen transitions should be present after first simplification"
+            );
+        } else {
+            // When there's only 1 seen transition, we expect it to be preserved.
+            assert!(
+                !seen_after_first_complication.is_empty(),
+                "When only 1 transition was seen, at least 1 should remain after simplification"
+            );
+            assert!(
+                matches!(value_tree.shrink, Transition(0)),
+                "When only 1 transition was seen, shrink should be set to Transition(0)"
+            );
+        }
     }
 
     #[test]
@@ -1040,5 +1063,35 @@ mod test {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_zero_seen_transitions_optimization() {
+        // Test that when 0 transitions are seen, we go directly to InitialState shrinking
+        let mut value_tree = deterministic_sequential_value_tree();
+
+        // Simulate that no transitions were seen (kept_count = 0)
+        value_tree
+            .seen_transitions_counter
+            .as_mut()
+            .unwrap()
+            .store(0, atomic::Ordering::SeqCst);
+
+        // Call simplify - this should trigger the optimization
+        let simplified = value_tree.simplify();
+
+        assert_eq!(value_tree.included_transitions.count(), 0,
+            "All transitions should be removed when none were seen");
+        assert!(matches!(value_tree.shrink, InitialState),
+            "Shrink should be set to InitialState when kept_count == 0");
+
+        // The HeapStateMachine uses Just(vec![]) for initial state, which is not shrinkable
+        // So simplify() should return false, but the optimization still works correctly
+        assert!(!simplified,
+            "Simplification should return false since initial state (Just(vec![])) is not shrinkable");
+
+        let (_, transitions, _) = value_tree.current();
+        assert!(transitions.is_empty(),
+            "No transitions should remain when none were seen");
     }
 }

@@ -129,20 +129,14 @@ enum TestRngImpl {
 impl RngCore for TestRng {
     fn next_u32(&mut self) -> u32 {
         match &mut self.rng {
-            &mut TestRngImpl::XorShift(ref mut rng) => rng.next_u32(),
-
-            &mut TestRngImpl::ChaCha(ref mut rng) => rng.next_u32(),
-
-            &mut TestRngImpl::PassThrough { .. } => {
+            TestRngImpl::XorShift(rng) => rng.next_u32(),
+            TestRngImpl::ChaCha(rng) => rng.next_u32(),
+            TestRngImpl::PassThrough { .. } => {
                 let mut buf = [0; 4];
                 self.fill_bytes(&mut buf[..]);
                 u32::from_le_bytes(buf)
             }
-
-            &mut TestRngImpl::Recorder {
-                ref mut rng,
-                ref mut record,
-            } => {
+            TestRngImpl::Recorder { rng, record } => {
                 let read = rng.next_u32();
                 record.extend_from_slice(&read.to_le_bytes());
                 read
@@ -152,20 +146,14 @@ impl RngCore for TestRng {
 
     fn next_u64(&mut self) -> u64 {
         match &mut self.rng {
-            &mut TestRngImpl::XorShift(ref mut rng) => rng.next_u64(),
-
-            &mut TestRngImpl::ChaCha(ref mut rng) => rng.next_u64(),
-
-            &mut TestRngImpl::PassThrough { .. } => {
+            TestRngImpl::XorShift(rng) => rng.next_u64(),
+            TestRngImpl::ChaCha(rng) => rng.next_u64(),
+            TestRngImpl::PassThrough { .. } => {
                 let mut buf = [0; 8];
                 self.fill_bytes(&mut buf[..]);
                 u64::from_le_bytes(buf)
             }
-
-            &mut TestRngImpl::Recorder {
-                ref mut rng,
-                ref mut record,
-            } => {
+            TestRngImpl::Recorder { rng, record } => {
                 let read = rng.next_u64();
                 record.extend_from_slice(&read.to_le_bytes());
                 read
@@ -175,55 +163,19 @@ impl RngCore for TestRng {
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         match &mut self.rng {
-            &mut TestRngImpl::XorShift(ref mut rng) => rng.fill_bytes(dest),
-
-            &mut TestRngImpl::ChaCha(ref mut rng) => rng.fill_bytes(dest),
-
-            &mut TestRngImpl::PassThrough {
-                ref mut off,
-                end,
-                ref data,
-            } => {
-                let bytes_to_copy = dest.len().min(end - *off);
-                dest[..bytes_to_copy]
-                    .copy_from_slice(&data[*off..*off + bytes_to_copy]);
+            TestRngImpl::XorShift(rng) => rng.fill_bytes(dest),
+            TestRngImpl::ChaCha(rng) => rng.fill_bytes(dest),
+            TestRngImpl::PassThrough { off, end, data } => {
+                let bytes_to_copy = dest.len().min(*end - *off);
+                dest[.. bytes_to_copy].copy_from_slice(&data[*off .. *off + bytes_to_copy]);
                 *off += bytes_to_copy;
-                for i in bytes_to_copy..dest.len() {
+                for i in bytes_to_copy .. dest.len() {
                     dest[i] = 0;
                 }
             }
-
-            &mut TestRngImpl::Recorder {
-                ref mut rng,
-                ref mut record,
-            } => {
-                let res = rng.fill_bytes(dest);
-                record.extend_from_slice(&dest);
-                res
-            }
-        }
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
-        match self.rng {
-            TestRngImpl::XorShift(ref mut rng) => rng.try_fill_bytes(dest),
-
-            TestRngImpl::ChaCha(ref mut rng) => rng.try_fill_bytes(dest),
-
-            TestRngImpl::PassThrough { .. } => {
-                self.fill_bytes(dest);
-                Ok(())
-            }
-
-            TestRngImpl::Recorder {
-                ref mut rng,
-                ref mut record,
-            } => {
-                let res = rng.try_fill_bytes(dest);
-                if res.is_ok() {
-                    record.extend_from_slice(&dest);
-                }
-                res
+            TestRngImpl::Recorder { rng, record } => {
+                rng.fill_bytes(dest);
+                record.extend_from_slice(dest);
             }
         }
     }
@@ -435,14 +387,14 @@ impl TestRng {
                 rng: match algorithm {
                     RngAlgorithm::XorShift => {
                         let rng = match seed {
-                            RngSeed::Random => XorShiftRng::from_entropy(),
+                            RngSeed::Random => XorShiftRng::from_os_rng(),
                             RngSeed::Fixed(seed) => XorShiftRng::seed_from_u64(seed),
                         };
                         TestRngImpl::XorShift(rng)
                     }
                     RngAlgorithm::ChaCha => {
                         let rng = match seed {
-                            RngSeed::Random => ChaChaRng::from_entropy(),
+                            RngSeed::Random => ChaChaRng::from_os_rng(),
                             RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
                         };
                         TestRngImpl::ChaCha(rng)
@@ -452,7 +404,7 @@ impl TestRng {
                     }
                     RngAlgorithm::Recorder => {
                         let rng =  match seed {
-                            RngSeed::Random => ChaChaRng::from_entropy(),
+                            RngSeed::Random => ChaChaRng::from_os_rng(),
                             RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
                         };
                         TestRngImpl::Recorder {rng, record: Vec::new()}
@@ -586,7 +538,7 @@ impl TestRng {
     pub(crate) fn new_rng_seed(&mut self) -> Seed {
         match self.rng {
             TestRngImpl::XorShift(ref mut rng) => {
-                let mut seed = rng.gen::<[u8; 16]>();
+                let mut seed = rng.random::<[u8; 16]>();
 
                 // Directly using XorShiftRng::from_seed() at this point would
                 // result in rng and the returned value being exactly the same.
@@ -601,7 +553,7 @@ impl TestRng {
                 Seed::XorShift(seed)
             }
 
-            TestRngImpl::ChaCha(ref mut rng) => Seed::ChaCha(rng.gen()),
+            TestRngImpl::ChaCha(ref mut rng) => Seed::ChaCha(rng.random()),
 
             TestRngImpl::PassThrough {
                 ref mut off,
@@ -619,7 +571,7 @@ impl TestRng {
             }
 
             TestRngImpl::Recorder { ref mut rng, .. } => {
-                Seed::Recorder(rng.gen())
+                Seed::Recorder(rng.random())
             }
         }
     }
@@ -696,7 +648,7 @@ mod test {
             {
                 let mut rng1 = orig.clone();
                 let mut rng2 = rng1.gen_rng();
-                assert_ne!(rng1.gen::<Value>(), rng2.gen::<Value>());
+                assert_ne!(rng1.random::<Value>(), rng2.random::<Value>());
             }
 
             {
@@ -704,10 +656,10 @@ mod test {
                 let mut rng2 = rng1.gen_rng();
                 let mut rng3 = rng1.gen_rng();
                 let mut rng4 = rng2.gen_rng();
-                let a = rng1.gen::<Value>();
-                let b = rng2.gen::<Value>();
-                let c = rng3.gen::<Value>();
-                let d = rng4.gen::<Value>();
+                let a = rng1.random::<Value>();
+                let b = rng2.random::<Value>();
+                let c = rng3.random::<Value>();
+                let d = rng4.random::<Value>();
                 assert_ne!(a, b);
                 assert_ne!(a, c);
                 assert_ne!(a, d);
@@ -732,9 +684,9 @@ mod test {
         assert_eq!(0xDEADBEEFCAFE7856, rng.next_u64());
 
         let mut buf = [0u8; 4];
-        rng.try_fill_bytes(&mut buf[0..4]).unwrap();
+        rng.fill_bytes(&mut buf[0..4]);
         assert_eq!([1, 2, 3, 0], buf);
-        rng.try_fill_bytes(&mut buf[0..4]).unwrap();
+        rng.fill_bytes(&mut buf[0..4]);
         assert_eq!([0, 0, 0, 0], buf);
     }
 }
