@@ -745,7 +745,7 @@ macro_rules! prop_compose {
 /// ```
 #[macro_export]
 macro_rules! prop_assert {
-    ($cond:expr) => {
+    ($cond:expr $(,) ?) => {
         $crate::prop_assert!($cond, concat!("assertion failed: ", stringify!($cond)))
     };
 
