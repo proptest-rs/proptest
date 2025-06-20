@@ -34,7 +34,7 @@ The following will usually _not_ be accepted as new features (but still might
 be if there is a sufficiently compelling reason):
 
 - Direct integration with a third-party crate, in the sense of adding
-  strategies or `Abitrary` implementation for that crate's types.
+  strategies or `Arbitrary` implementation for that crate's types.
 
 - Features which are too narrowly applicable. (Hypothetical example: a built-in
   strategy to generate valid streams of x86 instructions.)
