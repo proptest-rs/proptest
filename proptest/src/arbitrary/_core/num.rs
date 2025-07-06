@@ -24,6 +24,8 @@ arbitrary!(TryFromIntError; {
 
 wrap_ctor!(Wrapping, Wrapping);
 
+wrap_ctor!(Saturating, Saturating);
+
 arbitrary!(FpCategory,
     TupleUnion<(WA<Just<Self>>, WA<Just<Self>>, WA<Just<Self>>,
                 WA<Just<Self>>, WA<Just<Self>>)>;
@@ -45,6 +47,7 @@ mod test {
         parse_float_error => ParseFloatError,
         parse_int_error => ParseIntError,
         wrapping => Wrapping<u8>,
+        saturating => Saturating<u8>,
         fp_category => FpCategory
     );
 
