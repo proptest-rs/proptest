@@ -72,6 +72,7 @@ pub mod bool;
 pub mod char;
 pub mod collection;
 pub mod num;
+pub mod range_subset;
 pub mod strategy;
 pub mod test_runner;
 pub mod tuple;
@@ -89,7 +90,7 @@ pub mod string;
 pub mod prelude;
 
 #[cfg(feature = "attr-macro")]
-pub use proptest_macro::property_test; 
+pub use proptest_macro::property_test;
 
 #[cfg(feature = "attr-macro")]
 #[test]
