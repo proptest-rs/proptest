@@ -5,7 +5,7 @@ authors = ["Mazdak Farrokhzad <twingoow@gmail.com>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 edition = "2021"
-rust-version = "1.66"
+rust-version = "1.74"
 
 repository = "https://github.com/proptest-rs/proptest"
 documentation = "https://proptest-rs.github.io/proptest/proptest-derive/index.html"
