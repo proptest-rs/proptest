@@ -26,7 +26,7 @@ pub use crate::test_runner::Config as ProptestConfig;
 pub use crate::test_runner::TestCaseError;
 pub use crate::{
     prop_assert, prop_assert_eq, prop_assert_ne, prop_assume, prop_compose,
-    prop_oneof, proptest,
+    prop_oneof, property_test, proptest,
 };
 
 pub use rand::{Rng, RngCore};
