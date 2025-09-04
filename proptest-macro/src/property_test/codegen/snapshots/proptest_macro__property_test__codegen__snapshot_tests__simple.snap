@@ -1045,13 +1045,6 @@ TokenStream [
                                         sym: x,
                                     },
                                     Punct {
-                                        char: ':',
-                                        spacing: Alone,
-                                    },
-                                    Ident {
-                                        sym: x,
-                                    },
-                                    Punct {
                                         char: ',',
                                         spacing: Alone,
                                     },

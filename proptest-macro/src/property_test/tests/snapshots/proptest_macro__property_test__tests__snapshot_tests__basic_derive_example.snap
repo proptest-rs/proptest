@@ -34,7 +34,7 @@ fn foo() {
                     ::proptest::sugar::NamedArguments(stringify!(FooArgs), values)
                 },
             ),
-            |::proptest::sugar::NamedArguments(_, FooArgs { x: x, y: y })| {
+            |::proptest::sugar::NamedArguments(_, FooArgs { x, y })| {
                 let result = {
                     let x = 1;
                 };

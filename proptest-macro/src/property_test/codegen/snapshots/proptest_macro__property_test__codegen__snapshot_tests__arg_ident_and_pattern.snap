@@ -1479,13 +1479,6 @@ TokenStream [
                                         sym: a,
                                     },
                                     Punct {
-                                        char: ':',
-                                        spacing: Alone,
-                                    },
-                                    Ident {
-                                        sym: a,
-                                    },
-                                    Punct {
                                         char: ',',
                                         spacing: Alone,
                                     },
@@ -1513,13 +1506,6 @@ TokenStream [
                                     },
                                     Punct {
                                         char: ',',
-                                        spacing: Alone,
-                                    },
-                                    Ident {
-                                        sym: d,
-                                    },
-                                    Punct {
-                                        char: ':',
                                         spacing: Alone,
                                     },
                                     Ident {
@@ -1575,13 +1561,6 @@ TokenStream [
                                     },
                                     Punct {
                                         char: ',',
-                                        spacing: Alone,
-                                    },
-                                    Ident {
-                                        sym: h,
-                                    },
-                                    Punct {
-                                        char: ':',
                                         spacing: Alone,
                                     },
                                     Ident {
