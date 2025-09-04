@@ -58,7 +58,7 @@ TokenStream [
                 delimiter: Brace,
                 stream: TokenStream [
                     Ident {
-                        sym: field0,
+                        sym: arg0,
                     },
                     Punct {
                         char: ':',
@@ -508,7 +508,7 @@ TokenStream [
                                         delimiter: Parenthesis,
                                         stream: TokenStream [
                                             Ident {
-                                                sym: field0,
+                                                sym: arg0,
                                             },
                                             Punct {
                                                 char: ',',
@@ -527,7 +527,7 @@ TokenStream [
                                         delimiter: Brace,
                                         stream: TokenStream [
                                             Ident {
-                                                sym: field0,
+                                                sym: arg0,
                                             },
                                             Punct {
                                                 char: ',',
@@ -1090,7 +1090,7 @@ TokenStream [
                                 delimiter: Brace,
                                 stream: TokenStream [
                                     Ident {
-                                        sym: field0,
+                                        sym: arg0,
                                     },
                                     Punct {
                                         char: ':',

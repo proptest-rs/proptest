@@ -6,8 +6,8 @@ expression: formatted
 fn foo() {
     #[derive(Debug)]
     struct FooArgs {
-        field0: i32,
-        field1: String,
+        x: i32,
+        y: String,
     }
     impl ::proptest::prelude::Arbitrary for FooArgs {
         type Parameters = ();
@@ -17,8 +17,7 @@ fn foo() {
         >;
         fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
             use ::proptest::strategy::Strategy;
-            ::proptest::prelude::any::<(i32, String)>()
-                .prop_map(|(field0, field1)| Self { field0, field1 })
+            ::proptest::prelude::any::<(i32, String)>().prop_map(|(x, y)| Self { x, y })
         }
     }
     let config = ::proptest::test_runner::Config {
@@ -35,7 +34,7 @@ fn foo() {
                     ::proptest::sugar::NamedArguments(stringify!(FooArgs), values)
                 },
             ),
-            |::proptest::sugar::NamedArguments(_, FooArgs { field0: x, field1: y })| {
+            |::proptest::sugar::NamedArguments(_, FooArgs { x: x, y: y })| {
                 let result = {
                     let x = 1;
                 };
