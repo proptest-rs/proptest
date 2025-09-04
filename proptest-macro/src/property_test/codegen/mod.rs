@@ -158,11 +158,11 @@ mod tests {
     #[test]
     fn generates_correct_struct() {
         check_struct("fn foo() {}", "FooArgs", []);
-        check_struct("fn foo(x: i32) {}", "FooArgs", [("field0", "i32")]);
+        check_struct("fn foo(x: i32) {}", "FooArgs", [("x", "i32")]);
         check_struct(
             "fn foo(a: i32, b: String) {}",
             "FooArgs",
-            [("field0", "i32"), ("field1", "String")],
+            [("a", "i32"), ("b", "String")],
         );
     }
 
