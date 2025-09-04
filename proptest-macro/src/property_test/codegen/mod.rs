@@ -203,4 +203,5 @@ mod snapshot_tests {
     snapshot_test!(simple);
     snapshot_test!(many_params);
     snapshot_test!(arg_pattern);
+    snapshot_test!(arg_ident_and_pattern);
 }
