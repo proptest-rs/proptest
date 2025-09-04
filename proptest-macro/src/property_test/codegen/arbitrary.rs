@@ -27,8 +27,8 @@ fn no_custom_strategies(fn_name: &Ident, args: &[Argument]) -> TokenStream {
 
     let arg_types = quote! { #(#arg_types)* };
 
-    let arg_names = args.iter().enumerate().map(|(index, arg)| {
-        let name = nth_field_name(arg.pat_ty.span(), index);
+    let arg_names = args.iter().enumerate().map(|(index, _arg)| {
+        let name = nth_field_name(args, index);
         quote!(#name,)
     });
 
@@ -75,8 +75,8 @@ fn custom_strategies(fn_name: &Ident, args: &[Argument]) -> TokenStream {
     let arg_names: TokenStream = args
         .iter()
         .enumerate()
-        .map(|(index, arg)| {
-            let name = nth_field_name(arg.pat_ty.span(), index);
+        .map(|(index, _arg)| {
+            let name = nth_field_name(args, index);
             quote!(#name,)
         })
         .collect();
