@@ -1,8 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{
-    parse2, spanned::Spanned, Block, Expr, Ident, ReturnType, Type, TypeTuple,
-};
+use syn::{parse2, Block, Expr, Ident, Pat, ReturnType, Type, TypeTuple};
 
 use crate::property_test::{options::Options, utils::Argument};
 
@@ -24,9 +22,17 @@ pub(super) fn body(
 
     // convert each arg to `field0: x`
     let struct_fields = args.iter().enumerate().map(|(index, arg)| {
-        let pat = &arg.pat_ty.pat;
-        let field_name = nth_field_name(arg.pat_ty.pat.span(), index);
-        quote!(#field_name: #pat,)
+        let pat = arg.pat_ty.pat.as_ref();
+        let field_name = nth_field_name(args, index);
+
+        // If the pattern is an ident, we know that the field name is equal to the pattern name.
+        // This means we need to avoid generating: `x: x`, which would trigger a lint suggesting
+        // shorthand struct initialization.
+
+        match pat {
+            Pat::Ident(_) => quote!(#field_name,),
+            _ => quote!(#field_name: #pat,),
+        }
     });
 
     // e.g. FooArgs { field0: x, field1: (y, z), }
