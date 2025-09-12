@@ -119,7 +119,7 @@ There are also three associated functions to be implemented here (some types are
 To add some teardown logic to run at the end of each test case, you can override the `teardown` function, which by default simply drops the state:
 
 ```rust,ignore
-fn teardown(state: Self::SystemUnderTest)
+fn teardown(state: Self::SystemUnderTest, ref_state: Self::Reference::State)
 ```
 
 ### Make the state machine test runnable
