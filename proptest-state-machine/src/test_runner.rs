@@ -61,9 +61,13 @@ pub trait StateMachineTest {
     /// Override this function to add some teardown logic on the SUT state
     /// at the end of each test case. The default implementation simply drops
     /// the state.
-    fn teardown(state: Self::SystemUnderTest) {
+    fn teardown(
+        state: Self::SystemUnderTest,
+        ref_state: <Self::Reference as ReferenceStateMachine>::State,
+    ) {
         // This is to avoid `unused_variables` warning
         let _ = state;
+        let _ = ref_state;
     }
 
     /// Run the test sequentially. You typically don't need to override this
@@ -128,7 +132,7 @@ pub trait StateMachineTest {
             Self::check_invariants(&concrete_state, &ref_state);
         }
 
-        Self::teardown(concrete_state)
+        Self::teardown(concrete_state, ref_state)
     }
 }
 
