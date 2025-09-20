@@ -158,8 +158,8 @@ macro_rules! proptest {
             $(#[$meta])*
             fn $test_name() {
                 let mut config = $crate::test_runner::contextualize_config($config.clone());
-                config.test_name = Some(
-                    concat!(module_path!(), "::", stringify!($test_name)));
+                config.test_name = ::core::option::Option::Some(
+                    ::core::concat!(::core::module_path!(), "::", ::core::stringify!($test_name)));
                 $crate::proptest_helper!(@_BODY config ($($parm in $strategy),+) [] $body);
             }
         )*
@@ -173,8 +173,8 @@ macro_rules! proptest {
             $(#[$meta])*
             fn $test_name() {
                 let mut config = $crate::test_runner::contextualize_config($config.clone());
-                config.test_name = Some(
-                    concat!(module_path!(), "::", stringify!($test_name)));
+                config.test_name = ::core::option::Option::Some(
+                    ::core::concat!(::core::module_path!(), "::", ::core::stringify!($test_name)));
                 $crate::proptest_helper!(@_BODY2 config ($($arg)+) [] $body);
             }
         )*
@@ -260,15 +260,16 @@ macro_rules! proptest {
 #[macro_export]
 macro_rules! prop_assume {
     ($expr:expr) => {
-        $crate::prop_assume!($expr, "{}", stringify!($expr))
+        $crate::prop_assume!($expr, "{}", ::core::stringify!($expr))
     };
 
     ($expr:expr, $fmt:tt $(, $fmt_arg:expr),* $(,)?) => {
         if !$expr {
+            extern crate alloc;
             return ::core::result::Result::Err(
                 $crate::test_runner::TestCaseError::reject(
-                    format!(concat!("{}:{}:{}: ", $fmt),
-                            file!(), line!(), column!()
+                    alloc::format!(::core::concat!("{}:{}:{}: ", $fmt),
+                            ::core::file!(), ::core::line!(), ::core::column!()
                             $(, $fmt_arg)*)));
         }
     };
@@ -746,13 +747,14 @@ macro_rules! prop_compose {
 #[macro_export]
 macro_rules! prop_assert {
     ($cond:expr $(,) ?) => {
-        $crate::prop_assert!($cond, concat!("assertion failed: ", stringify!($cond)))
+        $crate::prop_assert!($cond, ::core::concat!("assertion failed: ", ::core::stringify!($cond)))
     };
 
     ($cond:expr, $($fmt:tt)*) => {
         if !$cond {
-            let message = format!($($fmt)*);
-            let message = format!("{} at {}:{}", message, file!(), line!());
+            extern crate alloc;
+            let message = alloc::format!($($fmt)*);
+            let message = alloc::format!("{} at {}:{}", message, ::core::file!(), ::core::line!());
             return ::core::result::Result::Err(
                 $crate::test_runner::TestCaseError::fail(message));
         }
@@ -918,46 +920,46 @@ macro_rules! proptest_helper {
     (@_WRAPPAT ($a:pat, $($rest:pat),*)) => {
         ($a, $crate::proptest_helper!(@_WRAPPAT ($($rest),*)))
     };
-    (@_WRAPSTR ($item:pat)) => { stringify!($item) };
-    (@_WRAPSTR ($a0:pat, $a1:pat)) => { (stringify!($a0), stringify!($a1)) };
+    (@_WRAPSTR ($item:pat)) => { ::core::stringify!($item) };
+    (@_WRAPSTR ($a0:pat, $a1:pat)) => { (::core::stringify!($a0), ::core::stringify!($a1)) };
     (@_WRAPSTR ($a0:pat, $a1:pat, $a2:pat)) => {
-        (stringify!($a0), stringify!($a1), stringify!($a2))
+        (::core::stringify!($a0), ::core::stringify!($a1), ::core::stringify!($a2))
     };
     (@_WRAPSTR ($a0:pat, $a1:pat, $a2:pat, $a3:pat)) => {
-        (stringify!($a0), stringify!($a1), stringify!($a2), stringify!($a3))
+        (::core::stringify!($a0), ::core::stringify!($a1), ::core::stringify!($a2), ::core::stringify!($a3))
     };
     (@_WRAPSTR ($a0:pat, $a1:pat, $a2:pat, $a3:pat, $a4:pat)) => {
-        (stringify!($a0), stringify!($a1), stringify!($a2),
-         stringify!($a3), stringify!($a4))
+        (::core::stringify!($a0), ::core::stringify!($a1), ::core::stringify!($a2),
+         ::core::stringify!($a3), ::core::stringify!($a4))
     };
     (@_WRAPSTR ($a0:pat, $a1:pat, $a2:pat, $a3:pat, $a4:pat, $a5:pat)) => {
-        (stringify!($a0), stringify!($a1), stringify!($a2), stringify!($a3),
-         stringify!($a4), stringify!($a5))
+        (::core::stringify!($a0), ::core::stringify!($a1), ::core::stringify!($a2), ::core::stringify!($a3),
+         ::core::stringify!($a4), ::core::stringify!($a5))
     };
     (@_WRAPSTR ($a0:pat, $a1:pat, $a2:pat, $a3:pat,
                 $a4:pat, $a5:pat, $a6:pat)) => {
-        (stringify!($a0), stringify!($a1), stringify!($a2), stringify!($a3),
-         stringify!($a4), stringify!($a5), stringify!($a6))
+        (::core::stringify!($a0), ::core::stringify!($a1), ::core::stringify!($a2), ::core::stringify!($a3),
+         ::core::stringify!($a4), ::core::stringify!($a5), ::core::stringify!($a6))
     };
     (@_WRAPSTR ($a0:pat, $a1:pat, $a2:pat, $a3:pat,
                 $a4:pat, $a5:pat, $a6:pat, $a7:pat)) => {
-        (stringify!($a0), stringify!($a1), stringify!($a2), stringify!($a3),
-         stringify!($a4), stringify!($a5), stringify!($a6), stringify!($a7))
+        (::core::stringify!($a0), ::core::stringify!($a1), ::core::stringify!($a2), ::core::stringify!($a3),
+         ::core::stringify!($a4), ::core::stringify!($a5), ::core::stringify!($a6), ::core::stringify!($a7))
     };
     (@_WRAPSTR ($a0:pat, $a1:pat, $a2:pat, $a3:pat, $a4:pat,
                 $a5:pat, $a6:pat, $a7:pat, $a8:pat)) => {
-        (stringify!($a0), stringify!($a1), stringify!($a2), stringify!($a3),
-         stringify!($a4), stringify!($a5), stringify!($a6), stringify!($a7),
-         stringify!($a8))
+        (::core::stringify!($a0), ::core::stringify!($a1), ::core::stringify!($a2), ::core::stringify!($a3),
+         ::core::stringify!($a4), ::core::stringify!($a5), ::core::stringify!($a6), ::core::stringify!($a7),
+         ::core::stringify!($a8))
     };
     (@_WRAPSTR ($a0:pat, $a1:pat, $a2:pat, $a3:pat, $a4:pat,
                 $a5:pat, $a6:pat, $a7:pat, $a8:pat, $a9:pat)) => {
-        (stringify!($a0), stringify!($a1), stringify!($a2), stringify!($a3),
-         stringify!($a4), stringify!($a5), stringify!($a6), stringify!($a7),
-         stringify!($a8), stringify!($a9))
+        (::core::stringify!($a0), ::core::stringify!($a1), ::core::stringify!($a2), ::core::stringify!($a3),
+         ::core::stringify!($a4), ::core::stringify!($a5), ::core::stringify!($a6), ::core::stringify!($a7),
+         ::core::stringify!($a8), ::core::stringify!($a9))
     };
     (@_WRAPSTR ($a:pat, $($rest:pat),*)) => {
-        (stringify!($a), $crate::proptest_helper!(@_WRAPSTR ($($rest),*)))
+        (::core::stringify!($a), $crate::proptest_helper!(@_WRAPSTR ($($rest),*)))
     };
     // build a property testing block that when executed, executes the full property test.
     (@_BODY $config:ident ($($parm:pat in $strategy:expr),+) [$($mod:tt)*] $body:expr) => {{
@@ -972,16 +974,16 @@ macro_rules! proptest_helper {
                 _, $crate::proptest_helper!(@_WRAPPAT ($($parm),*)))|
             {
                 let (): () = $body;
-                Ok(())
+                ::core::result::Result::Ok(())
             })
         {
-            Ok(()) => (),
-            Err(e) => panic!("{}\n{}", e, runner),
+            ::core::result::Result::Ok(()) => (),
+            ::core::result::Result::Err(e) => ::core::panic!("{}\n{}", e, runner),
         }
     }};
     // build a property testing block that when executed, executes the full property test.
     (@_BODY2 $config:ident ($($arg:tt)+) [$($mod:tt)*] $body:expr) => {{
-        $config.source_file = Some(file!());
+        $config.source_file = Some(::core::file!());
         let mut runner = $crate::test_runner::TestRunner::new($config);
         let names = $crate::proptest_helper!(@_EXT _STR ($($arg)*));
         match runner.run(
@@ -992,11 +994,11 @@ macro_rules! proptest_helper {
                 _, $crate::proptest_helper!(@_EXT _PAT ($($arg)*)))|
             {
                 let (): () = $body;
-                Ok(())
+                ::core::result::Result::Ok(())
             })
         {
-            Ok(()) => (),
-            Err(e) => panic!("{}\n{}", e, runner),
+            ::core::result::Result::Ok(()) => (),
+            ::core::result::Result::Err(e) => ::core::panic!("{}\n{}", e, runner),
         }
     }};
 
@@ -1005,10 +1007,10 @@ macro_rules! proptest_helper {
     // These matchers define the actual logic:
     (@_STRAT [$s:ty] [$p:pat]) => { $crate::arbitrary::any::<$s>()  };
     (@_PAT [$s:ty] [$p:pat]) => { $p };
-    (@_STR [$s:ty] [$p:pat]) => { stringify!($p) };
+    (@_STR [$s:ty] [$p:pat]) => { ::core::stringify!($p) };
     (@_STRAT in [$s:expr] [$p:pat]) => { $s };
     (@_PAT in [$s:expr] [$p:pat]) => { $p };
-    (@_STR in [$s:expr] [$p:pat]) => { stringify!($p) };
+    (@_STR in [$s:expr] [$p:pat]) => { ::core::stringify!($p) };
 
     // These matchers rewrite into the above extractors.
     // We have to do this because `:` can't FOLLOW(pat).
