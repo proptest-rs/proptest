@@ -1,5 +1,17 @@
 ## Unreleased
 
+## 1.8.0
+
+### New Features
+
+- Implement `Arbitrary` for `Saturating<T>`. ([\#585](https://github.com/proptest-rs/proptest/pull/585))
+- Allow `prop_assert!` with trailing comma. ([\#581](https://github.com/proptest-rs/proptest/pull/581))
+
+### Bug Fixes
+
+- Fix arithmetic overflow on 32-bit processors. ([\#596](https://github.com/proptest-rs/proptest/pull/596))
+- Sanitize user-facing macros to use fully qualified paths, preventing conflicts with user code. ([\#584](https://github.com/proptest-rs/proptest/pull/584))
+
 ## 1.7.0
 
 ### Other Notes
