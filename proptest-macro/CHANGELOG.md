@@ -1,3 +1,15 @@
+## Unreleased
+
+## 0.3.0
+
+### New Features
+
+- Update attr macro to use argument names where trivial, preserving better debugging experience. ([\#594](https://github.com/proptest-rs/proptest/pull/594))
+
+### Bug Fixes
+
+- Fix shorthand struct initialization lint.
+
 ## 0.2.0
 
 ### Other Notes
