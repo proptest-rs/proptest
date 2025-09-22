@@ -36,6 +36,6 @@ regex-syntax = "0.8"
 rusty-fork = { version = "0.3.0", default-features = false }
 syn = "2.0.100"
 tempfile = "3.0"
-trybuild = "=1.0.90"
+trybuild = "=1.0.111"
 unarray = "0.1.4"
 x86 = "0.52.0"
