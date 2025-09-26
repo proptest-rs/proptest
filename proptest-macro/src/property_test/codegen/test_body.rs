@@ -30,7 +30,14 @@ pub(super) fn body(
         // shorthand struct initialization.
 
         match pat {
-            Pat::Ident(_) => quote!(#field_name,),
+            // We need to make sure to handle any mutability modifiers here, i.e. if the user wrote
+            // `mut x: i32`, we have to generate `mut x`, not `x: mut x`
+            //
+            // See https://github.com/proptest-rs/proptest/issues/601
+            Pat::Ident(i) => match i.mutability {
+                Some(mutability) => quote!(#mutability #field_name,),
+                None => quote!(#field_name,),
+            },
             _ => quote!(#field_name: #pat,),
         }
     });
