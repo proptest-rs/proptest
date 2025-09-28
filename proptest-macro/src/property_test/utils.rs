@@ -1,9 +1,4 @@
-use core::mem::replace;
-
-use syn::{
-    punctuated::Punctuated, AttrStyle, Attribute, Expr, FnArg, ItemFn, Meta,
-    PatType,
-};
+use syn::{AttrStyle, Attribute, Expr, FnArg, ItemFn, Meta, PatType};
 
 /// A parsed argument, with an optional custom strategy
 pub struct Argument {
@@ -15,7 +10,7 @@ pub struct Argument {
 ///
 /// Panics on any invalid function
 pub fn strip_args(mut f: ItemFn) -> (ItemFn, Vec<Argument>) {
-    let args = replace(&mut f.sig.inputs, Punctuated::new());
+    let args = std::mem::take(&mut f.sig.inputs);
     let args = args
         .into_iter()
         .map(|arg| match arg {
