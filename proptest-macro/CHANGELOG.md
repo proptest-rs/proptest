@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.3.1
+
+### Bug Fixes
+
+- Fix attr macro incorrectly eating mutability modifiers. ([\#602](https://github.com/proptest-rs/proptest/pull/602))
+
 ## 0.3.0
 
 ### New Features
