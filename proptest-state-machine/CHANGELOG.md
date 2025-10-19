@@ -1,5 +1,12 @@
 ## Unreleased
 
+## 0.5.0
+
+### New Features
+
+- Added reference state machine argument to the teardown function to allow comparison against the SUT.
+  ([\#595](https://github.com/proptest-rs/proptest/pull/595))
+
 ## 0.4.0
 
 ### Other Notes

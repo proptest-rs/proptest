@@ -1,6 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_quote, spanned::Spanned, Attribute, Ident, ItemFn};
+use syn::{
+    parse_quote, spanned::Spanned, Attribute, Ident, ItemFn, Pat, PatType,
+};
 
 use super::{
     options::Options,
@@ -52,7 +54,7 @@ fn generate_struct(fn_name: &Ident, args: &[Argument]) -> TokenStream {
     let struct_name = struct_name(fn_name);
 
     let fields = args.iter().enumerate().map(|(index, arg)| {
-        let field_name = nth_field_name(&arg.pat_ty.pat, index);
+        let field_name = nth_field_name(args, index);
         let ty = &arg.pat_ty.ty;
 
         quote! { #field_name: #ty, }
@@ -78,11 +80,28 @@ fn struct_name(fn_name: &Ident) -> Ident {
     Ident::new(&name, fn_name.span())
 }
 
-/// We convert all fields to `"field0"`, etc. to account for various different patterns that can
-/// exist in function args. We restore the patterns/bindings when we destructure the struct in the
-/// test body
-fn nth_field_name(span: impl Spanned, index: usize) -> Ident {
-    Ident::new(&format!("field{index}"), span.span())
+/// The rule for field names is:
+/// - if the arguments pattern is an ident, we reuse that ident verbatim
+/// - otherwise, we use the name `arg<n>`, where `<n>` is the index of the argument (including
+/// ident arguments)
+///
+/// So for example, given the args `foo: i32, (a, b): (i32, bool), baz: bool`, the generated struct
+/// would roughly be:
+/// ```rust
+/// struct Args {
+///     foo: i32,
+///     arg1: (i32, bool),
+///     baz: bool,
+/// }
+/// ```
+///
+/// Panics if `index` is out of bounds for `args`
+fn nth_field_name(args: &[Argument], index: usize) -> Ident {
+    let arg = &args[index];
+    match arg.pat_ty.pat.as_ref() {
+        Pat::Ident(pat_ident) => pat_ident.ident.clone(),
+        other => Ident::new(&format!("arg{index}"), other.span()),
+    }
 }
 
 fn test_attr() -> Attribute {
@@ -139,11 +158,11 @@ mod tests {
     #[test]
     fn generates_correct_struct() {
         check_struct("fn foo() {}", "FooArgs", []);
-        check_struct("fn foo(x: i32) {}", "FooArgs", [("field0", "i32")]);
+        check_struct("fn foo(x: i32) {}", "FooArgs", [("x", "i32")]);
         check_struct(
             "fn foo(a: i32, b: String) {}",
             "FooArgs",
-            [("field0", "i32"), ("field1", "String")],
+            [("a", "i32"), ("b", "String")],
         );
     }
 
@@ -184,4 +203,5 @@ mod snapshot_tests {
     snapshot_test!(simple);
     snapshot_test!(many_params);
     snapshot_test!(arg_pattern);
+    snapshot_test!(arg_ident_and_pattern);
 }

@@ -65,7 +65,12 @@ mod property_test;
 /// }
 /// ```
 /// Multiple `#[strategy = <expr>]` attributes on an argument are not allowed.
+/// 
+/// ## Semver guarantees of generated code
 ///
+/// This macro generates a struct with a name derived from the name of the test function. Details
+/// of this struct, such as its name, field names, or even whether it exists are considered
+/// implementation details, and may change without a major version bump.
 #[proc_macro_attribute]
 pub fn property_test(attr: TokenStream, item: TokenStream) -> TokenStream {
     property_test::property_test(attr.into(), item.into()).into()

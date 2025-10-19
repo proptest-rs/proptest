@@ -1,6 +1,6 @@
 # Proptest
 
-[![Build Status](https://github.com/proptest-rs/proptest/workflows/Rust/badge.svg?branch=master)](https://github.com/proptest-rs/proptest/actions)
+[![Build Status](https://github.com/proptest-rs/proptest/actions/workflows/rust.yml/badge.svg)](https://github.com/proptest-rs/proptest/actions)
 [![](https://img.shields.io/crates/v/proptest.svg)](https://crates.io/crates/proptest)
 [![](https://img.shields.io/website/https/proptest-rs.github.io/proptest.svg)][book]
 [![](https://docs.rs/proptest/badge.svg)][api-docs]
@@ -28,7 +28,7 @@ The crate is fairly close to being feature-complete and has not seen
 substantial architectural changes in quite some time. At this point, it mainly
 sees passive maintenance.
 
-See the [changelog](https://github.com/proptest-rs/proptest/blob/master/proptest/CHANGELOG.md)
+See the [changelog](https://github.com/proptest-rs/proptest/blob/main/proptest/CHANGELOG.md)
 for a full list of substantial historical changes, breaking and otherwise.
 
 ### MSRV

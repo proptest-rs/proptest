@@ -48,6 +48,8 @@ jobs:
         run: cd proptest && cargo test --verbose
       - name: Run macro tests
         run: cd proptest-macro && cargo test --verbose
+      - name: Run macro integration tests
+        run: cargo test --verbose --test attr_macro --features attr-macro
       - name: Build coverage no-default-features
         if: ${{ matrix.build == 'stable' }}
         env:
