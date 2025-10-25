@@ -50,10 +50,6 @@ extern crate bitflags;
 #[cfg(feature = "bit-set")]
 extern crate bit_set;
 
-#[cfg(feature = "std")]
-#[macro_use]
-extern crate lazy_static;
-
 #[cfg(feature = "fork")]
 #[macro_use]
 extern crate rusty_fork;
