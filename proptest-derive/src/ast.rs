@@ -825,7 +825,7 @@ impl ToTokens for MapClosure {
 
 /// Construct a `FreshVar` with the given `prefix` and the number it has in the
 /// count of temporaries for that prefix.
-fn fresh_var(prefix: &str, count: usize) -> FreshVar {
+fn fresh_var(prefix: &str, count: usize) -> FreshVar<'_> {
     FreshVar { prefix, count }
 }
 

@@ -153,16 +153,20 @@ pub trait ProptestResultExt<T, E>: private::Sealed {
     ///
     /// ```
     /// use proptest::prelude::*;
-    /// proptest! {
-    ///   #[test]
-    ///   fn test_that_only_works_with_positive_integers(a in -10i32..10i32) {
+    ///
+    /// fn test_conversion(a: i32) -> Result<(), TestCaseError> {
     ///     // Reject the case if `a` cannot be converted to u8 (e.g., negative values)
     ///     let _unsigned: u8 = a.try_into().prop_assume_ok()?;
     ///     // ...rest of test...
+    ///     Ok(())
+    /// }
+    ///
+    /// proptest! {
+    ///   #[test]
+    ///   fn test_that_only_works_with_positive_integers(a in -10i32..10i32) {
+    ///     test_conversion(a)?;
     ///   }
     /// }
-    /// #
-    /// # fn main() { test_signed_to_unsigned(); }
     /// ```
     ///
     /// [`prop_assume!`]: crate::prop_assume
