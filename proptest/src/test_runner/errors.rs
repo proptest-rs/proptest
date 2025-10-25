@@ -132,3 +132,54 @@ impl<T: fmt::Debug> ::std::error::Error for TestError<T> {
         }
     }
 }
+
+mod private {
+    pub trait Sealed {}
+
+    impl<T, E> Sealed for Result<T, E> {}
+}
+
+/// Extension trait for `Result<T, E>` to provide additional functionality
+/// specifically for prop test cases.
+pub trait ProptestResultExt<T, E>: private::Sealed {
+    /// Converts a `Result<T, E>` into a `Result<T, TestCaseError>`, where the
+    /// `Err` case is transformed into a `TestCaseError::Reject`.
+    ///
+    /// This is intended to be used like the [`prop_assume!`] macro, but for
+    /// fallible computations. If the result is `Err`, the test input is rejected
+    /// and a new input will be generated.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use proptest::prelude::*;
+    /// proptest! {
+    ///   #[test]
+    ///   fn test_that_only_works_with_positive_integers(a in -10i32..10i32) {
+    ///     // Reject the case if `a` cannot be converted to u8 (e.g., negative values)
+    ///     let _unsigned: u8 = a.try_into().prop_assume_ok()?;
+    ///     // ...rest of test...
+    ///   }
+    /// }
+    /// #
+    /// # fn main() { test_signed_to_unsigned(); }
+    /// ```
+    ///
+    /// [`prop_assume!`]: crate::prop_assume
+    fn prop_assume_ok(self) -> Result<T, TestCaseError>
+    where
+        E: fmt::Debug;
+}
+
+impl<T, E> ProptestResultExt<T, E> for Result<T, E> {
+    #[track_caller]
+    fn prop_assume_ok(self) -> Result<T, TestCaseError>
+    where
+        E: fmt::Debug,
+    {
+        let location = core::panic::Location::caller();
+        self.map_err(|err| {
+            TestCaseError::reject(format!("{location}: {err:?}"))
+        })
+    }
+}

@@ -23,7 +23,7 @@
 pub use crate::arbitrary::{any, any_with, Arbitrary};
 pub use crate::strategy::{BoxedStrategy, Just, SBoxedStrategy, Strategy};
 pub use crate::test_runner::Config as ProptestConfig;
-pub use crate::test_runner::TestCaseError;
+pub use crate::test_runner::{TestCaseError, ProptestResultExt};
 pub use crate::{
     prop_assert, prop_assert_eq, prop_assert_ne, prop_assume, prop_compose,
     prop_oneof, proptest,
