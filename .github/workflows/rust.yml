@@ -22,7 +22,7 @@ jobs:
         include:
           - build: pinned
             os: ubuntu-24.04
-            rust: 1.74.0
+            rust: 1.82.0
           - build: stable
             os: ubuntu-24.04
             rust: stable
@@ -77,25 +77,5 @@ jobs:
       - name: Clean and Run tests for derive with features enabled
         if: ${{ matrix.build == 'nightly' }}
         run: cd proptest-derive && cargo clean && cargo test --features boxed_union
-      - name: Run state machine tests
-        if: ${{ matrix.build != 'pinned' }}
-        run: cd proptest-state-machine && cargo test --verbose
-
-  # State machine testing on MSRV 1.82, until the general MSRV
-  # is caught up to 1.82.0
-  state-machine:
-    name: State Machine (MSRV 1.82)
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-      - name: Install Rust 1.82.0
-        uses: hecrj/setup-rust-action@v1
-        with:
-          rust-version: 1.82.0
-      - name: Build state machine
-        run: cd proptest-state-machine && cargo build --verbose
       - name: Run state machine tests
         run: cd proptest-state-machine && cargo test --verbose
