@@ -238,6 +238,7 @@ macro_rules! signed_integer_bin_search {
     ($typ:ident, $int_any: ident, $uniform: ident, $incl: ident) => {
         #[allow(missing_docs)]
         pub mod $typ {
+            #[allow(unused_imports)]
             use rand::{Rng, RngCore};
 
             use crate::strategy::*;
@@ -343,6 +344,7 @@ macro_rules! unsigned_integer_bin_search {
     ($typ:ident, $int_any: ident, $uniform: ident, $incl: ident) => {
         #[allow(missing_docs)]
         pub mod $typ {
+            #[allow(unused_imports)]
             use rand::{Rng, RngCore};
 
             use crate::strategy::*;
