@@ -25,7 +25,7 @@ message-io = { version = "0.19.0", default-features = false, features = [
 num-traits = { version = "0.2.15", default-features = false }
 prettyplease = "0.2"
 proc-macro2 = "1.0"
-proptest-macro = { version = "0.3.1", path = "proptest-macro" }
+proptest-macro = { version = "0.4.0", path = "proptest-macro" }
 quote = "1.0"
 rand = { version = "0.9", default-features = false }
 rand_chacha = { version = "0.9", default-features = false }
