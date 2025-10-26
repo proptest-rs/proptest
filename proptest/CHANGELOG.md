@@ -1,5 +1,20 @@
 ## Unreleased
 
+## 1.9.0
+
+### Breaking Changes
+
+- The minimum supported Rust version has been increased to 1.82.0. ([\#605](https://github.com/proptest-rs/proptest/pull/605))
+
+### New Features
+
+- Added `ProptestResultExt` trait with `prop_assume_ok` helper method for converting `Result` types to test outcomes. ([\#589](https://github.com/proptest-rs/proptest/pull/589))
+
+### Other Notes
+
+- Replaced `lazy_static` dependency with `std::sync::LazyLock`. ([\#546](https://github.com/proptest-rs/proptest/pull/546))
+- Fixed doctest and cleaned up warnings. ([\#606](https://github.com/proptest-rs/proptest/pull/606))
+
 ## 1.8.0
 
 ### New Features
