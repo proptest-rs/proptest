@@ -42,7 +42,7 @@ use proptest::test_runner::TestRunner;
 /// The reference state machine generation runs before the generated transitions
 /// are attempted to be executed against the SUT (the concrete state machine)
 /// as defined by [`crate::StateMachineTest`].
-pub trait ReferenceStateMachine {
+pub trait ReferenceStateMachine: 'static {
     /// The reference state machine's state type. This should contain the minimum
     /// required information needed to implement the state machine. It is used
     /// to drive the generations of transitions to decide which transitions are
@@ -140,28 +140,33 @@ pub trait ReferenceStateMachine {
 /// any.
 pub struct Sequential<State, Transition, StateStrategy, TransitionStrategy> {
     size: SizeRange,
-    init_state: fn() -> StateStrategy,
-    preconditions: fn(state: &State, transition: &Transition) -> bool,
-    transitions: fn(state: &State) -> TransitionStrategy,
-    next: fn(state: State, transition: &Transition) -> State,
+    init_state: Arc<dyn Fn() -> StateStrategy>,
+    preconditions: Arc<dyn Fn(&State, &Transition) -> bool>,
+    transitions: Arc<dyn Fn(&State) -> TransitionStrategy>,
+    next: Arc<dyn Fn(State, &Transition) -> State>,
 }
 
 impl<State, Transition, StateStrategy, TransitionStrategy>
     Sequential<State, Transition, StateStrategy, TransitionStrategy>
+where
+    State: 'static,
+    Transition: 'static,
+    StateStrategy: 'static,
+    TransitionStrategy: 'static,
 {
     pub fn new(
         size: SizeRange,
-        init_state: fn() -> StateStrategy,
-        preconditions: fn(state: &State, transition: &Transition) -> bool,
-        transitions: fn(state: &State) -> TransitionStrategy,
-        next: fn(state: State, transition: &Transition) -> State,
+        init_state: impl Fn() -> StateStrategy + 'static,
+        preconditions: impl Fn(&State, &Transition) -> bool + 'static,
+        transitions: impl Fn(&State) -> TransitionStrategy + 'static,
+        next: impl Fn(State, &Transition) -> State + 'static,
     ) -> Self {
         Self {
             size,
-            init_state,
-            preconditions,
-            transitions,
-            next,
+            init_state: Arc::new(init_state),
+            preconditions: Arc::new(preconditions),
+            transitions: Arc::new(transitions),
+            next: Arc::new(next),
         }
     }
 }
@@ -231,8 +236,8 @@ impl<
             initial_state,
             is_initial_state_shrinkable: true,
             last_valid_initial_state,
-            preconditions: self.preconditions,
-            next: self.next,
+            preconditions: self.preconditions.clone(),
+            next: self.next.clone(),
             transitions,
             acceptable_transitions,
             included_transitions,
@@ -288,9 +293,9 @@ pub struct SequentialValueTree<
     /// to back to it in case the shrinking is rejected.
     last_valid_initial_state: State,
     /// The pre-conditions predicate
-    preconditions: fn(&State, &Transition) -> bool,
+    preconditions: Arc<dyn Fn(&State, &Transition) -> bool>,
     /// The function from current state and a transition to an updated state
-    next: fn(State, &Transition) -> State,
+    next: Arc<dyn Fn(State, &Transition) -> State>,
     /// The list of transitions' value trees
     transitions: Vec<TransitionValueTree>,
     /// The sequence of included transitions with their shrinking state
