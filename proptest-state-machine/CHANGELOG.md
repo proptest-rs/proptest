@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Extended `Sequential` test definition to accept closures in its function fields. ([\##609](https://github.com/proptest-rs/proptest/pull/609))
+
 ## 0.6.0
 
 ### Breaking Changes
