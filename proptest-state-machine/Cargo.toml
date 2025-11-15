@@ -29,3 +29,11 @@ proptest = { version = "1.9.0", path = "../proptest", default-features = true, f
 
 [dev-dependencies]
 message-io = { workspace = true }
+# icu crates version locked as v2.1.x requires MSRV 1.83 and we're on 1.82
+icu_collections = "=2.0.*"
+icu_locale_core = "=2.0.*"
+icu_normalizer = "=2.0.*"
+icu_normalizer_data = "=2.0.*"
+icu_properties = "=2.0.*"
+icu_properties_data = "=2.0.*"
+icu_provider = "=2.0.*"
