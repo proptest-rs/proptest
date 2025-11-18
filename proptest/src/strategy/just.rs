@@ -27,7 +27,7 @@ macro_rules! noshrink {
 // Just
 //==============================================================================
 
-/// A `Strategy` which always produces a single value value and never
+/// A `Strategy` which always produces a single value and never
 /// simplifies.
 #[derive(Clone, Copy, Debug)]
 #[must_use = "strategies do nothing unless used"]
@@ -57,7 +57,7 @@ impl<T: Clone + fmt::Debug> ValueTree for Just<T> {
 // LazyJust
 //==============================================================================
 
-/// A `Strategy` which always produces a single value value and never
+/// A `Strategy` which always produces a single value and never
 /// simplifies. If `T` is `Clone`, you should use `Just` instead.
 ///
 /// This is a generalization of `Just` and works by calling
