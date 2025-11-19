@@ -1,5 +1,7 @@
 ## Unreleased
 
+- The minimum supported Rust version has been increased to 1.84.0. ([\#612](https://github.com/proptest-rs/proptest/pull/612))
+
 ## 1.9.0
 
 ### Breaking Changes

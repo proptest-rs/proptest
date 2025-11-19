@@ -22,7 +22,7 @@ jobs:
         include:
           - build: pinned
             os: ubuntu-24.04
-            rust: 1.82.0
+            rust: 1.84.1
           - build: stable
             os: ubuntu-24.04
             rust: stable
