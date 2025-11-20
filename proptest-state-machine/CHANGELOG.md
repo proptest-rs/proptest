@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Extended `Sequential` test definition to accept closures in its function fields. ([\##609](https://github.com/proptest-rs/proptest/pull/609))
+- The minimum supported Rust version has been increased to 1.84.0. ([\#612](https://github.com/proptest-rs/proptest/pull/612))
+
 ## 0.6.0
 
 ### Breaking Changes
