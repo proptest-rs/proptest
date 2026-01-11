@@ -49,7 +49,7 @@ pub(super) fn body(
 
     let handle_result = handle_result(ret_ty);
 
-    let config = make_config(options.config.as_ref());
+    let config = make_config(options.config.as_ref(), fn_name);
 
     let tokens = quote! ( {
 
@@ -103,7 +103,7 @@ fn handle_result(ret_ty: &ReturnType) -> TokenStream {
     }
 }
 
-fn make_config(config: Option<&Expr>) -> TokenStream {
+fn make_config(config: Option<&Expr>, fn_name: &Ident) -> TokenStream {
     let trailing = match config {
         None => quote! { ::proptest::test_runner::Config::default() },
         Some(config) => config.to_token_stream(),
@@ -111,7 +111,7 @@ fn make_config(config: Option<&Expr>) -> TokenStream {
 
     quote! {
         let config = ::proptest::test_runner::Config {
-            test_name: Some(concat!(module_path!(), "::", stringify!($test_name))),
+            test_name: Some(concat!(module_path!(), "::", stringify!(#fn_name))),
             source_file: Some(file!()),
             ..#trailing
         };
