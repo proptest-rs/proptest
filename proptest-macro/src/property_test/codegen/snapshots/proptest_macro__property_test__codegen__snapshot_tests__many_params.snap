@@ -38,8 +38,7 @@ fn foo() {
                 let result = {
                     println!("{x} and {y}");
                 };
-                let _ = result;
-                Ok(())
+                Ok(result)
             },
         );
     match result {

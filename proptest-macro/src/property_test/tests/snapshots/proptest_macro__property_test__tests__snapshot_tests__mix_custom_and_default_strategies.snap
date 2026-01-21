@@ -37,8 +37,7 @@ fn foo() {
                 let result = {
                     let x = 1;
                 };
-                let _ = result;
-                Ok(())
+                Ok(result)
             },
         );
     match result {

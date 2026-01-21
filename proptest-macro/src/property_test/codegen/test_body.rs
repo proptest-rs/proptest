@@ -89,7 +89,7 @@ pub(super) fn body(
 /// Note, this won't catch cases like `type Foo = ();`, since type information isn't available yet,
 /// it's just looking for the syntax `fn foo() {}` or `fn foo() -> () {}`
 fn handle_result(ret_ty: &ReturnType) -> TokenStream {
-    let default_body = || quote! { let _ = result; Ok(()) };
+    let default_body = || quote! { Ok(result) };
     let result_body = || quote! { result };
 
     match ret_ty {
