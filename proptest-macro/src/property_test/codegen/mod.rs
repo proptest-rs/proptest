@@ -195,7 +195,9 @@ mod snapshot_tests {
                     parse_str(TEXT).unwrap(),
                     $crate::property_test::options::Options::default(),
                 );
-                insta::assert_debug_snapshot!(tokens);
+                let file = syn::parse_file(&tokens.to_string()).unwrap();
+                let formatted = prettyplease::unparse(&file);
+                insta::assert_snapshot!(formatted);
             }
         };
     }
