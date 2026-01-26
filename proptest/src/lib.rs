@@ -72,6 +72,7 @@ pub mod bool;
 pub mod char;
 pub mod collection;
 pub mod num;
+#[cfg(feature = "std")]
 pub mod range_subset;
 pub mod strategy;
 pub mod test_runner;

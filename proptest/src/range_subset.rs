@@ -18,11 +18,11 @@ use rand::Rng;
 use core::fmt;
 use core::hash::Hash;
 use core::ops::Range;
-use std::collections::HashMap;
 
 use crate::bits::{BitSetLike, VarBitSet};
 use crate::num::sample_uniform_incl;
 use crate::sample::SizeRange;
+use crate::std_facade::HashMap;
 use crate::std_facade::Vec;
 use crate::strategy::*;
 use crate::test_runner::*;
