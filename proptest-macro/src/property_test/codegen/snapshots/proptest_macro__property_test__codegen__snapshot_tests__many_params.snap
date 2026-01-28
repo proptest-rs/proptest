@@ -643,12 +643,8 @@ TokenStream [
                                     Group {
                                         delimiter: Parenthesis,
                                         stream: TokenStream [
-                                            Punct {
-                                                char: '$',
-                                                spacing: Alone,
-                                            },
                                             Ident {
-                                                sym: test_name,
+                                                sym: foo,
                                             },
                                         ],
                                     },

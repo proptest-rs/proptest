@@ -20,7 +20,7 @@ fn foo() {
         }
     }
     let config = ::proptest::test_runner::Config {
-        test_name: Some(concat!(module_path!(), "::", stringify!($test_name))),
+        test_name: Some(concat!(module_path!(), "::", stringify!(foo))),
         source_file: Some(file!()),
         ..::proptest::test_runner::Config::default()
     };
