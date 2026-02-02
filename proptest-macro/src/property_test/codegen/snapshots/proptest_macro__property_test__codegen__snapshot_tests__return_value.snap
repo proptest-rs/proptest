@@ -21,7 +21,7 @@ fn return_value() {
         }
     }
     let config = ::proptest::test_runner::Config {
-        test_name: Some(concat!(module_path!(), "::", stringify!($test_name))),
+        test_name: Some(concat!(module_path!(), "::", stringify!(return_value))),
         source_file: Some(file!()),
         ..::proptest::test_runner::Config::default()
     };
