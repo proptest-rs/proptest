@@ -1,6 +1,17 @@
-## Unreleased
+## 0.5.0
+
+### Breaking Changes
 
 - The minimum supported Rust version has been increased to 1.84.0. ([\#612](https://github.com/proptest-rs/proptest/pull/612))
+
+### New Features
+
+- Set `Config::test_name` to the actual function name in the `proptest!` macro. ([\#619](https://github.com/proptest-rs/proptest/pull/619))
+- Support returning `TestCaseResult` from `#[property_test]` tests. ([\#622](https://github.com/proptest-rs/proptest/pull/622))
+
+### Bug Fixes
+
+- Fixes and improvements to the `proptest!` macro implementation and code generation. ([\#622](https://github.com/proptest-rs/proptest/pull/622))
 
 ## 0.4.0
 
