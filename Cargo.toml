@@ -12,10 +12,10 @@ exclude = ["proptest/test-persistence-location/*"]
 [workspace.dependencies]
 bit-set = "0.8.0"
 bit-vec = "0.8.0"
-bitflags = "2.9"
+bitflags = "2.10"
 compiletest_rs = "0.11"
 convert_case = "0.11"
-criterion = "0.5"
+criterion = "0.8"
 insta = "1"
 message-io = { version = "0.19.0", default-features = false, features = [
     "tcp",
@@ -25,7 +25,7 @@ message-io = { version = "0.19.0", default-features = false, features = [
 num-traits = { version = "0.2.15", default-features = false }
 prettyplease = "0.2"
 proc-macro2 = "1.0"
-proptest-macro = { version = "0.4.0", path = "proptest-macro" }
+proptest-macro = { version = "0.5.0", path = "proptest-macro" }
 quote = "1.0"
 rand = { version = "0.9", default-features = false }
 rand_chacha = { version = "0.9", default-features = false }
@@ -33,7 +33,7 @@ rand_xorshift = "0.4"
 regex = "1.0"
 regex-syntax = "0.8"
 rusty-fork = { version = "0.3.0", default-features = false }
-syn = "2.0.108"
+syn = "2.0.114"
 tempfile = "3.0"
 trybuild = "=1.0.115"
 unarray = "0.1.4"

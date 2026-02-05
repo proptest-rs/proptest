@@ -1,6 +1,17 @@
-## Unreleased
+## 1.10.0
+
+### Breaking Changes
 
 - The minimum supported Rust version has been increased to 1.84.0. ([\#612](https://github.com/proptest-rs/proptest/pull/612))
+
+### New Features
+
+- Added a memory-efficient strategy for sampling subsets from ranges without replacement. ([\#586](https://github.com/proptest-rs/proptest/pull/586))
+
+### Other Notes
+
+- Updated `convert_case` requirement from 0.6 to 0.11. ([\#623](https://github.com/proptest-rs/proptest/pull/623))
+- Updated `trybuild` requirement from =1.0.113 to =1.0.115. ([\#624](https://github.com/proptest-rs/proptest/pull/624))
 
 ## 1.9.0
 

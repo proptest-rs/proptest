@@ -5,7 +5,7 @@
 To the `[dev-dependencies]` section of your `Cargo.toml`, add
 
 ```toml
-proptest-derive = "0.2.0"
+proptest-derive = "0.8.0"
 ```
 
 In a Rust 2015 crate, you must add

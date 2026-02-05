@@ -1,6 +1,6 @@
 [package]
 name = "proptest-derive"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Mazdak Farrokhzad <twingoow@gmail.com>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -23,7 +23,7 @@ homepage = "https://proptest-rs.github.io/proptest/proptest-derive/index.html"
 proc-macro = true
 
 [dev-dependencies]
-proptest = { version = "1.0.0", path = "../proptest" }
+proptest = { version = "1.10.0", path = "../proptest" }
 # We don't actually run the tests on stable since some of them use nightly
 # features. However, due to
 # https://github.com/laumann/compiletest-rs/issues/166, the default features of
