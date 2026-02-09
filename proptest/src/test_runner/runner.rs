@@ -24,7 +24,7 @@ use std::env;
 use std::fs;
 #[cfg(feature = "fork")]
 use tempfile;
-
+use crate::is_minimal_case::MinimalCaseGuard;
 use crate::strategy::*;
 use crate::test_runner::config::*;
 use crate::test_runner::errors::*;
@@ -742,13 +742,35 @@ impl TestRunner {
                 let why = self
                     .shrink(
                         &mut case,
-                        test,
+                        &test,
                         replay_from_fork,
                         result_cache,
                         fork_output,
                         is_from_persisted_seed,
                     )
                     .unwrap_or(why);
+
+                // Run minimal test again
+                let _guard = MinimalCaseGuard::begin_minimal_case();
+                let minimal_result = call_test(
+                    self,
+                    case.current(),
+                    &test,
+                    &mut iter::empty(),
+                    &mut *noop_result_cache(),
+                    // TODO: What should fork_output be?
+                    fork_output,
+                    is_from_persisted_seed,
+                );
+
+                if !matches!(minimal_result, Err(TestCaseError::Fail(_))) {
+                    // TODO: Is it appropriate to use eprintln! here?
+                    // It seems appropriate to atleast notify the user somehow
+                    // that the minimal test case does not consistently fail
+                    eprintln!("unexpected behavior: minimal case did not result in test \
+                               failure on second test run");
+                }
+
                 Err(TestError::Fail(why, case.current()))
             }
             Err(TestCaseError::Reject(whence)) => {

@@ -45,6 +45,9 @@ extern crate alloc;
 #[macro_use]
 mod product_tuple;
 
+mod is_minimal_case;
+pub use is_minimal_case::is_minimal_case;
+
 #[macro_use]
 extern crate bitflags;
 #[cfg(feature = "bit-set")]
