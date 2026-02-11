@@ -155,10 +155,12 @@ impl FailurePersistence for FileFailurePersistence {
                     "proptest: Saving this and future failures in {}\n\
                      proptest: If this test was run on a CI system, you may \
                      wish to add the following line to your copy of the file.{}\n\
-                     {}",
+                     {} # shrinks to {:?}",
                     path.display(),
                     if is_new { " (You may need to create it.)" } else { "" },
-                    seed);
+                    seed,
+                    shrunken_value
+                );
             }
         }
     }
@@ -421,20 +423,21 @@ mod tests {
         misplaced_file: PathBuf,
     }
 
-    static TEST_PATHS: std::sync::LazyLock<TestPaths> = std::sync::LazyLock::new(|| {
-        let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let lib_root = crate_root.join("src");
-        let src_subdir = lib_root.join("strategy");
-        let src_file = lib_root.join("foo.rs");
-        let subdir_file = src_subdir.join("foo.rs");
-        let misplaced_file = crate_root.join("foo.rs");
-        TestPaths {
-            crate_root,
-            src_file,
-            subdir_file,
-            misplaced_file,
-        }
-    });
+    static TEST_PATHS: std::sync::LazyLock<TestPaths> =
+        std::sync::LazyLock::new(|| {
+            let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+            let lib_root = crate_root.join("src");
+            let src_subdir = lib_root.join("strategy");
+            let src_file = lib_root.join("foo.rs");
+            let subdir_file = src_subdir.join("foo.rs");
+            let misplaced_file = crate_root.join("foo.rs");
+            TestPaths {
+                crate_root,
+                src_file,
+                subdir_file,
+                misplaced_file,
+            }
+        });
 
     #[test]
     fn persistence_file_location_resolved_correctly() {
@@ -498,7 +501,8 @@ mod tests {
     #[test]
     fn relative_source_files_absolutified() {
         const TEST_RUNNER_PATH: &[&str] = &["src", "test_runner", "mod.rs"];
-        static TEST_RUNNER_RELATIVE: std::sync::LazyLock<PathBuf> = std::sync::LazyLock::new(|| TEST_RUNNER_PATH.iter().collect());
+        static TEST_RUNNER_RELATIVE: std::sync::LazyLock<PathBuf> =
+            std::sync::LazyLock::new(|| TEST_RUNNER_PATH.iter().collect());
         const CARGO_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
         let expected = ::std::iter::once(CARGO_DIR)
