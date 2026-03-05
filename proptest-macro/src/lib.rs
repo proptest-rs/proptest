@@ -65,7 +65,7 @@ mod property_test;
 /// }
 /// ```
 /// Multiple `#[strategy = <expr>]` attributes on an argument are not allowed.
-/// 
+///
 /// ## Semver guarantees of generated code
 ///
 /// This macro generates a struct with a name derived from the name of the test function. Details

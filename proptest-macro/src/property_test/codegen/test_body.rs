@@ -49,7 +49,8 @@ pub(super) fn body(
 
     let handle_result = handle_result(ret_ty);
 
-    let config = make_config(options.config.as_ref(), fn_name);
+    let config = make_config(options.config.as_ref(), fn_name, options);
+    let proptest = options.true_proptest_path();
 
     let tokens = quote! ( {
 
@@ -59,13 +60,13 @@ pub(super) fn body(
 
         #config
 
-        let mut runner = ::proptest::test_runner::TestRunner::new(config);
+        let mut runner = #proptest::test_runner::TestRunner::new(config);
         
         let result = runner.run(
-            &::proptest::strategy::Strategy::prop_map(::proptest::prelude::any::<#struct_name>(), |values| {
-                ::proptest::sugar::NamedArguments(stringify!(#struct_name), values)
+            &#proptest::strategy::Strategy::prop_map(#proptest::prelude::any::<#struct_name>(), |values| {
+                #proptest::sugar::NamedArguments(stringify!(#struct_name), values)
             }),
-            |::proptest::sugar::NamedArguments(_, #struct_pattern)| {
+            |#proptest::sugar::NamedArguments(_, #struct_pattern)| {
                 let result = #block;
                 #handle_result
             },
@@ -103,14 +104,15 @@ fn handle_result(ret_ty: &ReturnType) -> TokenStream {
     }
 }
 
-fn make_config(config: Option<&Expr>, fn_name: &Ident) -> TokenStream {
+fn make_config(config: Option<&Expr>, fn_name: &Ident, options: &Options) -> TokenStream {
+    let proptest = options.true_proptest_path();
     let trailing = match config {
-        None => quote! { ::proptest::test_runner::Config::default() },
+        None => quote! { #proptest::test_runner::Config::default() },
         Some(config) => config.to_token_stream(),
     };
 
     quote! {
-        let config = ::proptest::test_runner::Config {
+        let config = #proptest::test_runner::Config {
             test_name: Some(concat!(module_path!(), "::", stringify!(#fn_name))),
             source_file: Some(file!()),
             ..#trailing
