@@ -1,8 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::{
-    parse::Parse, punctuated::Punctuated, spanned::Spanned, Expr, Ident, Lit,
-    LitStr, MetaNameValue, Token,
+    Expr, Ident, Lit, LitStr, MetaNameValue, Path, Token, parse::Parse, parse_str, punctuated::Punctuated, spanned::Spanned
 };
 
 /// Options parsed from the attribute itself (e.g. the config from `#[property_test(config = ...)]`)
@@ -19,7 +18,7 @@ impl Options {
         match &self.proptest_path {
             None => quote! { ::proptest },
             Some(s) => {
-                let value = s.value();
+                let value: Path = parse_str(&s.value()).unwrap();
                 quote_spanned! { s.span() => #value }
             }
         }

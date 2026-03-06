@@ -79,7 +79,6 @@ pub(super) fn body(
     } );
 
     // unwrap here is fine because the double braces create a block
-    // std::fs::write("/tmp/pt-debug", tokens.to_string());
     parse2(tokens).unwrap()
 }
 

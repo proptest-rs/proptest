@@ -1,8 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
-    parse_quote, spanned::Spanned, Attribute, Ident, ItemFn, Pat,
-    ReturnType,
+    parse_quote, spanned::Spanned, Attribute, Ident, ItemFn, Pat, ReturnType,
 };
 
 use super::{
@@ -175,7 +174,11 @@ mod tests {
     fn generates_arbitrary_impl() {
         let f: ItemFn = parse_quote! { fn foo(x: i32, y: u8) {} };
         let (f, args) = strip_args(f);
-        let arb = arbitrary::gen_arbitrary_impl(&f.sig.ident, &args, &Options::default());
+        let arb = arbitrary::gen_arbitrary_impl(
+            &f.sig.ident,
+            &args,
+            &Options::default(),
+        );
 
         insta::assert_snapshot!(arb.to_string());
     }
@@ -184,10 +187,16 @@ mod tests {
 #[cfg(test)]
 mod snapshot_tests {
     use super::*;
-    use syn::parse_str;
+    use syn::{parse::ParseStream, parse_str};
 
     macro_rules! snapshot_test {
         ($name:ident) => {
+            snapshot_test!(
+                $name,
+                $crate::property_test::options::Options::default()
+            );
+        };
+        ($name:ident, $options:expr) => {
             #[test]
             fn $name() {
                 const TEXT: &str = include_str!(concat!(
@@ -196,10 +205,7 @@ mod snapshot_tests {
                     ".rs"
                 ));
 
-                let tokens = generate(
-                    parse_str(TEXT).unwrap(),
-                    $crate::property_test::options::Options::default(),
-                );
+                let tokens = generate(parse_str(TEXT).unwrap(), $options);
                 let file = syn::parse_file(&tokens.to_string()).unwrap();
                 let formatted = prettyplease::unparse(&file);
                 insta::assert_snapshot!(formatted);
@@ -212,4 +218,16 @@ mod snapshot_tests {
     snapshot_test!(arg_pattern);
     snapshot_test!(arg_ident_and_pattern);
     snapshot_test!(return_value);
+
+    mod with_options {
+        use super::*;
+
+        snapshot_test!(
+            simple,
+            Options {
+                proptest_path: Some(parse_str("\"::hello::world\"").unwrap()),
+                ..Options::default()
+            }
+        );
+    }
 }
