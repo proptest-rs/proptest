@@ -38,8 +38,11 @@ mod property_test;
 ///
 /// ## Attributes
 ///
-/// The `property_test` macro can take an optional `config` attribute, which allows you to
-/// customize the configuration of the `proptest` runner.
+/// All attributes mentioned here are optional.
+///
+/// The `property_test` macro can take an `config` attribute, which allows you to customize the
+/// configuration of the `proptest` runner. If not provided, it will use
+/// `ProptestConfig::default()`.
 ///
 /// E.g. running 100 cases:
 ///
@@ -49,6 +52,10 @@ mod property_test;
 ///     assert_eq!(x, x);
 /// }
 /// ```
+///
+/// You can also provide `proptest_path = "::path::to::proptest"`, which tells the macro not to
+/// assume that the `proptest` crate is available. This is useful if, for example, you are using a
+/// re-exported version of proptest, such as `my_library::proptest`.
 ///
 /// ## Custom strategies
 ///
