@@ -229,8 +229,7 @@ fn extract_modifiers(ctx: Ctx, attr: &Attribute) -> Vec<Meta> {
             if syn::parse2::<Lit>(list.tokens.clone()).is_ok() {
                 error::immediate_literals(ctx);
             } else {
-                let parser =
-                    Punctuated::<Meta, Token![,]>::parse_separated_nonempty;
+                let parser = Punctuated::<Meta, Token![,]>::parse_separated_nonempty;
                 let metas = parser.parse2(list.tokens.clone()).unwrap();
                 return metas.into_iter().collect();
             }
@@ -599,7 +598,7 @@ fn normalize_meta(meta: Meta) -> Option<NormMeta> {
         Meta::NameValue(nv) => match nv.value {
             Expr::Lit(elit) => Some(NormMeta::Lit(elit.lit)),
             _ => None,
-        },
+        }
         Meta::List(ml) => {
             let mut output: Option<NormMeta> = None;
 
