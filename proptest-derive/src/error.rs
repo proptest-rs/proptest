@@ -439,10 +439,10 @@ error!(
     expected
 );
 
-// TODO: `unkown_modifier` is misspelled
+// TODO: `unknown_modifier` is misspelled
 // Happens when `<modifier>` in `#[proptest(<modifier>)]` is unknown to us.
 error!(
-    unkown_modifier(modifier: &str),
+    unknown_modifier(modifier: &str),
     E0018,
     "Unknown attribute modifier `{}` inside `#[proptest(..)]` is not allowed.",
     modifier
