@@ -1,3 +1,9 @@
+## Unreleased
+
+### Other Notes
+
+- When using failure persistence the shrunken case is now also output to stderr
+
 ## 1.10.0
 
 ### Breaking Changes

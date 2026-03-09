@@ -155,10 +155,12 @@ impl FailurePersistence for FileFailurePersistence {
                     "proptest: Saving this and future failures in {}\n\
                      proptest: If this test was run on a CI system, you may \
                      wish to add the following line to your copy of the file.{}\n\
-                     {}",
+                     {} # shrinks to {:?}",
                     path.display(),
                     if is_new { " (You may need to create it.)" } else { "" },
-                    seed);
+                    seed,
+                    shrunken_value
+                );
             }
         }
     }
