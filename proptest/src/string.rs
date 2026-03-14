@@ -244,11 +244,11 @@ fn unicode_class_strategy(
         // Multiple instances of the latter range to partially make up
         // for the bias of having such a tiny range in the control
         // characters.
-        '\x0B'..=::core::char::MAX,
-        '\x0B'..=::core::char::MAX,
-        '\x0B'..=::core::char::MAX,
-        '\x0B'..=::core::char::MAX,
-        '\x0B'..=::core::char::MAX,
+        '\x0B'..=char::MAX,
+        '\x0B'..=char::MAX,
+        '\x0B'..=char::MAX,
+        '\x0B'..=char::MAX,
+        '\x0B'..=char::MAX,
     ];
 
     let dotnnl = |x: &hir::ClassUnicodeRange, y: &hir::ClassUnicodeRange| {
