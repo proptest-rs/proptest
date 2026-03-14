@@ -26,6 +26,7 @@
     feature = "unstable",
     feature(allocator_api, try_trait_v2, coroutine_trait, never_type)
 )]
+#![cfg_attr(feature = "f16", feature(f16))]
 #![cfg_attr(all(feature = "std", feature = "unstable"), feature(ip))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

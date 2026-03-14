@@ -28,6 +28,9 @@ attr-macro = ["proptest-macro"]
 # Enables unstable features of Rust.
 unstable = []
 
+# Enables f16 support
+f16 = []
+
 # Enables the use of standard-library dependent features
 std = ["rand/std", "rand/os_rng", "regex-syntax", "num-traits/std"]
 
