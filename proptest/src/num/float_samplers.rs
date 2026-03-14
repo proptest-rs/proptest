@@ -17,6 +17,8 @@
 //! floating point values at the bounds. At that stage, one is selected at random and
 //! returned.
 
+#[cfg(feature = "unstable")]
+pub(crate) use self::f16::F16U;
 pub(crate) use self::f32::F32U;
 pub(crate) use self::f64::F64U;
 
@@ -459,5 +461,7 @@ macro_rules! float_sampler {
     };
 }
 
+#[cfg(feature = "unstable")]
+float_sampler!(f16, u16, F16U);
 float_sampler!(f32, u32, F32U);
 float_sampler!(f64, u64, F64U);
