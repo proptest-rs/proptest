@@ -356,7 +356,7 @@ pub struct Config {
     /// Give up on shrinking if more than this number of iterations of the test
     /// code are run.
     ///
-    /// Setting this to `std::u32::MAX` causes the actual limit to be four
+    /// Setting this to `u32::MAX` causes the actual limit to be four
     /// times the number of test cases.
     ///
     /// Setting this value to `0` disables shrinking altogether.
@@ -364,7 +364,7 @@ pub struct Config {
     /// Note that the type of this field will change in a future version of
     /// proptest to better accommodate its special values.
     ///
-    /// The default is `std::u32::MAX`, which can be overridden by setting the
+    /// The default is `u32::MAX`, which can be overridden by setting the
     /// `PROPTEST_MAX_SHRINK_ITERS` environment variable. (The variable is only
     /// considered when the `std` feature is enabled, which it is by default.)
     pub max_shrink_iters: u32,

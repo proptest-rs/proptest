@@ -185,10 +185,10 @@ macro_rules! numeric_api {
                     $crate::num::$incl::<$sample_typ>(
                         runner,
                         self.start.into(),
-                        ::core::$typ::MAX.into(),
+                        <$typ>::MAX.into(),
                     )
                     .into(),
-                    ::core::$typ::MAX,
+                    <$typ>::MAX,
                 ))
             }
         }
@@ -199,10 +199,10 @@ macro_rules! numeric_api {
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
-                    ::core::$typ::MIN,
+                    <$typ>::MIN,
                     $crate::num::$uniform::<$sample_typ>(
                         runner,
-                        ::core::$typ::MIN.into(),
+                        <$typ>::MIN.into(),
                         self.end.into(),
                     )
                     .into(),
@@ -217,10 +217,10 @@ macro_rules! numeric_api {
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
-                    ::core::$typ::MIN,
+                    <$typ>::MIN,
                     $crate::num::$incl::<$sample_typ>(
                         runner,
-                        ::core::$typ::MIN.into(),
+                        <$typ>::MIN.into(),
                         self.end.into(),
                     )
                     .into(),
@@ -496,6 +496,16 @@ where
     const MANTISSA_MASK: Self::Bits;
 }
 
+#[cfg(feature = "unstable")]
+impl FloatLayout for f16 {
+    type Bits = u16;
+
+    const SIGN_MASK: u16 = 0x8000;
+    const EXP_MASK: u16 = 0x7c00;
+    const EXP_ZERO: u16 = f16::to_bits(1.0);
+    const MANTISSA_MASK: u16 = !(Self::SIGN_MASK | Self::EXP_MASK);
+}
+
 impl FloatLayout for f32 {
     type Bits = u32;
 
@@ -718,7 +728,7 @@ macro_rules! float_any {
                 // signalling bit. Assume the `NAN` constant is a quiet NaN as
                 // interpreted by the hardware and generate values based on
                 // that.
-                let quiet_or = ::core::$typ::NAN.to_bits() &
+                let quiet_or = $typ::NAN.to_bits() &
                     ($typ::EXP_MASK | ($typ::EXP_MASK >> 1));
                 let signaling_or = (quiet_or ^ ($typ::EXP_MASK >> 1)) |
                     $typ::EXP_MASK;
@@ -950,6 +960,8 @@ macro_rules! float_bin_search {
     };
 }
 
+#[cfg(feature = "unstable")]
+float_bin_search!(f16, F16U);
 float_bin_search!(f32, F32U);
 float_bin_search!(f64, F64U);
 
@@ -1180,6 +1192,8 @@ mod test {
         contract_sanity!(i64);
         contract_sanity!(usize);
         contract_sanity!(isize);
+        #[cfg(feature = "unstable")]
+        contract_sanity!(f16);
         contract_sanity!(f32);
         contract_sanity!(f64);
     }
@@ -1277,13 +1291,13 @@ mod test {
     #[test]
     fn float_simplifies_to_smallest_normal() {
         let mut runner = TestRunner::default();
-        let mut value = (::std::f64::MIN_POSITIVE..2.0)
+        let mut value = (f64::MIN_POSITIVE..2.0)
             .new_tree(&mut runner)
             .unwrap();
 
         while value.simplify() {}
 
-        assert_eq!(::std::f64::MIN_POSITIVE, value.current());
+        assert_eq!(f64::MIN_POSITIVE, value.current());
     }
 
     macro_rules! float_generation_test_body {
@@ -1343,8 +1357,7 @@ mod test {
                             }
 
                             let is_quiet = raw & ($typ::EXP_MASK >> 1)
-                                == ::std::$typ::NAN.to_bits()
-                                    & ($typ::EXP_MASK >> 1);
+                                == $typ::NAN.to_bits() & ($typ::EXP_MASK >> 1);
                             if is_quiet {
                                 // x86/AMD64 turn signalling NaNs into quiet
                                 // NaNs quite aggressively depending on what
@@ -1436,6 +1449,25 @@ mod test {
 
     proptest! {
         #![proptest_config(crate::test_runner::Config::with_cases(1024))]
+
+        #[cfg(feature = "unstable")]
+        #[test]
+        fn f16_any_generates_desired_values(
+            strategy in crate::bits::u32::ANY.prop_map(f16::Any::from_bits)
+        ) {
+            float_generation_test_body!(strategy, f16);
+        }
+
+        #[cfg(feature = "unstable")]
+        #[test]
+        fn f16_any_sanity(
+            strategy in crate::bits::u32::ANY.prop_map(f16::Any::from_bits)
+        ) {
+            check_strategy_sanity(strategy, Some(CheckStrategySanityOptions {
+                strict_complicate_after_simplify: false,
+                .. CheckStrategySanityOptions::default()
+            }));
+        }
 
         #[test]
         fn f32_any_generates_desired_values(
@@ -1530,6 +1562,8 @@ mod test {
         panic_on_empty!(i64);
         panic_on_empty!(usize);
         panic_on_empty!(isize);
+        #[cfg(feature = "unstable")]
+        panic_on_empty!(f16);
         panic_on_empty!(f32);
         panic_on_empty!(f64);
     }

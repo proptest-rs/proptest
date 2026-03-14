@@ -77,8 +77,8 @@ mod var_error {
     #[cfg(target_os = "windows")]
     fn osstring_invalid_string() -> impl Strategy<Value = OsString> {
         use std::os::windows::ffi::OsStringExt;
-        let size = 1..::std::u16::MAX as usize;
-        let vec_gen = crate::collection::vec(..::std::u16::MAX, size.clone());
+        let size = 1..u16::MAX as usize;
+        let vec_gen = crate::collection::vec(..u16::MAX, size.clone());
         (size, vec_gen).prop_map(|(p, mut sbuf)| {
             // Not quite a uniform distribution due to clamping,
             // but probably good enough

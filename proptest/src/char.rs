@@ -207,7 +207,7 @@ impl<'a> CharStrategy<'a> {
     }
 }
 
-const WHOLE_RANGE: &[CharRange] = &['\x00'..=::core::char::MAX];
+const WHOLE_RANGE: &[CharRange] = &['\x00'..=char::MAX];
 
 /// Creates a `CharStrategy` which picks from literally any character, with the
 /// default biases.
@@ -327,8 +327,8 @@ mod test {
     proptest! {
         #[test]
         fn stays_in_range(input_ranges in collection::vec(
-            (0..::std::char::MAX as u32,
-             0..::std::char::MAX as u32),
+            (0..char::MAX as u32,
+             0..char::MAX as u32),
             1..5))
         {
             let input = ranges(Cow::Owned(input_ranges.iter().map(

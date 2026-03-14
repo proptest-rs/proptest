@@ -22,7 +22,7 @@ multiplex_alloc! {
     core::char::decode_utf16, std::char::decode_utf16
 }
 
-const VEC_MAX: usize = ::core::u16::MAX as usize;
+const VEC_MAX: usize = u16::MAX as usize;
 
 use crate::arbitrary::*;
 use crate::strategy::statics::static_map;

@@ -22,7 +22,7 @@ use super::string::not_utf8_bytes;
 
 arbitrary!(CString,
     SFnPtrMap<VecStrategy<RangeInclusive<u8>>, Self>, SizeRange;
-    args => static_map(vec(1..=::std::u8::MAX, args + 1), |mut vec| {
+    args => static_map(vec(1..=u8::MAX, args + 1), |mut vec| {
         vec.pop().unwrap();
         // Could use: Self::from_vec_unchecked(vec) safely.
         Self::new(vec).unwrap()
