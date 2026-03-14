@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018 The proptest developers
+// Copyright 2017, 2018, 2026 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -89,11 +89,13 @@ int_bitset!(u8);
 int_bitset!(u16);
 int_bitset!(u32);
 int_bitset!(u64);
+int_bitset!(u128);
 int_bitset!(usize);
 int_bitset!(i8);
 int_bitset!(i16);
 int_bitset!(i32);
 int_bitset!(i64);
+int_bitset!(i128);
 int_bitset!(isize);
 
 #[cfg(feature = "bit-set")]
@@ -390,10 +392,12 @@ int_api!(u8, 8);
 int_api!(u16, 16);
 int_api!(u32, 32);
 int_api!(u64, 64);
+int_api!(u128, 128);
 int_api!(i8, 8);
 int_api!(i16, 16);
 int_api!(i32, 32);
 int_api!(i64, 64);
+int_api!(i128, 128);
 
 macro_rules! minimal_api {
     ($md:ident, $typ:ty) => {
@@ -688,5 +692,55 @@ mod test {
     #[test]
     fn test_sanity() {
         check_strategy_sanity(u32::masked(0xdeadbeef), None);
+    }
+
+    #[test]
+    fn u128_generates_values_in_range() {
+        let input = u128::between(64, 128);
+
+        let mut runner = TestRunner::default();
+        for _ in 0..256 {
+            let value = input.new_tree(&mut runner).unwrap().current();
+            // Only bits 64..128 should be set
+            assert!(
+                0 == value & ((1u128 << 64) - 1),
+                "Generated value has low bits set: {}",
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn u128_shrinks_to_zero() {
+        let input = u128::between(64, 128);
+
+        let mut runner = TestRunner::default();
+        for _ in 0..256 {
+            let mut value = input.new_tree(&mut runner).unwrap();
+            while value.simplify() {}
+            assert_eq!(0, value.current());
+        }
+    }
+
+    #[test]
+    fn i128_generates_values_in_mask() {
+        let mut accum: i128 = 0;
+        let mask: i128 = 0x0123_4567_89ab_cdef_0123_4567_89ab_cdef;
+
+        let mut runner = TestRunner::deterministic();
+        let input = i128::masked(mask);
+        for _ in 0..1024 {
+            accum |= input.new_tree(&mut runner).unwrap().current();
+        }
+
+        assert_eq!(mask, accum);
+    }
+
+    #[test]
+    fn u128_test_sanity() {
+        check_strategy_sanity(
+            u128::masked(0xdeadbeef_cafebabe_12345678_9abcdef0),
+            None,
+        );
     }
 }
