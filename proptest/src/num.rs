@@ -185,10 +185,10 @@ macro_rules! numeric_api {
                     $crate::num::$incl::<$sample_typ>(
                         runner,
                         self.start.into(),
-                        ::core::$typ::MAX.into(),
+                        <$typ>::MAX.into(),
                     )
                     .into(),
-                    ::core::$typ::MAX,
+                    <$typ>::MAX,
                 ))
             }
         }
@@ -199,10 +199,10 @@ macro_rules! numeric_api {
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
-                    ::core::$typ::MIN,
+                    <$typ>::MIN,
                     $crate::num::$uniform::<$sample_typ>(
                         runner,
-                        ::core::$typ::MIN.into(),
+                        <$typ>::MIN.into(),
                         self.end.into(),
                     )
                     .into(),
@@ -217,10 +217,10 @@ macro_rules! numeric_api {
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
-                    ::core::$typ::MIN,
+                    <$typ>::MIN,
                     $crate::num::$incl::<$sample_typ>(
                         runner,
-                        ::core::$typ::MIN.into(),
+                        <$typ>::MIN.into(),
                         self.end.into(),
                     )
                     .into(),
@@ -718,7 +718,7 @@ macro_rules! float_any {
                 // signalling bit. Assume the `NAN` constant is a quiet NaN as
                 // interpreted by the hardware and generate values based on
                 // that.
-                let quiet_or = ::core::$typ::NAN.to_bits() &
+                let quiet_or = $typ::NAN.to_bits() &
                     ($typ::EXP_MASK | ($typ::EXP_MASK >> 1));
                 let signaling_or = (quiet_or ^ ($typ::EXP_MASK >> 1)) |
                     $typ::EXP_MASK;
@@ -1277,13 +1277,13 @@ mod test {
     #[test]
     fn float_simplifies_to_smallest_normal() {
         let mut runner = TestRunner::default();
-        let mut value = (::std::f64::MIN_POSITIVE..2.0)
+        let mut value = (f64::MIN_POSITIVE..2.0)
             .new_tree(&mut runner)
             .unwrap();
 
         while value.simplify() {}
 
-        assert_eq!(::std::f64::MIN_POSITIVE, value.current());
+        assert_eq!(f64::MIN_POSITIVE, value.current());
     }
 
     macro_rules! float_generation_test_body {
@@ -1343,8 +1343,7 @@ mod test {
                             }
 
                             let is_quiet = raw & ($typ::EXP_MASK >> 1)
-                                == ::std::$typ::NAN.to_bits()
-                                    & ($typ::EXP_MASK >> 1);
+                                == $typ::NAN.to_bits() & ($typ::EXP_MASK >> 1);
                             if is_quiet {
                                 // x86/AMD64 turn signalling NaNs into quiet
                                 // NaNs quite aggressively depending on what
