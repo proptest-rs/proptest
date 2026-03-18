@@ -26,7 +26,7 @@ default-code-coverage = ["std", "fork", "timeout", "bit-set"]
 attr-macro = ["proptest-macro"]
 
 # Enables unstable features of Rust.
-unstable = []
+unstable = ["f16"]
 
 # Enables f16 support
 f16 = []
