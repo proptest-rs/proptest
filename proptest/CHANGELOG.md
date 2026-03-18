@@ -7,6 +7,7 @@
 ### New Features
 
 - Added a memory-efficient strategy for sampling subsets from ranges without replacement. ([\#586](https://github.com/proptest-rs/proptest/pull/586))
+- Added support for f16 feature-gated by "f16" or "unstable". ([\#638](https://github.com/proptest-rs/proptest/pull/638))
 
 ### Other Notes
 
