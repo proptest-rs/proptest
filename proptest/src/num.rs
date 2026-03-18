@@ -496,6 +496,16 @@ where
     const MANTISSA_MASK: Self::Bits;
 }
 
+#[cfg(feature = "f16")]
+impl FloatLayout for f16 {
+    type Bits = u16;
+
+    const SIGN_MASK: u16 = 0x8000;
+    const EXP_MASK: u16 = 0x7c00;
+    const EXP_ZERO: u16 = f16::to_bits(1.0);
+    const MANTISSA_MASK: u16 = !(Self::SIGN_MASK | Self::EXP_MASK);
+}
+
 impl FloatLayout for f32 {
     type Bits = u32;
 
@@ -950,6 +960,8 @@ macro_rules! float_bin_search {
     };
 }
 
+#[cfg(feature = "f16")]
+float_bin_search!(f16, F16U);
 float_bin_search!(f32, F32U);
 float_bin_search!(f64, F64U);
 
@@ -1180,6 +1192,8 @@ mod test {
         contract_sanity!(i64);
         contract_sanity!(usize);
         contract_sanity!(isize);
+        #[cfg(feature = "f16")]
+        contract_sanity!(f16);
         contract_sanity!(f32);
         contract_sanity!(f64);
     }
@@ -1436,6 +1450,25 @@ mod test {
     proptest! {
         #![proptest_config(crate::test_runner::Config::with_cases(1024))]
 
+        #[cfg(feature = "f16")]
+        #[test]
+        fn f16_any_generates_desired_values(
+            strategy in crate::bits::u32::ANY.prop_map(f16::Any::from_bits)
+        ) {
+            float_generation_test_body!(strategy, f16);
+        }
+
+        #[cfg(feature = "f16")]
+        #[test]
+        fn f16_any_sanity(
+            strategy in crate::bits::u32::ANY.prop_map(f16::Any::from_bits)
+        ) {
+            check_strategy_sanity(strategy, Some(CheckStrategySanityOptions {
+                strict_complicate_after_simplify: false,
+                .. CheckStrategySanityOptions::default()
+            }));
+        }
+
         #[test]
         fn f32_any_generates_desired_values(
             strategy in crate::bits::u32::ANY.prop_map(f32::Any::from_bits)
@@ -1529,6 +1562,8 @@ mod test {
         panic_on_empty!(i64);
         panic_on_empty!(usize);
         panic_on_empty!(isize);
+        #[cfg(feature = "f16")]
+        panic_on_empty!(f16);
         panic_on_empty!(f32);
         panic_on_empty!(f64);
     }
