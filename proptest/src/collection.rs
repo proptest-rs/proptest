@@ -32,10 +32,10 @@ use crate::tuple::TupleValueTree;
 //==============================================================================
 
 /// The minimum and maximum range/bounds on the size of a collection.
-/// The interval must form a subset of `[0, std::usize::MAX)`.
+/// The interval must form a subset of `[0, usize::MAX)`.
 ///
-/// A value like `0..=std::usize::MAX` will still be accepted but will silently
-/// truncate the maximum to `std::usize::MAX - 1`.
+/// A value like `0..=usize::MAX` will still be accepted but will silently
+/// truncate the maximum to `usize::MAX - 1`.
 ///
 /// The `Default` is `0..PROPTEST_MAX_DEFAULT_SIZE_RANGE`. The max can be set with
 /// the `PROPTEST_MAX_DEFAULT_SIZE_RANGE` env var, which defaults to `100`.

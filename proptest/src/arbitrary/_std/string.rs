@@ -70,7 +70,7 @@ arbitrary!(FromUtf8Error, SFnPtrMap<BoxedStrategy<Vec<u8>>, Self>;
 pub(crate) fn not_utf8_bytes(
     allow_null: bool,
 ) -> impl Strategy<Value = Vec<u8>> {
-    let prefix = collection::vec(any::<char>(), ..::std::u16::MAX as usize);
+    let prefix = collection::vec(any::<char>(), ..u16::MAX as usize);
     let suffix = gen_el_bytes(allow_null);
     (prefix, suffix).prop_map(move |(prefix_bytes, el_bytes)| {
         let iter = prefix_bytes.iter();
