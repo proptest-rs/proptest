@@ -140,10 +140,10 @@ pub trait ReferenceStateMachine: 'static {
 /// any.
 pub struct Sequential<State, Transition, StateStrategy, TransitionStrategy> {
     size: SizeRange,
-    init_state: Arc<dyn Fn() -> StateStrategy>,
-    preconditions: Arc<dyn Fn(&State, &Transition) -> bool>,
-    transitions: Arc<dyn Fn(&State) -> TransitionStrategy>,
-    next: Arc<dyn Fn(State, &Transition) -> State>,
+    init_state: Arc<dyn Fn() -> StateStrategy + Send + Sync>,
+    preconditions: Arc<dyn Fn(&State, &Transition) -> bool + Send + Sync>,
+    transitions: Arc<dyn Fn(&State) -> TransitionStrategy + Send + Sync>,
+    next: Arc<dyn Fn(State, &Transition) -> State + Send + Sync>,
 }
 
 impl<State, Transition, StateStrategy, TransitionStrategy>
@@ -156,10 +156,10 @@ where
 {
     pub fn new(
         size: SizeRange,
-        init_state: impl Fn() -> StateStrategy + 'static,
-        preconditions: impl Fn(&State, &Transition) -> bool + 'static,
-        transitions: impl Fn(&State) -> TransitionStrategy + 'static,
-        next: impl Fn(State, &Transition) -> State + 'static,
+        init_state: impl Fn() -> StateStrategy + 'static + Send + Sync,
+        preconditions: impl Fn(&State, &Transition) -> bool + 'static + Send + Sync,
+        transitions: impl Fn(&State) -> TransitionStrategy + 'static + Send + Sync,
+        next: impl Fn(State, &Transition) -> State + 'static + Send + Sync,
     ) -> Self {
         Self {
             size,
