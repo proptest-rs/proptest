@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 1.11.0
+
 ### New Features
 
 - Added `bits::u128` and `bits::i128` strategies for 128-bit integer bit set generation. ([\#311](https://github.com/proptest-rs/proptest/issues/311))
