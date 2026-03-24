@@ -25,6 +25,8 @@ use crate::test_runner::Reason;
 /// `Error::display()` into the `Fail` case.
 #[derive(Debug, Clone)]
 pub enum TestCaseError {
+    /// The test runner was interrupted.
+    Interrupt(Reason),
     /// The input was not valid for the test case. This does not count as a
     /// test failure (nor a success); rather, it simply signals to generate
     /// a new input and try again.
@@ -61,6 +63,16 @@ pub type TestCaseResult = Result<(), TestCaseError>;
 pub(crate) type TestCaseResultV2 = Result<TestCaseOk, TestCaseError>;
 
 impl TestCaseError {
+    /// Interrupts this test case runner. This does not count as a test failure
+    /// (nor a success); rather, it simply signals to stop executing new runs,
+    /// regardless number of configured successful test cases.
+    ///
+    /// The string gives the location and context of the interruption, and
+    /// should be suitable for formatting like `Foo did X at {whence}`.
+    pub fn interrupt(reason: impl Into<Reason>) -> Self {
+        TestCaseError::Interrupt(reason.into())
+    }
+
     /// Rejects the generated test input as invalid for this test case. This
     /// does not count as a test failure (nor a success); rather, it simply
     /// signals to generate a new input and try again.
@@ -83,6 +95,9 @@ impl TestCaseError {
 impl fmt::Display for TestCaseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            TestCaseError::Interrupt(ref why) => {
+                write!(f, "Case interrupted: {}", why)
+            }
             TestCaseError::Reject(ref whence) => {
                 write!(f, "Input rejected at {}", whence)
             }
@@ -101,6 +116,8 @@ impl<E: ::std::error::Error> From<E> for TestCaseError {
 /// A failure state from running test cases for a single test.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TestError<T> {
+    /// The test was interrupted for the given reason.
+    Interrupt(Reason),
     /// The test was aborted for the given reason, for example, due to too many
     /// inputs having been rejected.
     Abort(Reason),
@@ -113,6 +130,9 @@ pub enum TestError<T> {
 impl<T: fmt::Debug> fmt::Display for TestError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            TestError::Interrupt(ref why) => {
+                write!(f, "Test interrupted: {}", why)
+            }
             TestError::Abort(ref why) => write!(f, "Test aborted: {}", why),
             TestError::Fail(ref why, ref what) => {
                 writeln!(f, "Test failed: {}.", why)?;
@@ -127,6 +147,7 @@ impl<T: fmt::Debug> fmt::Display for TestError<T> {
 impl<T: fmt::Debug> ::std::error::Error for TestError<T> {
     fn description(&self) -> &str {
         match *self {
+            TestError::Interrupt(..) => "Interrupted",
             TestError::Abort(..) => "Abort",
             TestError::Fail(..) => "Fail",
         }
