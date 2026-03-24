@@ -1,3 +1,9 @@
+## Unreleased
+
+## 0.8.0
+
+- Added Send + Sync bounds to `strategy:Sequential` ([\#640](https://github.com/proptest-rs/proptest/pull/640))
+
 ## 0.7.0
 
 ### Breaking Changes

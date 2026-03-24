@@ -1,8 +1,11 @@
 ## Unreleased
 
-### New Additions
+## 1.11.0
+
+### New Features
 
 - Added `bits::u128` and `bits::i128` strategies for 128-bit integer bit set generation. ([\#311](https://github.com/proptest-rs/proptest/issues/311))
+- Added support for f16 feature-gated by "f16" or "unstable". ([\#638](https://github.com/proptest-rs/proptest/pull/638))
 
 ## 1.10.0
 
@@ -13,7 +16,6 @@
 ### New Features
 
 - Added a memory-efficient strategy for sampling subsets from ranges without replacement. ([\#586](https://github.com/proptest-rs/proptest/pull/586))
-- Added support for f16 feature-gated by "f16" or "unstable". ([\#638](https://github.com/proptest-rs/proptest/pull/638))
 
 ### Other Notes
 
