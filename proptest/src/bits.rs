@@ -24,7 +24,7 @@ use core::mem;
 use bit_set::BitSet;
 #[cfg(feature = "bit-set")]
 use bit_vec::BitVec;
-use rand::{self, seq::IteratorRandom, Rng};
+use rand::{seq::IteratorRandom, RngExt};
 
 use crate::collection::SizeRange;
 use crate::num::sample_uniform_incl;
@@ -286,7 +286,7 @@ impl<T: BitSetLike> Strategy for SampledBitSetStrategy<T> {
             panic!("not enough bits to sample");
         }
 
-        for bit in self.bits.iter().choose_multiple(runner.rng(), count) {
+        for bit in self.bits.iter().sample(runner.rng(), count) {
             bits.set(bit);
         }
 

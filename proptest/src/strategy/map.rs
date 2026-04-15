@@ -250,7 +250,7 @@ impl<S: ValueTree, O: fmt::Debug, F: Fn(S::Value, TestRng) -> O> ValueTree
 mod test {
     use std::collections::HashSet;
 
-    use rand::RngCore;
+    use rand::Rng;
 
     use super::*;
     use crate::strategy::just::Just;

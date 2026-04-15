@@ -20,7 +20,7 @@
 use crate::std_facade::Cow;
 use core::ops::RangeInclusive;
 
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use crate::num;
 use crate::strategy::*;

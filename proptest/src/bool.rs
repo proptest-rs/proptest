@@ -12,7 +12,7 @@
 use crate::strategy::*;
 use crate::test_runner::*;
 
-use rand::Rng;
+use rand::RngExt;
 
 /// The type of the `ANY` constant.
 #[derive(Clone, Copy, Debug)]

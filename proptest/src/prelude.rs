@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018, 2019 The proptest developers
+// Copyright 2017, 2018, 2019, 2026 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -16,9 +16,8 @@
 //! In addition to Proptest's own APIs, this also reexports a small portion of
 //! the `rand` crate sufficient to easily use `prop_perturb` and other
 //! functionality that exposes random number generators. Please note that this
-//! is will always be a direct reexport; using these in preference to using the
-//! `rand` crate directly will not provide insulation from the upcoming
-//! revision to the `rand` crate.
+//! is and will always be a direct reexport; using these in preference to using the
+//! `rand` crate directly will not provide insulation from rand API changes.
 
 pub use crate::arbitrary::{any, any_with, Arbitrary};
 pub use crate::strategy::{BoxedStrategy, Just, SBoxedStrategy, Strategy};
@@ -29,7 +28,9 @@ pub use crate::{
     prop_oneof, proptest,
 };
 
-pub use rand::{Rng, RngCore};
+pub use rand::{Rng, RngExt};
+#[allow(deprecated)]
+pub use rand::rand_core::RngCore;
 
 /// Re-exports the entire public API of proptest so that an import of `prelude`
 /// allows simply writing, for example, `prop::num::i32::ANY` rather than
