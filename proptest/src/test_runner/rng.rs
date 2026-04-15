@@ -713,4 +713,163 @@ mod test {
         assert_eq!([0, 0, 0, 0], buf);
     }
 
+    #[test]
+    fn seeded_xorshift_output_is_stable() {
+        let seed = [
+            0x00, 0x01, 0x02, 0x03,
+            0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b,
+            0x0c, 0x0d, 0x0e, 0x0f,
+        ];
+        let mut rng_u32 = TestRng::from_seed(RngAlgorithm::XorShift, &seed);
+        let mut rng_u64 = TestRng::from_seed(RngAlgorithm::XorShift, &seed);
+        let mut rng_fill = TestRng::from_seed(RngAlgorithm::XorShift, &seed);
+
+        assert_eq!(
+            [
+                471271404,
+                722341711,
+                1880555887,
+                252576780,
+            ],
+            [
+                rng_u32.next_u32(),
+                rng_u32.next_u32(),
+                rng_u32.next_u32(),
+                rng_u32.next_u32(),
+            ]
+        );
+        assert_eq!(
+            [
+                3102434025752954860,
+                1084809011709542767,
+                17342619095589341798,
+                5127465042768897837,
+            ],
+            [
+                rng_u64.next_u64(),
+                rng_u64.next_u64(),
+                rng_u64.next_u64(),
+                rng_u64.next_u64(),
+            ]
+        );
+
+        let mut fill = [0u8; 16];
+        rng_fill.fill_bytes(&mut fill);
+        assert_eq!(
+            [236, 7, 23, 28, 79, 15, 14, 43, 111, 1, 23, 112, 12, 4, 14, 15],
+            fill
+        );
+    }
+
+    #[test]
+    fn seeded_chacha_output_is_stable() {
+        let seed = [
+            0x00, 0x01, 0x02, 0x03,
+            0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b,
+            0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13,
+            0x14, 0x15, 0x16, 0x17,
+            0x18, 0x19, 0x1a, 0x1b,
+            0x1c, 0x1d, 0x1e, 0x1f,
+        ];
+        let mut rng_u32 = TestRng::from_seed(RngAlgorithm::ChaCha, &seed);
+        let mut rng_u64 = TestRng::from_seed(RngAlgorithm::ChaCha, &seed);
+        let mut rng_fill = TestRng::from_seed(RngAlgorithm::ChaCha, &seed);
+
+        assert_eq!(
+            [
+                2100034873,
+                1780073945,
+                1996733837,
+                1229642936,
+            ],
+            [
+                rng_u32.next_u32(),
+                rng_u32.next_u32(),
+                rng_u32.next_u32(),
+                rng_u32.next_u32(),
+            ]
+        );
+        assert_eq!(
+            [
+                7645359380336737593,
+                5281276197874154893,
+                14729830432180286858,
+                10530800043416210610,
+            ],
+            [
+                rng_u64.next_u64(),
+                rng_u64.next_u64(),
+                rng_u64.next_u64(),
+                rng_u64.next_u64(),
+            ]
+        );
+
+        let mut fill = [0u8; 16];
+        rng_fill.fill_bytes(&mut fill);
+        assert_eq!(
+            [57, 253, 43, 125, 217, 197, 25, 106, 141, 189, 3, 119, 184, 220, 74, 73],
+            fill
+        );
+    }
+
+    #[test]
+    fn derived_child_rng_output_is_stable() {
+        let seed = [
+            0x00, 0x01, 0x02, 0x03,
+            0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b,
+            0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13,
+            0x14, 0x15, 0x16, 0x17,
+            0x18, 0x19, 0x1a, 0x1b,
+            0x1c, 0x1d, 0x1e, 0x1f,
+        ];
+        let mut parent = TestRng::from_seed(RngAlgorithm::ChaCha, &seed);
+        let mut child = parent.gen_rng();
+
+        assert_eq!(
+            [
+                357635273,
+                1295757006,
+                1334659017,
+                3423482104,
+            ],
+            [
+                child.next_u32(),
+                child.next_u32(),
+                child.next_u32(),
+                child.next_u32(),
+            ],
+        );
+    }
+
+    #[test]
+    fn recorder_bytes_used_matches_emitted_bytes() {
+        let seed = [
+            0x00, 0x01, 0x02, 0x03,
+            0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b,
+            0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13,
+            0x14, 0x15, 0x16, 0x17,
+            0x18, 0x19, 0x1a, 0x1b,
+            0x1c, 0x1d, 0x1e, 0x1f,
+        ];
+        let mut rng = TestRng::from_seed(RngAlgorithm::Recorder, &seed);
+        let first = rng.next_u32();
+        let second = rng.next_u64();
+        let mut fill = [0u8; 16];
+        rng.fill_bytes(&mut fill);
+
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&first.to_le_bytes());
+        expected.extend_from_slice(&second.to_le_bytes());
+        expected.extend_from_slice(&fill);
+
+        assert_eq!(expected, rng.bytes_used());
+    }
+
 }
