@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Other Notes
+
+- Updated the rand dependency family to 0.10 and migrated `TestRng` and internal RNG integration to rand 0.10's trait and seeding APIs, preserving seeded behavior.
+
 ## 1.11.0
 
 ### New Features

@@ -9,7 +9,7 @@
 
 use crate::std_facade::{Cell, Vec, VecDeque};
 
-use rand::Rng;
+use rand::RngExt;
 
 use crate::num;
 use crate::strategy::traits::*;

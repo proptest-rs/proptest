@@ -19,7 +19,7 @@ use core::mem;
 use core::ops::Range;
 use core::u64;
 
-use rand::Rng;
+use rand::RngExt;
 
 use crate::bits::{self, BitSetValueTree, SampledBitSetStrategy, VarBitSet};
 use crate::num;

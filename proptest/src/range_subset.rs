@@ -13,7 +13,7 @@
 //! is, the input range is not itself a strategy, but is rather fixed when
 //! the strategy is created.
 
-use rand::Rng;
+use rand::RngExt;
 
 use core::fmt;
 use core::hash::Hash;

@@ -1242,7 +1242,7 @@ mod test {
 
     #[test]
     fn new_rng_makes_separate_rng() {
-        use rand::Rng;
+        use rand::RngExt;
         let mut runner = TestRunner::default();
         let from_1 = runner.new_rng().random::<[u8; 16]>();
         let from_2 = runner.rng().random::<[u8; 16]>();
@@ -1251,7 +1251,7 @@ mod test {
 
     #[test]
     fn record_rng_use() {
-        use rand::Rng;
+        use rand::RngExt;
 
         // create value with recorder rng
         let default_config = Config::default();

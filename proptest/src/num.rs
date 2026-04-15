@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018 Jason Lingle
+// Copyright 2017, 2018, 2026 Jason Lingle
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -239,7 +239,7 @@ macro_rules! signed_integer_bin_search {
         #[allow(missing_docs)]
         pub mod $typ {
             #[allow(unused_imports)]
-            use rand::{Rng, RngCore};
+            use rand::{Rng, RngExt};
 
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
@@ -345,7 +345,7 @@ macro_rules! unsigned_integer_bin_search {
         #[allow(missing_docs)]
         pub mod $typ {
             #[allow(unused_imports)]
-            use rand::{Rng, RngCore};
+            use rand::{Rng, RngExt};
 
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
@@ -784,7 +784,7 @@ macro_rules! float_bin_search {
             #[cfg(not(feature = "std"))]
             use num_traits::float::FloatCore;
 
-            use rand::Rng;
+            use rand::RngExt;
 
             use super::{FloatLayout, FloatTypes};
             use crate::strategy::*;
