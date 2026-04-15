@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018, 2019, 2020 The proptest developers
+// Copyright 2017, 2018, 2019, 2020, 2026 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -8,10 +8,13 @@
 // except according to those terms.
 
 use crate::std_facade::{Arc, String, ToOwned, Vec};
+use core::convert::{Infallible, TryInto};
 use core::result::Result;
-use core::{fmt, str, u8, convert::TryInto};
-use crate::test_runner::{config, RngSeed};
-use rand::{self, Rng, RngCore, SeedableRng};
+use core::{fmt, str, u8};
+use crate::test_runner::config;
+use rand::{Rng, RngExt, SeedableRng, TryRng};
+#[cfg(feature = "std")]
+use rand::rngs::SysRng;
 use rand_chacha::ChaChaRng;
 use rand_xorshift::XorShiftRng;
 
@@ -126,14 +129,14 @@ enum TestRngImpl {
     },
 }
 
-impl RngCore for TestRng {
-    fn next_u32(&mut self) -> u32 {
+impl TestRng {
+    fn next_u32_inner(&mut self) -> u32 {
         match &mut self.rng {
             TestRngImpl::XorShift(rng) => rng.next_u32(),
             TestRngImpl::ChaCha(rng) => rng.next_u32(),
             TestRngImpl::PassThrough { .. } => {
                 let mut buf = [0; 4];
-                self.fill_bytes(&mut buf[..]);
+                self.fill_bytes_inner(&mut buf[..]);
                 u32::from_le_bytes(buf)
             }
             TestRngImpl::Recorder { rng, record } => {
@@ -144,13 +147,13 @@ impl RngCore for TestRng {
         }
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn next_u64_inner(&mut self) -> u64 {
         match &mut self.rng {
             TestRngImpl::XorShift(rng) => rng.next_u64(),
             TestRngImpl::ChaCha(rng) => rng.next_u64(),
             TestRngImpl::PassThrough { .. } => {
                 let mut buf = [0; 8];
-                self.fill_bytes(&mut buf[..]);
+                self.fill_bytes_inner(&mut buf[..]);
                 u64::from_le_bytes(buf)
             }
             TestRngImpl::Recorder { rng, record } => {
@@ -161,7 +164,7 @@ impl RngCore for TestRng {
         }
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn fill_bytes_inner(&mut self, dest: &mut [u8]) {
         match &mut self.rng {
             TestRngImpl::XorShift(rng) => rng.fill_bytes(dest),
             TestRngImpl::ChaCha(rng) => rng.fill_bytes(dest),
@@ -178,6 +181,23 @@ impl RngCore for TestRng {
                 record.extend_from_slice(dest);
             }
         }
+    }
+}
+
+impl TryRng for TestRng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(self.next_u32_inner())
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(self.next_u64_inner())
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        self.fill_bytes_inner(dest);
+        Ok(())
     }
 }
 
@@ -387,15 +407,17 @@ impl TestRng {
                 rng: match algorithm {
                     RngAlgorithm::XorShift => {
                         let rng = match seed {
-                            RngSeed::Random => XorShiftRng::from_os_rng(),
-                            RngSeed::Fixed(seed) => XorShiftRng::seed_from_u64(seed),
+                            config::RngSeed::Random => XorShiftRng::try_from_rng(&mut SysRng)
+                                .expect("SysRng failed while seeding TestRng"),
+                            config::RngSeed::Fixed(seed) => XorShiftRng::seed_from_u64(seed),
                         };
                         TestRngImpl::XorShift(rng)
                     }
                     RngAlgorithm::ChaCha => {
                         let rng = match seed {
-                            RngSeed::Random => ChaChaRng::from_os_rng(),
-                            RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
+                            config::RngSeed::Random => ChaChaRng::try_from_rng(&mut SysRng)
+                                .expect("SysRng failed while seeding TestRng"),
+                            config::RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
                         };
                         TestRngImpl::ChaCha(rng)
                     }
@@ -404,8 +426,9 @@ impl TestRng {
                     }
                     RngAlgorithm::Recorder => {
                         let rng =  match seed {
-                            RngSeed::Random => ChaChaRng::from_os_rng(),
-                            RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
+                            config::RngSeed::Random => ChaChaRng::try_from_rng(&mut SysRng)
+                                .expect("SysRng failed while seeding TestRng"),
+                            config::RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
                         };
                         TestRngImpl::Recorder {rng, record: Vec::new()}
                     },
@@ -610,7 +633,7 @@ impl TestRng {
 mod test {
     use crate::std_facade::Vec;
 
-    use rand::{Rng, RngCore};
+    use rand::{Rng, RngExt};
 
     use super::{RngAlgorithm, Seed, TestRng};
     use crate::arbitrary::any;
@@ -689,4 +712,5 @@ mod test {
         rng.fill_bytes(&mut buf[0..4]);
         assert_eq!([0, 0, 0, 0], buf);
     }
+
 }
