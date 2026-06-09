@@ -20,6 +20,7 @@
 //! `rand` crate directly will not provide insulation from rand API changes.
 
 pub use crate::arbitrary::{any, any_with, Arbitrary};
+pub use crate::statistics;
 pub use crate::strategy::{BoxedStrategy, Just, SBoxedStrategy, Strategy};
 pub use crate::test_runner::Config as ProptestConfig;
 pub use crate::test_runner::{TestCaseError, ProptestResultExt};
@@ -46,6 +47,7 @@ pub mod prop {
     pub use crate::option;
     pub use crate::result;
     pub use crate::sample;
+    pub use crate::statistics;
     pub use crate::strategy;
     #[cfg(feature = "std")]
     pub use crate::string;

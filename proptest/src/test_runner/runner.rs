@@ -25,6 +25,8 @@ use std::fs;
 #[cfg(feature = "fork")]
 use tempfile;
 
+#[cfg(feature = "std")]
+use crate::statistics::RunStatistics;
 use crate::strategy::*;
 use crate::test_runner::config::*;
 use crate::test_runner::errors::*;
@@ -78,6 +80,9 @@ pub struct TestRunner {
 
     local_reject_detail: RejectionDetail,
     global_reject_detail: RejectionDetail,
+
+    #[cfg(feature = "std")]
+    statistics: RunStatistics,
 }
 
 impl fmt::Debug for TestRunner {
@@ -351,6 +356,8 @@ impl TestRunner {
             flat_map_regens: Arc::new(AtomicUsize::new(0)),
             local_reject_detail: BTreeMap::new(),
             global_reject_detail: BTreeMap::new(),
+            #[cfg(feature = "std")]
+            statistics: RunStatistics::default(),
         }
     }
 
@@ -367,6 +374,8 @@ impl TestRunner {
             flat_map_regens: Arc::clone(&self.flat_map_regens),
             local_reject_detail: BTreeMap::new(),
             global_reject_detail: BTreeMap::new(),
+            #[cfg(feature = "std")]
+            statistics: RunStatistics::default(),
         }
     }
 
@@ -384,6 +393,14 @@ impl TestRunner {
     /// Returns the configuration of this runner.
     pub fn config(&self) -> &Config {
         &self.config
+    }
+
+    /// Returns the statistics recorded via [`crate::statistics`] during this
+    /// runner's test runs so far.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+    pub fn statistics(&self) -> &RunStatistics {
+        &self.statistics
     }
 
     /// Dumps the bytes obtained from the RNG so far (only works if the RNG is
@@ -659,6 +676,17 @@ impl TestRunner {
         }
 
         fork_output.terminate();
+
+        // Report any statistics the test cases recorded via
+        // `proptest::statistics`.
+        #[cfg(feature = "std")]
+        if !self.statistics.is_empty() {
+            let statistics = format!("{}", self.statistics);
+            for line in statistics.lines() {
+                eprintln!("proptest: {}", line);
+            }
+        }
+
         Ok(())
     }
 
@@ -734,6 +762,22 @@ impl TestRunner {
         fork_output: &mut ForkOutput,
         is_from_persisted_seed: bool,
     ) -> Result<TestCaseOk, TestError<V::Value>> {
+        // Record any statistics the test emits for this case so they can be
+        // folded into the run-wide aggregate on success. The recording scope
+        // deliberately excludes the shrinking phase below.
+        #[cfg(feature = "std")]
+        let (result, case_statistics) = crate::statistics::record_case(|| {
+            call_test(
+                self,
+                case.current(),
+                &test,
+                replay_from_fork,
+                result_cache,
+                fork_output,
+                is_from_persisted_seed,
+            )
+        });
+        #[cfg(not(feature = "std"))]
         let result = call_test(
             self,
             case.current(),
@@ -745,7 +789,17 @@ impl TestRunner {
         );
 
         match result {
-            Ok(success_type) => Ok(success_type),
+            Ok(success_type) => {
+                #[cfg(feature = "std")]
+                if matches!(
+                    success_type,
+                    TestCaseOk::NewCaseSuccess
+                        | TestCaseOk::PersistedCaseSuccess
+                ) {
+                    self.statistics.merge_case(case_statistics);
+                }
+                Ok(success_type)
+            }
             Err(TestCaseError::Fail(why)) => {
                 let why = self
                     .shrink(

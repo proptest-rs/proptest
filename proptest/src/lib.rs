@@ -81,6 +81,7 @@ pub mod option;
 pub mod path;
 pub mod result;
 pub mod sample;
+pub mod statistics;
 #[cfg(feature = "std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub mod string;
