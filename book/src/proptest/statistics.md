@@ -57,6 +57,47 @@ summary run
 cargo test parses_all_inputs -- --nocapture
 ```
 
+## Enforcing coverage
+
+Reading the summary is useful, but nobody reads stderr in CI. `cover` turns
+a label into an enforceable requirement: if fewer than the given percentage
+of test cases record it, the run fails.
+
+```rust
+use proptest::prelude::*;
+use proptest::statistics;
+
+proptest! {
+    #[test]
+    fn handles_collisions(v in prop::collection::vec(0u8..10, 0..10)) {
+        let has_duplicates = (1..v.len()).any(|i| v[i..].contains(&v[i - 1]));
+        // At least 30% of the generated vectors must contain a duplicate,
+        // or the test fails even though every case passed.
+        statistics::cover(has_duplicates, 30.0, "duplicate elements");
+
+        // ... the actual property ...
+    }
+}
+```
+
+An unmet requirement aborts the test after all cases have run, with the
+distribution summary printed for diagnosis:
+
+```text
+proptest: test case statistics (256 cases):
+proptest:     1.17% (3/256): duplicate elements
+Test aborted: Coverage requirements not met:
+  coverage of "duplicate elements" was 1.17% (3/256 cases), required at least 30%
+```
+
+The requirement is registered even if the condition never holds, so 0%
+coverage still fails. A failing test case always takes precedence over a
+coverage failure.
+
+Because coverage is measured on a random sample, a run can fail by chance if
+the threshold sits close to the actual rate. Leave a generous margin (e.g.
+require 30% when you expect 50%) or increase the number of test cases.
+
 ## Semantics
 
 * Labels recorded by `label`, `classify` and `collect` use *per-case*
@@ -92,9 +133,10 @@ println!("{} of {} cases were small",
          stats.labels()["small"], stats.cases());
 ```
 
-This is useful for asserting a minimum input quality in CI, in the spirit of
-QuickCheck's `cover`: fail the build if the generator stopped producing
-enough interesting cases.
+For asserting a minimum input quality in CI, prefer `cover` (above); the
+programmatic API is for everything beyond a simple threshold, such as
+comparing distributions between runs. `RunStatistics::unmet_coverage()`
+exposes the result of the coverage check itself.
 
 ## Caveats
 

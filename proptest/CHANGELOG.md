@@ -20,6 +20,9 @@
   homonymous facilities) for reporting the distribution of generated test
   inputs. A summary is printed to stderr after a successful run, and the
   aggregated data is available via `TestRunner::statistics()`.
+- Added `statistics::cover`, which turns a label into an enforceable
+  requirement: the run fails if fewer than the given percentage of test
+  cases record it.
 
 ### Bug Fixes
 

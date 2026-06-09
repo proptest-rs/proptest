@@ -677,13 +677,25 @@ impl TestRunner {
 
         fork_output.terminate();
 
-        // Failures return early above, so the statistics summary is only
-        // printed for successful runs.
+        // Failures return early above, so by here every case passed. Print
+        // the statistics summary, then enforce any coverage requirements.
         #[cfg(feature = "std")]
-        if !self.statistics.is_empty() {
-            let summary = format!("{}", self.statistics);
-            for line in summary.lines() {
-                eprintln!("proptest: {}", line);
+        {
+            if !self.statistics.is_empty() {
+                let summary = format!("{}", self.statistics);
+                for line in summary.lines() {
+                    eprintln!("proptest: {}", line);
+                }
+            }
+
+            let unmet_coverage = self.statistics.unmet_coverage();
+            if !unmet_coverage.is_empty() {
+                let mut message =
+                    String::from("Coverage requirements not met:");
+                for unmet in unmet_coverage {
+                    message.push_str(&format!("\n  {}", unmet));
+                }
+                return Err(TestError::Abort(message.into()));
             }
         }
 

@@ -37,6 +37,10 @@
 //! the fraction of test cases carrying the label. [`measure`], by contrast,
 //! records every sample.
 //!
+//! [`cover`] turns a label into an enforceable requirement: if fewer than the
+//! given percentage of test cases record it, the run fails. This catches
+//! generators that silently stop producing the inputs a property needs.
+//!
 //! Statistics are aggregated over *passing* test cases of the normal
 //! generation phase only; test executions performed while shrinking a failure
 //! are ignored. The aggregated data is also available programmatically via
@@ -89,6 +93,7 @@ mod internal {
     pub(crate) struct CaseStatistics {
         labels: BTreeSet<Cow<'static, str>>,
         measurements: BTreeMap<Cow<'static, str>, Vec<f64>>,
+        coverage_requirements: BTreeMap<Cow<'static, str>, f64>,
     }
 
     /// Record `label` for the current test case.
@@ -124,6 +129,63 @@ mod internal {
     /// distinct possibilities.
     pub fn collect(name: impl Into<Cow<'static, str>>, value: impl fmt::Debug) {
         label(format!("{} = {:?}", name.into(), value));
+    }
+
+    /// Record `label` for the current test case if `condition` holds, and
+    /// require that at least `min_percent` of all test cases do.
+    ///
+    /// This is [`classify`] turned into an enforceable property: if, once
+    /// the run completes, fewer than `min_percent` percent of the test cases
+    /// recorded the label, the test as a whole fails. Use it to make sure a
+    /// generator keeps producing the inputs a property actually needs:
+    ///
+    /// ```
+    /// use proptest::prelude::*;
+    /// use proptest::statistics;
+    ///
+    /// proptest! {
+    ///     # /*
+    ///     #[test]
+    ///     # */
+    ///     fn handles_collisions(v in prop::collection::vec(0u8..10, 0..10)) {
+    ///         let has_duplicates = (1..v.len()).any(|i| v[i..].contains(&v[i - 1]));
+    ///         statistics::cover(has_duplicates, 30.0, "duplicate elements");
+    ///         // ... the actual property ...
+    ///     }
+    /// }
+    /// # handles_collisions();
+    /// ```
+    ///
+    /// The requirement is registered even if `condition` never holds, so a
+    /// label whose coverage is 0% still fails the run. If the same label is
+    /// given different `min_percent` values, the largest one applies.
+    ///
+    /// Coverage is measured on a random sample, so a run can fail by chance
+    /// if `min_percent` sits close to the actual rate. Leave a generous
+    /// margin (e.g. require 30% when you expect 50%) or increase the number
+    /// of test cases.
+    ///
+    /// Does nothing if called outside a proptest test case.
+    pub fn cover(
+        condition: bool,
+        min_percent: f64,
+        label: impl Into<Cow<'static, str>>,
+    ) {
+        CURRENT_CASE.with(|cell| {
+            if let Some(case) = cell.borrow_mut().as_mut() {
+                let label = label.into();
+                let required = case
+                    .coverage_requirements
+                    .entry(label.clone())
+                    .or_insert(min_percent);
+                if min_percent > *required {
+                    *required = min_percent;
+                }
+                if condition {
+                    case.labels.insert(label);
+                }
+            }
+        });
     }
 
     /// Record one numeric sample under `name`.
@@ -243,6 +305,7 @@ mod internal {
         cases: u32,
         labels: BTreeMap<Cow<'static, str>, u32>,
         measurements: BTreeMap<Cow<'static, str>, MeasurementSummary>,
+        coverage_requirements: BTreeMap<Cow<'static, str>, f64>,
     }
 
     impl RunStatistics {
@@ -265,9 +328,36 @@ mod internal {
             &self.measurements
         }
 
-        /// Whether no labels or measurements were recorded during the run.
+        /// Whether nothing at all was recorded during the run.
         pub fn is_empty(&self) -> bool {
-            self.labels.is_empty() && self.measurements.is_empty()
+            self.labels.is_empty()
+                && self.measurements.is_empty()
+                && self.coverage_requirements.is_empty()
+        }
+
+        /// All coverage requirements declared via [`cover`] that the run
+        /// did not meet. The run as a whole fails if this is non-empty.
+        pub fn unmet_coverage(&self) -> Vec<UnmetCoverage> {
+            self.coverage_requirements
+                .iter()
+                .filter_map(|(label, &required_percent)| {
+                    let observed_cases =
+                        self.labels.get(label).copied().unwrap_or(0);
+                    let observed_percent =
+                        observed_cases as f64 * 100.0 / self.cases as f64;
+                    if observed_percent >= required_percent {
+                        None
+                    } else {
+                        Some(UnmetCoverage {
+                            label: label.clone(),
+                            required_percent,
+                            observed_percent,
+                            observed_cases,
+                            total_cases: self.cases,
+                        })
+                    }
+                })
+                .collect()
         }
 
         /// Fold the statistics of one passing test case into the aggregate.
@@ -282,6 +372,46 @@ mod internal {
                     summary.add(sample);
                 }
             }
+            for (label, min_percent) in case.coverage_requirements {
+                let required = self
+                    .coverage_requirements
+                    .entry(label)
+                    .or_insert(min_percent);
+                if min_percent > *required {
+                    *required = min_percent;
+                }
+            }
+        }
+    }
+
+    /// A coverage requirement declared via [`cover`] that a test run did
+    /// not meet.
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct UnmetCoverage {
+        /// The label whose coverage fell short.
+        pub label: Cow<'static, str>,
+        /// The smallest acceptable percentage of test cases.
+        pub required_percent: f64,
+        /// The percentage of test cases that recorded the label.
+        pub observed_percent: f64,
+        /// The number of test cases that recorded the label.
+        pub observed_cases: u32,
+        /// The number of test cases in the run.
+        pub total_cases: u32,
+    }
+
+    impl fmt::Display for UnmetCoverage {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(
+                f,
+                "coverage of \"{}\" was {:.2}% ({}/{} cases), \
+                 required at least {}%",
+                self.label,
+                self.observed_percent,
+                self.observed_cases,
+                self.total_cases,
+                self.required_percent
+            )
         }
     }
 
@@ -328,7 +458,8 @@ mod internal {
 pub(crate) use internal::record_case;
 #[cfg(feature = "std")]
 pub use internal::{
-    classify, collect, label, measure, MeasurementSummary, RunStatistics,
+    classify, collect, cover, label, measure, MeasurementSummary,
+    RunStatistics, UnmetCoverage,
 };
 
 #[cfg(not(feature = "std"))]
@@ -347,18 +478,22 @@ mod internal {
     pub fn collect<N, V>(_name: N, _value: V) {}
 
     /// Does nothing in `no_std` builds. See the `std` documentation.
+    /// Coverage requirements are not enforced without `std`.
+    pub fn cover<L>(_condition: bool, _min_percent: f64, _label: L) {}
+
+    /// Does nothing in `no_std` builds. See the `std` documentation.
     pub fn measure<N, V>(_name: N, _value: V) {}
 }
 
 #[cfg(not(feature = "std"))]
-pub use internal::{classify, collect, label, measure};
+pub use internal::{classify, collect, cover, label, measure};
 
 #[cfg(all(test, feature = "std"))]
 mod test {
     use super::*;
     use crate::std_facade::string::ToString;
     use crate::strategy::Just;
-    use crate::test_runner::{Config, TestCaseError, TestRunner};
+    use crate::test_runner::{Config, TestCaseError, TestError, TestRunner};
 
     // Failure persistence would write regression files for the
     // intentionally failing tests below.
@@ -473,6 +608,97 @@ mod test {
 
         let stats = runner.statistics();
         assert_eq!(Some(&stats.cases()), stats.labels().get("ran"));
+    }
+
+    #[test]
+    fn met_coverage_passes() {
+        let mut runner = TestRunner::new(config_without_persistence());
+        runner
+            .run(&(0u32..100), |v| {
+                cover(v < 90, 50.0, "small");
+                Ok(())
+            })
+            .unwrap();
+        assert!(runner.statistics().unmet_coverage().is_empty());
+    }
+
+    #[test]
+    fn unmet_coverage_fails_the_run() {
+        let mut runner = TestRunner::new(config_without_persistence());
+        let result = runner.run(&(0u32..100), |v| {
+            cover(v == 0, 90.0, "zero");
+            Ok(())
+        });
+
+        match result {
+            Err(TestError::Abort(reason)) => {
+                let message = format!("{}", reason);
+                assert!(
+                    message.contains("Coverage requirements not met"),
+                    "unexpected message: {}",
+                    message
+                );
+                assert!(
+                    message.contains("\"zero\""),
+                    "unexpected message: {}",
+                    message
+                );
+                assert!(
+                    message.contains("required at least 90%"),
+                    "unexpected message: {}",
+                    message
+                );
+            }
+            other => panic!("Unexpected result: {:?}", other),
+        }
+
+        let unmet = runner.statistics().unmet_coverage();
+        assert_eq!(1, unmet.len());
+        assert_eq!("zero", unmet[0].label);
+        assert_eq!(90.0, unmet[0].required_percent);
+        assert_eq!(runner.statistics().cases(), unmet[0].total_cases);
+        assert!(unmet[0].observed_percent < 90.0);
+    }
+
+    #[test]
+    fn coverage_requirement_holds_even_if_condition_never_true() {
+        let mut runner = TestRunner::new(config_without_persistence());
+        let result = runner.run(&Just(()), |_| {
+            cover(false, 10.0, "never");
+            Ok(())
+        });
+
+        assert!(matches!(result, Err(TestError::Abort(_))));
+        let unmet = runner.statistics().unmet_coverage();
+        assert_eq!(1, unmet.len());
+        assert_eq!(0, unmet[0].observed_cases);
+        assert_eq!(0.0, unmet[0].observed_percent);
+    }
+
+    #[test]
+    fn largest_requirement_for_a_label_applies() {
+        let mut runner = TestRunner::new(config_without_persistence());
+        let result = runner.run(&Just(()), |_| {
+            // Met under the first requirement, unmet under the second.
+            cover(true, 50.0, "label");
+            cover(false, 200.0, "label");
+            Ok(())
+        });
+
+        assert!(matches!(result, Err(TestError::Abort(_))));
+        let unmet = runner.statistics().unmet_coverage();
+        assert_eq!(1, unmet.len());
+        assert_eq!(200.0, unmet[0].required_percent);
+    }
+
+    #[test]
+    fn test_failure_takes_precedence_over_coverage() {
+        let mut runner = TestRunner::new(config_without_persistence());
+        let result = runner.run(&(0u32..100), |_| {
+            cover(false, 90.0, "never");
+            Err(TestCaseError::fail("real failure"))
+        });
+        assert!(matches!(result, Err(TestError::Fail(..))));
     }
 
     #[test]
