@@ -23,6 +23,11 @@
 - Added `statistics::cover`, which turns a label into an enforceable
   requirement: the run fails if fewer than the given percentage of test
   cases record it.
+- Added `Config::coverage_confidence` for statistically sound coverage
+  checking in the style of QuickCheck's `checkCoverage`: the runner keeps
+  generating test cases until every `cover` requirement is confirmed or
+  refuted with the configured confidence, so runs cannot fail by an unlucky
+  sample.
 
 ### Bug Fixes
 

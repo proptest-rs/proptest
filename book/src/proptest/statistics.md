@@ -94,8 +94,58 @@ coverage still fails. A failing test case always takes precedence over a
 coverage failure.
 
 Because coverage is measured on a random sample, a run can fail by chance if
-the threshold sits close to the actual rate. Leave a generous margin (e.g.
-require 30% when you expect 50%) or increase the number of test cases.
+the threshold sits close to the actual rate. Either leave a generous margin
+(e.g. require 30% when you expect 50%), or enable statistical checking
+(below).
+
+## Statistically sound coverage: `coverage_confidence`
+
+Setting `coverage_confidence` in the config upgrades `cover` checking to a
+sequential statistical test, the same technique as QuickCheck's
+`checkCoverage`: instead of judging the requirement on a fixed number of
+cases, proptest keeps generating cases *beyond* `cases` until each
+requirement is either **confirmed** (the true rate is, with high confidence,
+at least `tolerance` times the requirement) or **refuted** (the true rate
+is, with high confidence, below the requirement). A confirmed run never
+fails by bad luck, and a refuted run fails no matter how lucky the sample.
+
+```rust
+use proptest::prelude::*;
+use proptest::statistics::{self, CoverageConfidence};
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        coverage_confidence: Some(CoverageConfidence::default()),
+        ..ProptestConfig::default()
+    })]
+    #[test]
+    fn handles_collisions(v in prop::collection::vec(0u8..10, 0..10)) {
+        let has_duplicates = (1..v.len()).any(|i| v[i..].contains(&v[i - 1]));
+        statistics::cover(has_duplicates, 30.0, "duplicate elements");
+        // ... the actual property ...
+    }
+}
+```
+
+`CoverageConfidence` has three knobs:
+
+* `certainty` (default `10^9`): the acceptable probability of a wrong
+  decision is `1 / certainty`.
+* `tolerance` (default `0.9`): a requirement is confirmed once the true
+  rate is confidently at least `tolerance × required`. The gap between
+  `tolerance × required` and `required` is what makes a decision reachable —
+  true rates inside the gap can be neither confirmed nor refuted.
+* `max_cases` (default `1_000_000`): a hard cap on the total number of
+  cases. If the requirements are still undecided when it is reached (i.e.
+  some true rate sits inside the tolerance gap), the run fails as
+  undecided instead of running unbounded. This keeps CI time bounded;
+  QuickCheck has no such cap.
+
+The decisions use Wilson score bounds, which behave well for small samples
+and extreme rates. When confidence checking is enabled the fixed-sample
+check is skipped entirely — a requirement confirmed via the tolerance gap
+may legitimately end the run with an observed rate slightly below the raw
+requirement.
 
 ## Semantics
 

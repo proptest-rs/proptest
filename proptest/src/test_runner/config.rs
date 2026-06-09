@@ -176,6 +176,8 @@ fn default_default_config() -> Config {
         verbose: 0,
         rng_algorithm: RngAlgorithm::default(),
         rng_seed: RngSeed::Random,
+        #[cfg(feature = "std")]
+        coverage_confidence: None,
         _non_exhaustive: (),
     }
 }
@@ -431,6 +433,19 @@ pub struct Config {
     /// Seed used for the RNG. Set by using the PROPTEST_RNG_SEED environment variable
     /// If the environment variable is undefined, a random seed is generated (this is the default option).
     pub rng_seed: RngSeed,
+
+    /// If set, requirements declared via
+    /// [`statistics::cover`](crate::statistics::cover) are decided by a
+    /// sequential statistical test instead of a fixed-sample check: the
+    /// runner keeps generating test cases beyond `cases` until every
+    /// requirement is confirmed or refuted with the configured confidence.
+    /// See [`CoverageConfidence`](crate::statistics::CoverageConfidence).
+    ///
+    /// The default is `None`. This option is not configurable via
+    /// environment variables.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+    pub coverage_confidence: Option<crate::statistics::CoverageConfidence>,
 
     // Needs to be public so FRU syntax can be used.
     #[doc(hidden)]

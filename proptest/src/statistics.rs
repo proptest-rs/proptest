@@ -40,6 +40,11 @@
 //! [`cover`] turns a label into an enforceable requirement: if fewer than the
 //! given percentage of test cases record it, the run fails. This catches
 //! generators that silently stop producing the inputs a property needs.
+//! Setting
+//! [`Config::coverage_confidence`](crate::test_runner::Config::coverage_confidence)
+//! upgrades the check to a sequential statistical test (like QuickCheck's
+//! `checkCoverage`) that runs as many cases as the decision needs and cannot
+//! fail by bad luck; see [`CoverageConfidence`].
 //!
 //! Statistics are aggregated over *passing* test cases of the normal
 //! generation phase only; test executions performed while shrinking a failure
@@ -161,9 +166,11 @@ mod internal {
     /// given different `min_percent` values, the largest one applies.
     ///
     /// Coverage is measured on a random sample, so a run can fail by chance
-    /// if `min_percent` sits close to the actual rate. Leave a generous
-    /// margin (e.g. require 30% when you expect 50%) or increase the number
-    /// of test cases.
+    /// if `min_percent` sits close to the actual rate. Either leave a
+    /// generous margin (e.g. require 30% when you expect 50%), or set
+    /// [`Config::coverage_confidence`](crate::test_runner::Config::coverage_confidence)
+    /// to have the requirements decided by a statistical test that runs as
+    /// many cases as the decision needs.
     ///
     /// Does nothing if called outside a proptest test case.
     pub fn cover(
@@ -395,6 +402,193 @@ mod internal {
         }
     }
 
+    /// Controls statistical checking of [`cover`] requirements.
+    ///
+    /// Set via
+    /// [`Config::coverage_confidence`](crate::test_runner::Config::coverage_confidence).
+    /// When configured, the runner keeps generating test cases beyond
+    /// `Config::cases` until every requirement is *confirmed* (the true rate
+    /// is confidently at least [`tolerance`](Self::tolerance) times the
+    /// required one) or some requirement is *refuted* (the true rate is
+    /// confidently below the required one), using Wilson score bounds as in
+    /// QuickCheck's `checkCoverage`. This replaces the fixed-sample check,
+    /// which can fail by chance when the true rate is close to the
+    /// requirement.
+    ///
+    /// Construct with field-record update syntax:
+    ///
+    /// ```
+    /// use proptest::statistics::CoverageConfidence;
+    ///
+    /// let confidence = CoverageConfidence {
+    ///     max_cases: 100_000,
+    ///     ..CoverageConfidence::default()
+    /// };
+    /// ```
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct CoverageConfidence {
+        /// The acceptable probability of a wrong decision is
+        /// `1 / certainty`. The default is `10^9`.
+        pub certainty: u64,
+        /// A requirement counts as confirmed once the true rate is
+        /// confidently at least `tolerance` times the required rate. The
+        /// gap between `tolerance * required` and `required` is what makes
+        /// a decision reachable: true rates inside the gap can be neither
+        /// confirmed nor refuted. The default is `0.9`.
+        pub tolerance: f64,
+        /// Hard cap on the number of test cases to run while deciding.
+        /// Reaching it fails the run as undecided rather than letting a
+        /// rate close to a requirement run unbounded. The default is
+        /// `1_000_000`.
+        pub max_cases: u32,
+        // Needs to be public so FRU syntax can be used.
+        #[doc(hidden)]
+        pub _non_exhaustive: (),
+    }
+
+    impl Default for CoverageConfidence {
+        fn default() -> Self {
+            CoverageConfidence {
+                certainty: 1_000_000_000,
+                tolerance: 0.9,
+                max_cases: 1_000_000,
+                _non_exhaustive: (),
+            }
+        }
+    }
+
+    /// The outcome of one statistical evaluation of all [`cover`]
+    /// requirements.
+    pub(crate) enum CoverageDecision {
+        /// Every requirement has been confirmed; testing can stop.
+        AllConfirmed,
+        /// At least one requirement is still too close to call.
+        Undecided,
+        /// This requirement is confidently below its required rate.
+        Refuted(UnmetCoverage),
+    }
+
+    impl RunStatistics {
+        /// Statistically evaluate every coverage requirement against the
+        /// cases seen so far.
+        ///
+        /// Labels in `confirmed` are skipped and newly confirmed labels are
+        /// added to it, so each requirement is decided at most once per run.
+        ///
+        /// Must not be called before any case has been recorded.
+        pub(crate) fn decide_coverage(
+            &self,
+            confidence: &CoverageConfidence,
+            confirmed: &mut BTreeSet<Cow<'static, str>>,
+        ) -> CoverageDecision {
+            let alpha = 1.0 / confidence.certainty as f64;
+            let z = inverse_normal_cdf(1.0 - alpha);
+            let mut all_confirmed = true;
+            for (label, &required_percent) in &self.coverage_requirements {
+                if confirmed.contains(label) {
+                    continue;
+                }
+                let observed_cases =
+                    self.labels.get(label).copied().unwrap_or(0);
+                let required_rate = required_percent / 100.0;
+                let lower = wilson_bound(observed_cases, self.cases, -z);
+                let upper = wilson_bound(observed_cases, self.cases, z);
+                if lower >= confidence.tolerance * required_rate {
+                    confirmed.insert(label.clone());
+                } else if upper < required_rate {
+                    return CoverageDecision::Refuted(UnmetCoverage {
+                        label: label.clone(),
+                        required_percent,
+                        observed_percent: observed_cases as f64 * 100.0
+                            / self.cases as f64,
+                        observed_cases,
+                        total_cases: self.cases,
+                    });
+                } else {
+                    all_confirmed = false;
+                }
+            }
+            if all_confirmed {
+                CoverageDecision::AllConfirmed
+            } else {
+                CoverageDecision::Undecided
+            }
+        }
+    }
+
+    /// One-sided Wilson score bound on the true success rate after seeing
+    /// `successes` in `trials`. A negative `z` gives the lower bound, a
+    /// positive `z` the upper bound.
+    pub(crate) fn wilson_bound(successes: u32, trials: u32, z: f64) -> f64 {
+        let n = trials as f64;
+        let observed_rate = successes as f64 / n;
+        let zz = z * z;
+        (observed_rate
+            + zz / (2.0 * n)
+            + z * (observed_rate * (1.0 - observed_rate) / n
+                + zz / (4.0 * n * n))
+                .sqrt())
+            / (1.0 + zz / n)
+    }
+
+    /// Quantile function of the standard normal distribution, using
+    /// Acklam's rational approximation (relative error below `1.2e-9`,
+    /// good enough for the default certainty of `10^9`).
+    pub(crate) fn inverse_normal_cdf(p: f64) -> f64 {
+        assert!(p > 0.0 && p < 1.0, "p must be in (0, 1), got {}", p);
+
+        const A: [f64; 6] = [
+            -3.969683028665376e+01,
+            2.209460984245205e+02,
+            -2.759285104469687e+02,
+            1.38357751867269e+02,
+            -3.066479806614716e+01,
+            2.506628277459239e+00,
+        ];
+        const B: [f64; 5] = [
+            -5.447609879822406e+01,
+            1.615858368580409e+02,
+            -1.556989798598866e+02,
+            6.680131188771972e+01,
+            -1.328068155288572e+01,
+        ];
+        const C: [f64; 6] = [
+            -7.784894002430293e-03,
+            -3.223964580411365e-01,
+            -2.400758277161838e+00,
+            -2.549732539343734e+00,
+            4.374664141464968e+00,
+            2.938163982698783e+00,
+        ];
+        const D: [f64; 4] = [
+            7.784695709041462e-03,
+            3.224671290700398e-01,
+            2.445134137142996e+00,
+            3.754408661907416e+00,
+        ];
+        const P_LOW: f64 = 0.02425;
+
+        let tail = |q: f64| {
+            (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q
+                + C[5])
+                / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0)
+        };
+
+        if p < P_LOW {
+            tail((-2.0 * p.ln()).sqrt())
+        } else if p > 1.0 - P_LOW {
+            -tail((-2.0 * (1.0 - p).ln()).sqrt())
+        } else {
+            let q = p - 0.5;
+            let r = q * q;
+            (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r
+                + A[5])
+                * q
+                / (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r
+                    + 1.0)
+        }
+    }
+
     /// A coverage requirement declared via [`cover`] that a test run did
     /// not meet.
     #[derive(Clone, Debug, PartialEq)]
@@ -467,12 +661,14 @@ mod internal {
 }
 
 #[cfg(feature = "std")]
-pub(crate) use internal::record_case;
-#[cfg(feature = "std")]
 pub use internal::{classify, collect, cover, label, measure};
 #[cfg(feature = "std")]
+pub(crate) use internal::{record_case, CoverageDecision};
+#[cfg(feature = "std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-pub use internal::{MeasurementSummary, RunStatistics, UnmetCoverage};
+pub use internal::{
+    CoverageConfidence, MeasurementSummary, RunStatistics, UnmetCoverage,
+};
 
 #[cfg(not(feature = "std"))]
 mod internal {
@@ -711,6 +907,162 @@ mod test {
             Err(TestCaseError::fail("real failure"))
         });
         assert!(matches!(result, Err(TestError::Fail(..))));
+    }
+
+    #[test]
+    fn inverse_normal_cdf_matches_known_quantiles() {
+        let cases = [
+            (0.5, 0.0),
+            (0.975, 1.959964),
+            (0.025, -1.959964),
+            (0.999, 3.090232),
+            (1e-9, -5.997807),
+            (1.0 - 1e-9, 5.997807),
+        ];
+        for (p, expected) in cases {
+            let actual = internal::inverse_normal_cdf(p);
+            assert!(
+                (actual - expected).abs() < 1e-5,
+                "inverse_normal_cdf({}) = {}, expected {}",
+                p,
+                actual,
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn wilson_bounds_match_known_interval() {
+        // The 95% Wilson interval for 50 successes in 100 trials is
+        // approximately (0.4038, 0.5962).
+        let z = internal::inverse_normal_cdf(0.975);
+        let lower = internal::wilson_bound(50, 100, -z);
+        let upper = internal::wilson_bound(50, 100, z);
+        assert!((lower - 0.4038).abs() < 1e-3, "lower = {}", lower);
+        assert!((upper - 0.5962).abs() < 1e-3, "upper = {}", upper);
+    }
+
+    fn config_with_confidence(confidence: CoverageConfidence) -> Config {
+        Config {
+            cases: 4,
+            coverage_confidence: Some(confidence),
+            ..config_without_persistence()
+        }
+    }
+
+    #[test]
+    fn coverage_confidence_extends_run_until_confirmed() {
+        let mut runner = TestRunner::new(config_with_confidence(
+            CoverageConfidence::default(),
+        ));
+        runner
+            .run(&(0u32..2), |v| {
+                // True rate ~50%, required 20%: confirmable, but not
+                // within the configured 4 cases.
+                cover(v == 0, 20.0, "zero");
+                Ok(())
+            })
+            .unwrap();
+
+        let stats = runner.statistics();
+        assert!(
+            stats.cases() > 4,
+            "expected extra cases to settle coverage, ran {}",
+            stats.cases()
+        );
+        assert!(stats.cases() < CoverageConfidence::default().max_cases);
+    }
+
+    #[test]
+    fn coverage_confidence_refutes_unreachable_requirement() {
+        let mut runner = TestRunner::new(config_with_confidence(
+            CoverageConfidence::default(),
+        ));
+        let result = runner.run(&(0u32..2), |v| {
+            // True rate ~50%, required 90%: refutable.
+            cover(v == 0, 90.0, "zero");
+            Ok(())
+        });
+
+        match result {
+            Err(TestError::Abort(reason)) => {
+                let message = format!("{}", reason);
+                assert!(
+                    message.contains("statistically refuted"),
+                    "unexpected message: {}",
+                    message
+                );
+                assert!(
+                    message.contains("\"zero\""),
+                    "unexpected message: {}",
+                    message
+                );
+            }
+            other => panic!("Unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn coverage_confidence_gives_up_at_max_cases() {
+        let mut runner =
+            TestRunner::new(config_with_confidence(CoverageConfidence {
+                max_cases: 500,
+                ..CoverageConfidence::default()
+            }));
+        let result = runner.run(&(0u32..100), |v| {
+            // True rate ~47% sits inside the tolerance band
+            // (45%..50%), so it can be neither confirmed nor refuted.
+            cover(v < 47, 50.0, "in the band");
+            Ok(())
+        });
+
+        match result {
+            Err(TestError::Abort(reason)) => {
+                let message = format!("{}", reason);
+                assert!(
+                    message.contains("undecided after 500 cases"),
+                    "unexpected message: {}",
+                    message
+                );
+            }
+            other => panic!("Unexpected result: {:?}", other),
+        }
+        assert_eq!(500, runner.statistics().cases());
+    }
+
+    #[test]
+    fn coverage_confidence_without_cover_runs_configured_cases() {
+        let mut runner = TestRunner::new(Config {
+            cases: 8,
+            ..config_with_confidence(CoverageConfidence::default())
+        });
+        runner
+            .run(&Just(()), |_| {
+                label("ran");
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(8, runner.statistics().cases());
+    }
+
+    #[test]
+    fn coverage_confidence_skips_fixed_sample_check() {
+        // A true rate of ~48% confirms quickly against the lowered
+        // confirmation threshold of tolerance * 50% ~= 33%, yet the
+        // observed percentage stays below the raw 50% requirement. The
+        // run may only pass if the fixed-sample end-of-run check stays
+        // out of the way.
+        let mut runner =
+            TestRunner::new(config_with_confidence(CoverageConfidence {
+                tolerance: 2.0 / 3.0,
+                ..CoverageConfidence::default()
+            }));
+        runner
+            .run(&(0u32..100), |v| {
+                cover(v < 48, 50.0, "almost half");
+                Ok(())
+            })
+            .unwrap();
     }
 
     #[test]
