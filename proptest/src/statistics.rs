@@ -18,8 +18,8 @@
 //! become visible.
 //!
 //! Call [`label`], [`classify`], [`collect`] or [`measure`] from inside a
-//! test case. When the test run completes successfully, proptest prints a
-//! summary of the recorded statistics to stderr, e.g.:
+//! test case. When all test cases pass, proptest prints a summary of the
+//! recorded statistics to stderr, e.g.:
 //!
 //! ```text
 //! proptest: test case statistics (256 cases):
@@ -134,9 +134,9 @@ mod internal {
     /// Record `label` for the current test case if `condition` holds, and
     /// require that at least `min_percent` of all test cases do.
     ///
-    /// This is [`classify`] turned into an enforceable property: if, once
-    /// the run completes, fewer than `min_percent` percent of the test cases
-    /// recorded the label, the test as a whole fails. Use it to make sure a
+    /// This is [`classify`] turned into an enforceable property: if fewer
+    /// than `min_percent` percent of test cases record the label by the end
+    /// of the run, the test as a whole fails. Use it to make sure a
     /// generator keeps producing the inputs a property actually needs:
     ///
     /// ```
@@ -174,18 +174,29 @@ mod internal {
         CURRENT_CASE.with(|cell| {
             if let Some(case) = cell.borrow_mut().as_mut() {
                 let label = label.into();
-                let required = case
-                    .coverage_requirements
-                    .entry(label.clone())
-                    .or_insert(min_percent);
-                if min_percent > *required {
-                    *required = min_percent;
-                }
+                require_at_least(
+                    &mut case.coverage_requirements,
+                    label.clone(),
+                    min_percent,
+                );
                 if condition {
                     case.labels.insert(label);
                 }
             }
         });
+    }
+
+    /// Set `label`'s coverage requirement to `min_percent`, keeping an
+    /// existing requirement if it is larger.
+    fn require_at_least(
+        requirements: &mut BTreeMap<Cow<'static, str>, f64>,
+        label: Cow<'static, str>,
+        min_percent: f64,
+    ) {
+        let required = requirements.entry(label).or_insert(min_percent);
+        if min_percent > *required {
+            *required = min_percent;
+        }
     }
 
     /// Record one numeric sample under `name`.
@@ -299,7 +310,7 @@ mod internal {
     /// Obtained from
     /// [`TestRunner::statistics()`](crate::test_runner::TestRunner::statistics).
     /// The `Display` implementation renders the human-readable summary that
-    /// proptest prints after a successful run.
+    /// proptest prints when all test cases pass.
     #[derive(Clone, Debug, Default, PartialEq)]
     pub struct RunStatistics {
         cases: u32,
@@ -373,13 +384,11 @@ mod internal {
                 }
             }
             for (label, min_percent) in case.coverage_requirements {
-                let required = self
-                    .coverage_requirements
-                    .entry(label)
-                    .or_insert(min_percent);
-                if min_percent > *required {
-                    *required = min_percent;
-                }
+                require_at_least(
+                    &mut self.coverage_requirements,
+                    label,
+                    min_percent,
+                );
             }
         }
     }
@@ -477,8 +486,8 @@ mod internal {
     /// Does nothing in `no_std` builds. See the `std` documentation.
     pub fn collect<N, V>(_name: N, _value: V) {}
 
-    /// Does nothing in `no_std` builds. See the `std` documentation.
-    /// Coverage requirements are not enforced without `std`.
+    /// Does nothing in `no_std` builds — coverage is *not* enforced. See
+    /// the `std` documentation.
     pub fn cover<L>(_condition: bool, _min_percent: f64, _label: L) {}
 
     /// Does nothing in `no_std` builds. See the `std` documentation.
@@ -680,8 +689,8 @@ mod test {
         let mut runner = TestRunner::new(config_without_persistence());
         let result = runner.run(&Just(()), |_| {
             // Met under the first requirement, unmet under the second.
-            cover(true, 50.0, "label");
-            cover(false, 200.0, "label");
+            cover(true, 50.0, "feature");
+            cover(false, 200.0, "feature");
             Ok(())
         });
 

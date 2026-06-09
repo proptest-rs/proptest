@@ -677,8 +677,9 @@ impl TestRunner {
 
         fork_output.terminate();
 
-        // Failures return early above, so by here every case passed. Print
-        // the statistics summary, then enforce any coverage requirements.
+        // Failures return early above, so by here every case passed. The
+        // summary is printed before the coverage check so that a coverage
+        // failure still shows the distribution it is complaining about.
         #[cfg(feature = "std")]
         {
             if !self.statistics.is_empty() {

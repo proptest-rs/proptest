@@ -36,8 +36,7 @@ proptest! {
 }
 ```
 
-When the test run completes successfully, proptest prints a summary to
-stderr:
+When all test cases pass, proptest prints a summary to stderr:
 
 ```text
 proptest: test case statistics (256 cases):
