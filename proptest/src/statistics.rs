@@ -248,6 +248,9 @@ mod internal {
 
     /// Summary of all numeric samples recorded under one name via
     /// [`measure`].
+    ///
+    /// A summary always holds at least one sample, so `min`, `max` and
+    /// `mean` are always meaningful.
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct MeasurementSummary {
         count: u64,
@@ -256,8 +259,10 @@ mod internal {
         max: f64,
     }
 
-    impl Default for MeasurementSummary {
-        fn default() -> Self {
+    impl MeasurementSummary {
+        /// A summary with no samples yet; only handed out once `add` has
+        /// been called.
+        fn empty() -> Self {
             MeasurementSummary {
                 count: 0,
                 sum: 0.0,
@@ -265,9 +270,7 @@ mod internal {
                 max: f64::NEG_INFINITY,
             }
         }
-    }
 
-    impl MeasurementSummary {
         fn add(&mut self, sample: f64) {
             self.count += 1;
             self.sum += sample;
@@ -297,11 +300,7 @@ mod internal {
 
         /// The arithmetic mean of all recorded samples.
         pub fn mean(&self) -> f64 {
-            if 0 == self.count {
-                0.0
-            } else {
-                self.sum / self.count as f64
-            }
+            self.sum / self.count as f64
         }
     }
 
@@ -378,7 +377,10 @@ mod internal {
                 *self.labels.entry(label).or_insert(0) += 1;
             }
             for (name, samples) in case.measurements {
-                let summary = self.measurements.entry(name).or_default();
+                let summary = self
+                    .measurements
+                    .entry(name)
+                    .or_insert_with(MeasurementSummary::empty);
                 for sample in samples {
                     summary.add(sample);
                 }
@@ -396,6 +398,7 @@ mod internal {
     /// A coverage requirement declared via [`cover`] that a test run did
     /// not meet.
     #[derive(Clone, Debug, PartialEq)]
+    #[non_exhaustive]
     pub struct UnmetCoverage {
         /// The label whose coverage fell short.
         pub label: Cow<'static, str>,
@@ -466,10 +469,10 @@ mod internal {
 #[cfg(feature = "std")]
 pub(crate) use internal::record_case;
 #[cfg(feature = "std")]
-pub use internal::{
-    classify, collect, cover, label, measure, MeasurementSummary,
-    RunStatistics, UnmetCoverage,
-};
+pub use internal::{classify, collect, cover, label, measure};
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+pub use internal::{MeasurementSummary, RunStatistics, UnmetCoverage};
 
 #[cfg(not(feature = "std"))]
 mod internal {
