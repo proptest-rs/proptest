@@ -677,12 +677,12 @@ impl TestRunner {
 
         fork_output.terminate();
 
-        // Report any statistics the test cases recorded via
-        // `proptest::statistics`.
+        // Failures return early above, so the statistics summary is only
+        // printed for successful runs.
         #[cfg(feature = "std")]
         if !self.statistics.is_empty() {
-            let statistics = format!("{}", self.statistics);
-            for line in statistics.lines() {
+            let summary = format!("{}", self.statistics);
+            for line in summary.lines() {
                 eprintln!("proptest: {}", line);
             }
         }
@@ -762,9 +762,8 @@ impl TestRunner {
         fork_output: &mut ForkOutput,
         is_from_persisted_seed: bool,
     ) -> Result<TestCaseOk, TestError<V::Value>> {
-        // Record any statistics the test emits for this case so they can be
-        // folded into the run-wide aggregate on success. The recording scope
-        // deliberately excludes the shrinking phase below.
+        // Record statistics only for this execution; the shrink loop below
+        // runs outside the recording scope so its re-runs don't skew them.
         #[cfg(feature = "std")]
         let (result, case_statistics) = crate::statistics::record_case(|| {
             call_test(
@@ -790,6 +789,8 @@ impl TestRunner {
 
         match result {
             Ok(success_type) => {
+                // Cache hits and fork replays never ran the test, so merging
+                // their empty records would dilute the percentages.
                 #[cfg(feature = "std")]
                 if matches!(
                     success_type,

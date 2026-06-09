@@ -77,9 +77,9 @@ mod internal {
     use std::cell::RefCell;
 
     thread_local! {
-        /// Statistics being recorded for the currently executing test case,
-        /// if any. `None` whenever no test case is being recorded (outside a
-        /// run, or while shrinking).
+        /// Accumulator for the test case currently being recorded, or
+        /// `None` while nothing is recording (no run in progress, or
+        /// shrinking).
         static CURRENT_CASE: RefCell<Option<CaseStatistics>> =
             const { RefCell::new(None) };
     }
@@ -99,8 +99,8 @@ mod internal {
     ///
     /// Does nothing if called outside a proptest test case.
     pub fn label(label: impl Into<Cow<'static, str>>) {
-        CURRENT_CASE.with(|c| {
-            if let Some(case) = c.borrow_mut().as_mut() {
+        CURRENT_CASE.with(|cell| {
+            if let Some(case) = cell.borrow_mut().as_mut() {
                 case.labels.insert(label.into());
             }
         });
@@ -120,8 +120,8 @@ mod internal {
     ///
     /// This is sugar for [`label`] with the label `"{name} = {value:?}"` and
     /// reports what fraction of test cases observed each distinct value, e.g.
-    /// `collect("length", v.len())`. Best used with features of low
-    /// cardinality.
+    /// `collect("length", v.len())`. Best for values with only a few
+    /// distinct possibilities.
     pub fn collect(name: impl Into<Cow<'static, str>>, value: impl fmt::Debug) {
         label(format!("{} = {:?}", name.into(), value));
     }
@@ -135,8 +135,8 @@ mod internal {
     ///
     /// Does nothing if called outside a proptest test case.
     pub fn measure(name: impl Into<Cow<'static, str>>, value: impl Into<f64>) {
-        CURRENT_CASE.with(|c| {
-            if let Some(case) = c.borrow_mut().as_mut() {
+        CURRENT_CASE.with(|cell| {
+            if let Some(case) = cell.borrow_mut().as_mut() {
                 case.measurements
                     .entry(name.into())
                     .or_default()
@@ -145,30 +145,32 @@ mod internal {
         });
     }
 
-    /// Run `body` while recording statistics into a fresh per-case
-    /// accumulator, and return the body's result together with whatever was
-    /// recorded.
+    /// Run `body` with a fresh accumulator installed and return the body's
+    /// result together with whatever it recorded.
     ///
-    /// Any previously installed accumulator is restored afterwards (also on
-    /// panic), so nested `TestRunner`s record independently.
+    /// The enclosing accumulator is restored afterwards (also on panic), so
+    /// nested `TestRunner`s record independently.
     pub(crate) fn record_case<R>(
         body: impl FnOnce() -> R,
     ) -> (R, CaseStatistics) {
-        struct RestoreGuard(Option<CaseStatistics>);
+        struct RestoreGuard {
+            enclosing: Option<CaseStatistics>,
+        }
         impl Drop for RestoreGuard {
             fn drop(&mut self) {
-                CURRENT_CASE.with(|c| *c.borrow_mut() = self.0.take());
+                CURRENT_CASE
+                    .with(|cell| *cell.borrow_mut() = self.enclosing.take());
             }
         }
 
-        let prev = CURRENT_CASE
-            .with(|c| c.borrow_mut().replace(CaseStatistics::default()));
-        let _guard = RestoreGuard(prev);
+        let enclosing = CURRENT_CASE
+            .with(|cell| cell.borrow_mut().replace(CaseStatistics::default()));
+        let _restore = RestoreGuard { enclosing };
         let result = body();
-        let stats = CURRENT_CASE
-            .with(|c| c.borrow_mut().take())
+        let recorded = CURRENT_CASE
+            .with(|cell| cell.borrow_mut().take())
             .unwrap_or_default();
-        (result, stats)
+        (result, recorded)
     }
 
     /// Summary of all numeric samples recorded under one name via
@@ -263,7 +265,7 @@ mod internal {
             &self.measurements
         }
 
-        /// Whether no statistics at all were recorded during the run.
+        /// Whether no labels or measurements were recorded during the run.
         pub fn is_empty(&self) -> bool {
             self.labels.is_empty() && self.measurements.is_empty()
         }
@@ -287,16 +289,15 @@ mod internal {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             if !self.labels.is_empty() {
                 writeln!(f, "test case statistics ({} cases):", self.cases)?;
-                // Most frequent labels first; ties in label order.
-                let mut sorted: Vec<(&Cow<'static, str>, &u32)> =
+                let mut most_frequent_first: Vec<(&Cow<'static, str>, &u32)> =
                     self.labels.iter().collect();
-                sorted.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
-                for (label, count) in sorted {
-                    let percent = if 0 == self.cases {
-                        0.0
-                    } else {
-                        *count as f64 * 100.0 / self.cases as f64
-                    };
+                most_frequent_first.sort_by(
+                    |(a_label, a_count), (b_label, b_count)| {
+                        b_count.cmp(a_count).then_with(|| a_label.cmp(b_label))
+                    },
+                );
+                for (label, count) in most_frequent_first {
+                    let percent = *count as f64 * 100.0 / self.cases as f64;
                     writeln!(
                         f,
                         "  {:>6.2}% ({}/{}): {}",
@@ -359,7 +360,9 @@ mod test {
     use crate::strategy::Just;
     use crate::test_runner::{Config, TestCaseError, TestRunner};
 
-    fn config() -> Config {
+    // Failure persistence would write regression files for the
+    // intentionally failing tests below.
+    fn config_without_persistence() -> Config {
         Config {
             failure_persistence: None,
             ..Config::default()
@@ -376,7 +379,7 @@ mod test {
 
     #[test]
     fn aggregates_labels_over_all_cases() {
-        let mut runner = TestRunner::new(config());
+        let mut runner = TestRunner::new(config_without_persistence());
         runner
             .run(&(0u32..100), |v| {
                 label("ran");
@@ -401,7 +404,7 @@ mod test {
 
     #[test]
     fn duplicate_labels_count_once_per_case() {
-        let mut runner = TestRunner::new(config());
+        let mut runner = TestRunner::new(config_without_persistence());
         runner
             .run(&Just(()), |_| {
                 label("twice");
@@ -416,7 +419,7 @@ mod test {
 
     #[test]
     fn measure_summarizes_samples() {
-        let mut runner = TestRunner::new(config());
+        let mut runner = TestRunner::new(config_without_persistence());
         runner
             .run(&Just(5u32), |v| {
                 measure("v", v);
@@ -436,12 +439,12 @@ mod test {
 
     #[test]
     fn shrinking_does_not_pollute_statistics() {
-        let calls = core::cell::Cell::new(0u32);
-        let mut runner = TestRunner::new(config());
+        let executions = core::cell::Cell::new(0u32);
+        let mut runner = TestRunner::new(config_without_persistence());
         let result = runner.run(&(0u32..1000), |_| {
             label("ran");
-            calls.set(calls.get() + 1);
-            if calls.get() <= 5 {
+            executions.set(executions.get() + 1);
+            if executions.get() <= 5 {
                 Ok(())
             } else {
                 Err(TestCaseError::fail("always fails from the 6th call"))
@@ -449,10 +452,9 @@ mod test {
         });
         assert!(result.is_err());
 
-        // Only the five passing cases from the generation phase count; the
-        // failing case and all shrink executions (which also record the
-        // label) are excluded.
-        assert!(calls.get() > 6, "test was not re-run while shrinking");
+        // The failing case and the shrink executions also record the label,
+        // but only the five passing cases may be aggregated.
+        assert!(executions.get() > 6, "test was not re-run while shrinking");
         let stats = runner.statistics();
         assert_eq!(5, stats.cases());
         assert_eq!(Some(&5), stats.labels().get("ran"));
@@ -460,7 +462,7 @@ mod test {
 
     #[test]
     fn rejected_cases_are_not_counted() {
-        let mut runner = TestRunner::new(config());
+        let mut runner = TestRunner::new(config_without_persistence());
         runner
             .run(&(0u32..10), |v| {
                 label("ran");
@@ -475,7 +477,7 @@ mod test {
 
     #[test]
     fn empty_when_nothing_recorded() {
-        let mut runner = TestRunner::new(config());
+        let mut runner = TestRunner::new(config_without_persistence());
         runner.run(&Just(()), |_| Ok(())).unwrap();
         assert!(runner.statistics().is_empty());
         assert_eq!(Config::default().cases, runner.statistics().cases());
@@ -485,7 +487,7 @@ mod test {
     fn display_renders_summary() {
         let mut runner = TestRunner::new(Config {
             cases: 4,
-            ..config()
+            ..config_without_persistence()
         });
         runner
             .run(&Just(()), |_| {
@@ -496,18 +498,20 @@ mod test {
             .unwrap();
 
         let rendered = runner.statistics().to_string();
-        assert_eq!(
-            "test case statistics (4 cases):\n\
-             \x20 100.00% (4/4): always\n\
-             measurements:\n\
-             \x20 x: count 4, min 2, max 2, mean 2.00\n",
-            rendered
-        );
+        let expected = [
+            "test case statistics (4 cases):",
+            "  100.00% (4/4): always",
+            "measurements:",
+            "  x: count 4, min 2, max 2, mean 2.00",
+            "",
+        ]
+        .join("\n");
+        assert_eq!(expected, rendered);
     }
 
     #[test]
     fn labels_sorted_by_frequency_in_display() {
-        let mut runner = TestRunner::new(config());
+        let mut runner = TestRunner::new(config_without_persistence());
         runner
             .run(&(0u32..4), |v| {
                 label("common");
@@ -530,17 +534,14 @@ mod test {
     fn nested_runners_record_independently() {
         let mut runner = TestRunner::new(Config {
             cases: 8,
-            ..config()
+            ..config_without_persistence()
         });
         runner
             .run(&Just(()), |_| {
                 label("outer");
                 let mut inner = TestRunner::new(Config {
                     cases: 2,
-                    ..Config {
-                        failure_persistence: None,
-                        ..Config::default()
-                    }
+                    ..config_without_persistence()
                 });
                 inner
                     .run(&Just(()), |_| {
@@ -561,7 +562,7 @@ mod test {
 
     #[test]
     fn works_in_proptest_macro() {
-        proptest!(config(), |(v in 0u32..10)| {
+        proptest!(config_without_persistence(), |(v in 0u32..10)| {
             classify(v < 5, "small");
             prop_assert!(v < 10);
         });
