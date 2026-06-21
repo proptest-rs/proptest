@@ -24,7 +24,7 @@ mod internal {
     use std::boxed::Box;
     use std::cell::Cell;
     use std::panic::{set_hook, take_hook, PanicInfo};
-    use std::sync::Once;
+    use std::sync::{Once, OnceLock};
     use std::{mem, ptr};
 
     thread_local! {
@@ -36,20 +36,24 @@ mod internal {
     }
 
     static INIT_ONCE: Once = Once::new();
-    /// Default panic hook, the one which was present before installing scoped one
-    ///
-    /// NB: no need for external sync, value is mutated only once, when init is performed
-    static mut DEFAULT_HOOK: Option<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>> =
-        None;
+
+    /// Default panic hook, the one which was present before installing scoped one.
+    static DEFAULT_HOOK: OnceLock<Option<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>>> =
+        OnceLock::new();
+
     /// Replaces currently installed panic hook with `scoped_hook_dispatcher` once,
     /// in a thread-safe manner
     fn init() {
         INIT_ONCE.call_once(|| {
             let old_handler = take_hook();
+            // set DEFAULT_HOOK before installing the global hook. once set_hook
+            // is invoked, any other thread that panics will invoke the hook. if
+            // DEFAULT_HOOK is set after the call to set_hook, a race condition
+            // between the thread assigning DEFAULT_HOOK and the thread panicking,
+            // reading DEFAULT_HOOK, exists.
+            DEFAULT_HOOK.try_insert(Some(old_handler))
+                .expect("DEFAULT_HOOK is only ever assigned within a Once");
             set_hook(Box::new(scoped_hook_dispatcher));
-            unsafe {
-                DEFAULT_HOOK = Some(old_handler);
-            }
         });
     }
     /// Panic hook which delegates execution to scoped hook,
@@ -64,8 +68,7 @@ mod internal {
             return;
         }
 
-        #[allow(static_mut_refs)]
-        if let Some(hook) = unsafe { DEFAULT_HOOK.as_ref() } {
+        if let Some(hook) = DEFAULT_HOOK.get() {
             (hook)(info);
         }
     }
