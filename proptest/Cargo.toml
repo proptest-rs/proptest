@@ -67,6 +67,7 @@ handle-panics = ["std"]
 
 [dependencies]
 bitflags = { workspace = true }
+core_detect = { workspace = true }
 unarray = { workspace = true }
 proptest-macro = { workspace = true, optional = true }
 num-traits = { workspace = true }

@@ -479,23 +479,26 @@ impl TestRng {
     ))]
     pub fn hardware_rng(algorithm: RngAlgorithm) -> Self {
         use x86::random::{rdrand_slice, RdRand};
+        assert!(core_detect::is_x86_feature_detected!("rdrand"));
 
         Self::from_seed_internal(match algorithm {
             RngAlgorithm::XorShift => {
                 // Initialize to a sane seed just in case
                 let mut seed: [u8; 16] = TestRng::SEED_FOR_XOR_SHIFT;
+                // SAFETY: rdrand feature is asserted to be detected at the beginning of the function
                 unsafe {
                     let r = rdrand_slice(&mut seed);
-                    debug_assert!(r, "hardware_rng should only be called on machines with support for rdrand");
+                    assert!(r, "hardware_rng should only be called on machines with support for rdrand");
                 }
                 Seed::XorShift(seed)
             }
             RngAlgorithm::ChaCha => {
                 // Initialize to a sane seed just in case
                 let mut seed: [u8; 32] = TestRng::SEED_FOR_CHA_CHA;
+                // SAFETY: rdrand feature is asserted to be detected at the beginning of the function
                 unsafe {
                     let r = rdrand_slice(&mut seed);
-                    debug_assert!(r, "hardware_rng should only be called on machines with support for rdrand");
+                    assert!(r, "hardware_rng should only be called on machines with support for rdrand");
                 }
                 Seed::ChaCha(seed)
             }
@@ -505,9 +508,10 @@ impl TestRng {
             RngAlgorithm::Recorder => {
                 // Initialize to a sane seed just in case
                 let mut seed: [u8; 32] = TestRng::SEED_FOR_CHA_CHA;
+                // SAFETY: rdrand feature is asserted to be detected at the beginning of the function
                 unsafe {
                     let r = rdrand_slice(&mut seed);
-                    debug_assert!(r, "hardware_rng should only be called on machines with support for rdrand");
+                    assert!(r, "hardware_rng should only be called on machines with support for rdrand");
                 }
                 Seed::Recorder(seed)
             }

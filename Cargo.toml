@@ -15,6 +15,7 @@ bit-vec = "0.8.0"
 bitflags = "2.10"
 compiletest_rs = "0.11"
 convert_case = "0.11"
+core_detect = "1.0.0"
 criterion = "0.8"
 insta = "1"
 message-io = { version = "0.19.0", default-features = false, features = [
