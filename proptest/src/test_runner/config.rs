@@ -140,6 +140,9 @@ pub fn contextualize_config(mut result: Config) -> Config {
             parse_or_warn(&value, &mut result.rng_seed, "u64", RNG_SEED);
         } else if var == DISABLE_FAILURE_PERSISTENCE {
             result.failure_persistence = None;
+        } else if var.starts_with("PROPTEST_STATE_MACHINE_") {
+            // Reserved namespace for the `proptest-state-machine` crate (e.g.
+            // its `persistence` feature). Not consumed here; don't warn.
         } else if var.starts_with("PROPTEST_") {
             eprintln!("proptest: Ignoring unknown env-var {}.", var);
         }

@@ -20,12 +20,18 @@ default = ["std"]
 # Enables the use of standard-library dependent features
 std = ["proptest/std"]
 
+# Persist the shrunk transition sequence of a failing case to disk (instead of
+# only the RNG seed) and replay it without re-shrinking. Requires `std`.
+persistence = ["std", "dep:serde", "dep:serde_json"]
+
 [dependencies]
 proptest = { version = "1.11.0", path = "../proptest", default-features = true, features = [
     "fork",
     "timeout",
     "bit-set",
 ] }
+serde = { version = "1.0", optional = true, features = ["derive"] }
+serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]
 message-io = { workspace = true }

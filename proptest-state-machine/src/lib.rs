@@ -12,6 +12,8 @@
 //! Please refer to the Proptest Book chapter "State Machine testing" to learn
 //! when and how to use this and how it's made.
 
+#[cfg(feature = "persistence")]
+pub mod persistence;
 pub mod strategy;
 pub mod test_runner;
 
