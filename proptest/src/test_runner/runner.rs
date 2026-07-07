@@ -1154,6 +1154,12 @@ impl TestRunner {
         self.rng.tape.is_on()
     }
 
+    /// Record a structurally-forced boolean on the choice tape without
+    /// drawing entropy. See `TapeState::record_forced_bool`.
+    pub(crate) fn record_forced_bool(&mut self, value: bool) {
+        self.rng.tape.record_forced_bool(value);
+    }
+
     /// Open a span (a deletable logical unit) on the choice tape. No-op
     /// when the tape is off. Always pair with `end_span`.
     pub(crate) fn start_span(&mut self) {

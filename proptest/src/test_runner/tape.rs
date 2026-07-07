@@ -423,6 +423,26 @@ impl TapeState {
         }
     }
 
+    /// Record a choice whose value is forced by generation structure
+    /// rather than drawn (e.g. the "stop" continuation flag of a
+    /// maximum-length collection). During replay a matching next input
+    /// choice is consumed so edits stay aligned, but its value is
+    /// ignored, and running off the end of the input is NOT an overrun —
+    /// no information is being read.
+    pub(crate) fn record_forced_bool(&mut self, value: bool) {
+        if !self.is_on() {
+            return;
+        }
+        if let TapeMode::Replaying { input, cursor, .. } = &mut self.mode {
+            if *cursor < input.choices.len()
+                && matches!(input.choices[*cursor], Choice::Bool { .. })
+            {
+                *cursor += 1;
+            }
+        }
+        self.record(Choice::Bool { value });
+    }
+
     /// During replay, consume and return the next input choice if `matcher`
     /// accepts it. Returns `None` (and samples must go fresh) on kind
     /// mismatch, on overrun (also setting the overrun flag), or when not
@@ -870,6 +890,47 @@ mod test {
                 assert_eq!(vec![0, 0, 0, 0, 0], value)
             }
             other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn replay_engine_deletes_elements_from_max_length_vecs() {
+        // Regression test: maximum-length vecs draw no natural "stop"
+        // flag, and without the forced stop marker every deletion edit
+        // overran the tape and was rejected. Sweep seeds so some initial
+        // failing cases are at maximum length.
+        for seed_byte in 0..20u8 {
+            let mut runner = crate::test_runner::TestRunner::new_with_rng(
+                engine_config(),
+                crate::test_runner::TestRng::from_seed(
+                    crate::test_runner::RngAlgorithm::ChaCha,
+                    &[seed_byte; 32],
+                ),
+            );
+            let result = runner
+                .run(&crate::collection::vec(0i32..100, 0..6), |v| {
+                    if v.len() >= 2 {
+                        Err(crate::test_runner::TestCaseError::fail(
+                            "too long",
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                });
+            match result {
+                Err(crate::test_runner::TestError::Fail(_, value)) => {
+                    assert_eq!(
+                        vec![0, 0],
+                        value,
+                        "seed byte {}",
+                        seed_byte
+                    )
+                }
+                other => panic!(
+                    "unexpected result for seed byte {}: {:?}",
+                    seed_byte, other
+                ),
+            }
         }
     }
 

@@ -576,6 +576,13 @@ impl<T: Strategy> Strategy for VecStrategy<T> {
                 elements.push(element?);
                 i += 1;
             }
+            if i == end && end > start {
+                // A maximum-length vec never draws a "stop" flag, which
+                // would leave its tape one Bool shorter than shorter
+                // vecs' tapes and misalign every deletion edit. Record a
+                // forced stop marker so all lengths share one shape.
+                runner.record_forced_bool(false);
+            }
             let len = elements.len();
             return Ok(VecValueTree {
                 elements,
