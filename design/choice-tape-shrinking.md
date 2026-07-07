@@ -418,7 +418,9 @@ strategy:
   shrinking via raw choices, budget respect.
   **Status: DONE — see `design/choice-tape-status.md`.**
 - **Phase 2:** spans; continuation encoding for `vec`/collections;
-  `delete_spans` with adaptive batching; `prop_oneof` branch choice.
+  `delete_spans`; `prop_oneof` branch choice.
+  **Status: DONE except adaptive deletion batching — see
+  `design/choice-tape-status.md`.**
 - **Phase 3:** migrate char/string/bits/sample; state-machine crate
   evaluation.
 - **Phase 4:** cross-value passes (duplicates, redistribute, reorder).

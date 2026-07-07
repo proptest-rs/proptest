@@ -13,6 +13,7 @@ use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 use core::{fmt, iter};
 
+use rand::RngExt;
 #[cfg(feature = "std")]
 use std::panic::{self, AssertUnwindSafe};
 
@@ -1072,6 +1073,48 @@ impl TestRunner {
         sampled
     }
 
+    /// Draw a boolean that is true with probability `probability_true`,
+    /// recording it as a typed choice when the choice tape is active.
+    /// `false` is the shrink-target value, so strategies should encode
+    /// "stop"/"simpler" as `false` (e.g. collection continuation flags
+    /// are `true = one more element`).
+    pub(crate) fn draw_bool(&mut self, probability_true: f64) -> bool {
+        if !self.rng.tape.is_on() {
+            return self.rng.random_bool(probability_true);
+        }
+        if let Some(Choice::Bool { value }) = self
+            .rng
+            .tape
+            .pop_replay(|c| matches!(c, Choice::Bool { .. }))
+        {
+            self.rng.tape.record(Choice::Bool { value });
+            return value;
+        }
+        self.rng.tape.suppress_raw();
+        let sampled = self.rng.random_bool(probability_true);
+        self.rng.tape.unsuppress_raw();
+        self.rng.tape.record(Choice::Bool { value: sampled });
+        sampled
+    }
+
+    /// Whether the choice tape is currently active (recording or
+    /// replaying). Strategies use this to select tape-friendly encodings
+    /// (e.g. continuation flags instead of an up-front collection size).
+    pub(crate) fn tape_is_on(&self) -> bool {
+        self.rng.tape.is_on()
+    }
+
+    /// Open a span (a deletable logical unit) on the choice tape. No-op
+    /// when the tape is off. Always pair with `end_span`.
+    pub(crate) fn start_span(&mut self) {
+        self.rng.tape.start_span();
+    }
+
+    /// Close the innermost open span.
+    pub(crate) fn end_span(&mut self) {
+        self.rng.tape.end_span();
+    }
+
     /// The tape-engine analogue of `gen_and_run_case`.
     fn gen_and_run_case_tape<S: Strategy>(
         &mut self,
@@ -1183,10 +1226,26 @@ impl TestRunner {
                 );
         }
 
-        // Pass 2: minimize each choice individually, round-robin until a
-        // full round makes no progress.
+        // Pass 2 (each round): delete spans (collection elements etc.),
+        // then minimize each choice individually; repeat until a full
+        // round makes no progress.
         while !exhausted {
             let mut improved = false;
+
+            let (imp, ex) = self.tape_delete_spans(
+                strategy,
+                test,
+                &rng_snapshot,
+                &mut best,
+                &mut budget,
+                result_cache,
+                fork_output,
+            );
+            improved |= imp;
+            if ex {
+                break;
+            }
+
             let mut idx = 0;
             while idx < best.tape.choices.len() {
                 let (imp, ex) = self.tape_minimize_choice(
@@ -1278,6 +1337,57 @@ impl TestRunner {
                 TapeAttemptResult::Rejected
             }
         }
+    }
+
+    /// Try deleting recorded spans (one logical unit each, e.g. one
+    /// collection element with its continuation flag), last-to-first.
+    /// Returns `(improved_anything, budget_exhausted)`.
+    fn tape_delete_spans<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: &TestRng,
+        best: &mut TapeBest<S::Tree>,
+        budget: &mut TapeShrinkBudget,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> (bool, bool) {
+        let mut improved = false;
+        // Position from the end of the span list: on acceptance the whole
+        // span list is refreshed from the replay's output, so counting
+        // from the end keeps us moving through not-yet-tried spans.
+        let mut pos = 0;
+        loop {
+            let nspans = best.tape.spans.len();
+            if pos >= nspans {
+                break;
+            }
+            let span = best.tape.spans[nspans - 1 - pos];
+            if span.end > best.tape.choices.len() || span.start >= span.end
+            {
+                pos += 1;
+                continue;
+            }
+            match self.tape_attempt(
+                strategy,
+                test,
+                rng_snapshot,
+                best.tape.with_span_deleted(span),
+                best,
+                budget,
+                result_cache,
+                fork_output,
+            ) {
+                TapeAttemptResult::Accepted => {
+                    improved = true;
+                }
+                TapeAttemptResult::Rejected => {
+                    pos += 1;
+                }
+                TapeAttemptResult::Exhausted => return (improved, true),
+            }
+        }
+        (improved, false)
     }
 
     /// Minimize the single choice at `idx` of the incumbent tape. Returns

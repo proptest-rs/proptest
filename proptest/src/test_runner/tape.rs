@@ -211,10 +211,21 @@ fn base_float_to_lex(f: f64) -> u64 {
     (1u64 << 63) | (exponent_rank(exponent) << 52) | mantissa
 }
 
+/// A contiguous run of choices forming one logical unit of generation
+/// (e.g. one collection element together with its continuation flag).
+/// Spans are metadata for the deletion pass: replay ignores them and
+/// re-records them from the actual generation structure.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Span {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+}
+
 /// A recorded generation run.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Tape {
     pub(crate) choices: Vec<Choice>,
+    pub(crate) spans: Vec<Span>,
 }
 
 impl Tape {
@@ -239,6 +250,7 @@ impl Tape {
     pub(crate) fn trivial(&self) -> Tape {
         Tape {
             choices: self.choices.iter().map(Choice::trivial).collect(),
+            spans: self.spans.clone(),
         }
     }
 
@@ -247,6 +259,21 @@ impl Tape {
         let mut out = self.clone();
         out.choices[idx] = choice;
         out
+    }
+
+    /// A copy of the tape with the choices of `span` removed. The copy's
+    /// span list is dropped (it would be stale); an accepted proposal gets
+    /// fresh spans from the replay's output tape anyway.
+    pub(crate) fn with_span_deleted(&self, span: Span) -> Tape {
+        let mut choices = Vec::with_capacity(
+            self.choices.len() - (span.end - span.start),
+        );
+        choices.extend_from_slice(&self.choices[..span.start]);
+        choices.extend_from_slice(&self.choices[span.end..]);
+        Tape {
+            choices,
+            spans: Vec::new(),
+        }
     }
 }
 
@@ -273,6 +300,9 @@ pub(crate) struct TapeState {
     /// draws set this while running their sample closures so the closure's
     /// raw entropy is subsumed by the single typed choice.
     suppress_raw: u32,
+    /// Start indices of currently-open spans (choice count at
+    /// `start_span` time).
+    span_stack: Vec<usize>,
 }
 
 impl Default for TapeState {
@@ -280,6 +310,7 @@ impl Default for TapeState {
         TapeState {
             mode: TapeMode::Off,
             suppress_raw: 0,
+            span_stack: Vec::new(),
         }
     }
 }
@@ -311,11 +342,13 @@ impl TapeState {
         self.mode = TapeMode::Recording {
             tape: Tape::default(),
         };
+        self.span_stack.clear();
     }
 
     /// Stop recording and return the recorded tape. Returns an empty tape
     /// if not recording.
     pub(crate) fn take_recording(&mut self) -> Tape {
+        self.span_stack.clear();
         match core::mem::replace(&mut self.mode, TapeMode::Off) {
             TapeMode::Recording { tape } => tape,
             _ => Tape::default(),
@@ -329,16 +362,54 @@ impl TapeState {
             output: Tape::default(),
             overrun: false,
         };
+        self.span_stack.clear();
     }
 
     /// Stop replaying and return the re-recorded output tape plus whether
     /// the input was overrun. Returns an empty tape if not replaying.
     pub(crate) fn finish_replay(&mut self) -> (Tape, bool) {
+        self.span_stack.clear();
         match core::mem::replace(&mut self.mode, TapeMode::Off) {
             TapeMode::Replaying {
                 output, overrun, ..
             } => (output, overrun),
             _ => (Tape::default(), false),
+        }
+    }
+
+    /// The tape currently being written: the recording, or the output
+    /// re-recording during replay.
+    fn active_tape_mut(&mut self) -> Option<&mut Tape> {
+        match &mut self.mode {
+            TapeMode::Off => None,
+            TapeMode::Recording { tape } => Some(tape),
+            TapeMode::Replaying { output, .. } => Some(output),
+        }
+    }
+
+    /// Open a span at the current position of the active tape. No-op when
+    /// the tape is off.
+    pub(crate) fn start_span(&mut self) {
+        let pos = match self.active_tape_mut() {
+            Some(tape) => tape.choices.len(),
+            None => return,
+        };
+        self.span_stack.push(pos);
+    }
+
+    /// Close the innermost open span. Robust against unbalanced calls
+    /// (e.g. when generation errors out mid-span): closing with no open
+    /// span is a no-op.
+    pub(crate) fn end_span(&mut self) {
+        let start = match self.span_stack.pop() {
+            Some(start) => start,
+            None => return,
+        };
+        if let Some(tape) = self.active_tape_mut() {
+            let end = tape.choices.len();
+            if end > start {
+                tape.spans.push(Span { start, end });
+            }
         }
     }
 
@@ -444,6 +515,13 @@ pub(crate) fn float_round_to_precision(v: f64, k: i32) -> f64 {
 mod test {
     use super::*;
 
+    fn tape_of(choices: Vec<Choice>) -> Tape {
+        Tape {
+            choices,
+            spans: Vec::new(),
+        }
+    }
+
     #[test]
     fn zigzag_prefers_target_then_positive_side() {
         let t = 100u128;
@@ -516,56 +594,46 @@ mod test {
 
     #[test]
     fn shortlex_shorter_tape_wins() {
-        let long = Tape {
-            choices: vec![
-                Choice::RawU32 { value: 0 },
-                Choice::RawU32 { value: 0 },
-            ],
-        };
-        let short = Tape {
-            choices: vec![Choice::RawU32 { value: u32::MAX }],
-        };
+        let long = tape_of(vec![
+            Choice::RawU32 { value: 0 },
+            Choice::RawU32 { value: 0 },
+        ]);
+        let short = tape_of(vec![Choice::RawU32 { value: u32::MAX }]);
         assert_eq!(Ordering::Less, short.cmp_key(&long));
     }
 
     #[test]
     fn shortlex_compares_keys_elementwise() {
-        let a = Tape {
-            choices: vec![
-                Choice::RawU32 { value: 1 },
-                Choice::RawU32 { value: 100 },
-            ],
-        };
-        let b = Tape {
-            choices: vec![
-                Choice::RawU32 { value: 2 },
-                Choice::RawU32 { value: 0 },
-            ],
-        };
+        let a = tape_of(vec![
+            Choice::RawU32 { value: 1 },
+            Choice::RawU32 { value: 100 },
+        ]);
+        let b = tape_of(vec![
+            Choice::RawU32 { value: 2 },
+            Choice::RawU32 { value: 0 },
+        ]);
         assert_eq!(Ordering::Less, a.cmp_key(&b));
     }
 
     #[test]
     fn trivial_tape_is_minimal() {
-        let tape = Tape {
-            choices: vec![
-                Choice::Integer {
-                    value: i32::encode(57),
-                    min: i32::encode(-100),
-                    max: i32::encode(100),
-                    shrink_to: i32::encode_zero(),
-                },
-                Choice::Float {
-                    value: 3.7,
-                    min: 1.5,
-                    max: 10.0,
-                    allow_nan: false,
-                },
-                Choice::RawBytes {
-                    value: vec![1, 2, 3],
-                },
-            ],
-        };
+        let tape = tape_of(vec![
+            Choice::Integer {
+                value: i32::encode(57),
+                min: i32::encode(-100),
+                max: i32::encode(100),
+                shrink_to: i32::encode_zero(),
+            },
+            Choice::Float {
+                value: 3.7,
+                min: 1.5,
+                max: 10.0,
+                allow_nan: false,
+            },
+            Choice::RawBytes {
+                value: vec![1, 2, 3],
+            },
+        ]);
         let trivial = tape.trivial();
         assert_eq!(Ordering::Less, trivial.cmp_key(&tape));
         assert_eq!(Ordering::Equal, trivial.cmp_key(&trivial.trivial()));
@@ -680,6 +748,66 @@ mod test {
     }
 
     #[test]
+    fn replay_engine_deletes_vec_elements() {
+        // Element deletion is a generic span-deletion pass under the tape
+        // engine; remaining elements minimize to their targets.
+        let mut runner = engine_runner();
+        let result =
+            runner.run(&crate::collection::vec(0i32..100, 0..10), |v| {
+                if v.len() >= 3 {
+                    Err(crate::test_runner::TestCaseError::fail("too long"))
+                } else {
+                    Ok(())
+                }
+            });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!(vec![0, 0, 0], value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn replay_engine_minimizes_vec_elements() {
+        let mut runner = engine_runner();
+        let result =
+            runner.run(&crate::collection::vec(0i32..100, 3), |v| {
+                if v.iter().any(|&e| e >= 7) {
+                    Err(crate::test_runner::TestCaseError::fail("big elem"))
+                } else {
+                    Ok(())
+                }
+            });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, mut value)) => {
+                value.sort();
+                assert_eq!(vec![0, 0, 7], value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn replay_engine_shrinks_union_to_first_branch() {
+        use crate::strategy::Strategy;
+        let mut runner = engine_runner();
+        let strategy = crate::prop_oneof![
+            crate::strategy::Just(3i32),
+            10i32..20,
+        ];
+        let result = runner.run(&strategy.boxed(), |_| {
+            Err(crate::test_runner::TestCaseError::fail("always"))
+        });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!(3, value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
     fn replay_engine_respects_zero_shrink_budget() {
         let mut config = engine_config();
         config.max_shrink_iters = 0;
@@ -725,12 +853,10 @@ mod test {
     #[test]
     fn replay_pops_matching_choices() {
         let mut state = TapeState::default();
-        state.start_replay(Tape {
-            choices: vec![
-                Choice::RawU32 { value: 7 },
-                Choice::RawU64 { value: 9 },
-            ],
-        });
+        state.start_replay(tape_of(vec![
+            Choice::RawU32 { value: 7 },
+            Choice::RawU64 { value: 9 },
+        ]));
         // Matching kind pops.
         let popped =
             state.pop_replay(|c| matches!(c, Choice::RawU32 { .. }));
