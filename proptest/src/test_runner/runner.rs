@@ -31,7 +31,9 @@ use tempfile;
 use crate::strategy::*;
 use crate::test_runner::config::*;
 use crate::test_runner::errors::*;
-use crate::test_runner::failure_persistence::PersistedSeed;
+use crate::test_runner::failure_persistence::{
+    PersistedFailure, PersistedSeed,
+};
 use crate::test_runner::reason::*;
 #[cfg(feature = "fork")]
 use crate::test_runner::replay;
@@ -82,6 +84,11 @@ pub struct TestRunner {
 
     local_reject_detail: RejectionDetail,
     global_reject_detail: RejectionDetail,
+
+    /// Serialized winning tape of the most recent tape shrink, picked up
+    /// by the failure-persistence save site (which is outside the tape
+    /// code path).
+    shrunk_tape: Option<Vec<u8>>,
 }
 
 impl fmt::Debug for TestRunner {
@@ -355,6 +362,7 @@ impl TestRunner {
             flat_map_regens: Arc::new(AtomicUsize::new(0)),
             local_reject_detail: BTreeMap::new(),
             global_reject_detail: BTreeMap::new(),
+            shrunk_tape: None,
         }
     }
 
@@ -371,6 +379,7 @@ impl TestRunner {
             flat_map_regens: Arc::clone(&self.flat_map_regens),
             local_reject_detail: BTreeMap::new(),
             global_reject_detail: BTreeMap::new(),
+            shrunk_tape: None,
         }
     }
 
@@ -602,18 +611,39 @@ impl TestRunner {
 
         let mut result_cache = self.new_cache();
 
-        for PersistedSeed(persisted_seed) in
+        for PersistedSeed(persisted) in
             persisted_failure_seeds.into_iter().rev()
         {
-            self.rng.set_seed(persisted_seed);
-            self.gen_and_run_case(
-                strategy,
-                &test,
-                &mut replay_from_fork,
-                &mut *result_cache,
-                &mut fork_output,
-                true,
-            )?;
+            match persisted {
+                PersistedFailure::Seed(persisted_seed) => {
+                    self.rng.set_seed(persisted_seed);
+                    self.gen_and_run_case(
+                        strategy,
+                        &test,
+                        &mut replay_from_fork,
+                        &mut *result_cache,
+                        &mut fork_output,
+                        true,
+                    )?;
+                }
+                PersistedFailure::Tape(bytes) => {
+                    match tape::deserialize_tape(&bytes) {
+                        Some(input) => self.replay_persisted_tape(
+                            strategy,
+                            input,
+                            &test,
+                            &mut replay_from_fork,
+                            &mut *result_cache,
+                            &mut fork_output,
+                        )?,
+                        None => verbose_message!(
+                            self,
+                            ALWAYS,
+                            "Ignoring corrupt persisted choice tape"
+                        ),
+                    }
+                }
+            }
         }
         self.rng = old_rng;
 
@@ -639,9 +669,17 @@ impl TestRunner {
                     // process. The parent relies on it remaining consistent
                     // and will take care of updating it itself.
                     if !fork_output.is_in_fork() {
+                        // Prefer persisting the winning choice tape when
+                        // the tape engine shrank this failure: it replays
+                        // the shrunken values exactly, independent of the
+                        // RNG, and survives strategy refactors.
+                        let persisted = match self.shrunk_tape.take() {
+                            Some(bytes) => PersistedFailure::Tape(bytes),
+                            None => PersistedFailure::Seed(seed),
+                        };
                         failure_persistence.save_persisted_failure2(
                             *source_file,
-                            PersistedSeed(seed),
+                            PersistedSeed(persisted),
                             value,
                         );
                     }
@@ -1361,8 +1399,97 @@ impl TestRunner {
             budget.iterations
         );
 
+        if self.config.failure_persistence.is_some() {
+            self.shrunk_tape = Some(tape::serialize_tape(&best.tape));
+        }
+
         self.rng = rng_snapshot;
         (best.why, best.tree.current())
+    }
+
+    /// Replay a persisted choice tape: regenerate a value from it, run
+    /// the test, and re-shrink on failure. Stale tapes (the strategy has
+    /// changed since they were saved) replay best-effort: misaligned
+    /// draws sample fresh, and a tape that no longer generates anything
+    /// is skipped.
+    fn replay_persisted_tape<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        input: Tape,
+        f: &impl Fn(S::Value) -> TestCaseResult,
+        replay_from_fork: &mut impl Iterator<Item = TestCaseResult>,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> TestRunResult<S> {
+        let rng_snapshot = self.rng.clone();
+        self.rng.tape.start_replay(input);
+        let case = match strategy.new_tree(self) {
+            Ok(case) => case,
+            Err(_) => {
+                self.rng.tape.finish_replay();
+                self.rng = rng_snapshot;
+                verbose_message!(
+                    self,
+                    ALWAYS,
+                    "Persisted choice tape no longer generates a value; \
+                     ignoring it"
+                );
+                return Ok(());
+            }
+        };
+        let (output, _overrun) = self.rng.tape.finish_replay();
+
+        if ShrinkEngine::Tape == self.config.shrink_engine
+            && !self.config.fork()
+            && !fork_output.is_in_fork()
+        {
+            let result = call_test(
+                self,
+                case.current(),
+                f,
+                replay_from_fork,
+                result_cache,
+                fork_output,
+                true,
+            );
+            match result {
+                Ok(_) => {
+                    self.rng = rng_snapshot;
+                    Ok(())
+                }
+                Err(TestCaseError::Fail(why)) => {
+                    let (why, value) = self.tape_shrink(
+                        strategy,
+                        f,
+                        rng_snapshot,
+                        output,
+                        case,
+                        why,
+                        result_cache,
+                        fork_output,
+                    );
+                    Err(TestError::Fail(why, value))
+                }
+                Err(TestCaseError::Reject(whence)) => {
+                    self.rng = rng_snapshot;
+                    self.reject_global(whence)?;
+                    Ok(())
+                }
+            }
+        } else {
+            // ValueTree engine (or fork mode): hand the generated case to
+            // the classic path, which shrinks with the ValueTree walker.
+            self.rng = rng_snapshot;
+            self.run_one_with_replay(
+                case,
+                f,
+                replay_from_fork,
+                result_cache,
+                fork_output,
+                true,
+            )
+            .map(|_| ())
+        }
     }
 
     /// Run one shrink attempt: replay `proposal` through generation, run

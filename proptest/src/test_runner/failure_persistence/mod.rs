@@ -25,16 +25,41 @@ pub use self::map::*;
 
 use crate::test_runner::Seed;
 
-/// Opaque struct representing a seed which can be persisted.
+/// Opaque struct representing a persisted failure: either an RNG seed
+/// (regenerates and re-shrinks the historical failure) or, under the tape
+/// shrink engine, a recorded choice tape (replays the already-shrunken
+/// values exactly, surviving strategy refactors and RNG changes).
 ///
 /// The `Display` and `FromStr` implementations go to and from the format
 /// Proptest uses for its persistence file.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PersistedSeed(pub(crate) Seed);
+pub struct PersistedSeed(pub(crate) PersistedFailure);
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum PersistedFailure {
+    Seed(Seed),
+    /// A serialized choice tape (see `tape::serialize_tape`), written as
+    /// `ct1 <base16>`.
+    Tape(Vec<u8>),
+}
+
+const TAPE_PERSISTENCE_KEY: &str = "ct1";
 
 impl Display for PersistedSeed {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.to_persistence())
+        match &self.0 {
+            PersistedFailure::Seed(seed) => {
+                write!(f, "{}", seed.to_persistence())
+            }
+            PersistedFailure::Tape(bytes) => {
+                write!(f, "{}", TAPE_PERSISTENCE_KEY)?;
+                write!(f, " ")?;
+                for byte in bytes {
+                    write!(f, "{:02x}", byte)?;
+                }
+                Ok(())
+            }
+        }
     }
 }
 
@@ -42,7 +67,25 @@ impl FromStr for PersistedSeed {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, ()> {
-        Seed::from_persistence(s).map(PersistedSeed).ok_or(())
+        let trimmed = s.trim();
+        if let Some(hex) = trimmed
+            .strip_prefix(TAPE_PERSISTENCE_KEY)
+            .and_then(|rest| rest.strip_prefix(' '))
+        {
+            let hex = hex.trim();
+            if 0 != hex.len() % 2 {
+                return Err(());
+            }
+            let mut bytes = Vec::with_capacity(hex.len() / 2);
+            for pair in hex.as_bytes().chunks(2) {
+                let s = core::str::from_utf8(pair).map_err(|_| ())?;
+                bytes.push(u8::from_str_radix(s, 16).map_err(|_| ())?);
+            }
+            return Ok(PersistedSeed(PersistedFailure::Tape(bytes)));
+        }
+        Seed::from_persistence(trimmed)
+            .map(|seed| PersistedSeed(PersistedFailure::Seed(seed)))
+            .ok_or(())
     }
 }
 
@@ -67,7 +110,9 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
     ) -> Vec<PersistedSeed> {
         self.load_persisted_failures(source_file)
             .into_iter()
-            .map(|seed| PersistedSeed(Seed::XorShift(seed)))
+            .map(|seed| {
+                PersistedSeed(PersistedFailure::Seed(Seed::XorShift(seed)))
+            })
             .collect()
     }
 
@@ -96,7 +141,7 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
         shrunken_value: &dyn fmt::Debug,
     ) {
         match seed.0 {
-            Seed::XorShift(seed) => {
+            PersistedFailure::Seed(Seed::XorShift(seed)) => {
                 self.save_persisted_failure(source_file, seed, shrunken_value)
             }
             _ => (),
@@ -144,12 +189,14 @@ impl Clone for Box<dyn FailurePersistence> {
 
 #[cfg(test)]
 mod tests {
-    use super::PersistedSeed;
+    use super::{PersistedFailure, PersistedSeed};
     use crate::test_runner::rng::Seed;
 
-    pub const INC_SEED: PersistedSeed = PersistedSeed(Seed::XorShift([
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-    ]));
+    pub const INC_SEED: PersistedSeed = PersistedSeed(
+        PersistedFailure::Seed(Seed::XorShift([
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+        ])),
+    );
 
     pub const HI_PATH: Option<&str> = Some("hi");
     pub const UNREL_PATH: Option<&str> = Some("unrelated");

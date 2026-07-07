@@ -472,6 +472,132 @@ impl TapeState {
     }
 }
 
+/// Serialize a tape for failure persistence (the payload of the "ct1"
+/// persisted-failure format). Spans are shrinking metadata and are not
+/// persisted; replay ignores them.
+pub(crate) fn serialize_tape(tape: &Tape) -> Vec<u8> {
+    let mut out = Vec::new();
+    for choice in &tape.choices {
+        match choice {
+            Choice::Integer {
+                value,
+                min,
+                max,
+                shrink_to,
+            } => {
+                out.push(0);
+                out.extend_from_slice(&value.to_le_bytes());
+                out.extend_from_slice(&min.to_le_bytes());
+                out.extend_from_slice(&max.to_le_bytes());
+                out.extend_from_slice(&shrink_to.to_le_bytes());
+            }
+            Choice::Float {
+                value,
+                min,
+                max,
+                allow_nan,
+            } => {
+                out.push(1);
+                out.extend_from_slice(&value.to_le_bytes());
+                out.extend_from_slice(&min.to_le_bytes());
+                out.extend_from_slice(&max.to_le_bytes());
+                out.push(*allow_nan as u8);
+            }
+            Choice::Bool { value } => {
+                out.push(2);
+                out.push(*value as u8);
+            }
+            Choice::RawU32 { value } => {
+                out.push(3);
+                out.extend_from_slice(&value.to_le_bytes());
+            }
+            Choice::RawU64 { value } => {
+                out.push(4);
+                out.extend_from_slice(&value.to_le_bytes());
+            }
+            Choice::RawBytes { value } => {
+                out.push(5);
+                out.extend_from_slice(&(value.len() as u32).to_le_bytes());
+                out.extend_from_slice(value);
+            }
+        }
+    }
+    out
+}
+
+/// Inverse of `serialize_tape`. Strict: any malformed input yields `None`
+/// (the persistence layer then ignores the entry).
+pub(crate) fn deserialize_tape(bytes: &[u8]) -> Option<Tape> {
+    fn take<'a>(bytes: &mut &'a [u8], n: usize) -> Option<&'a [u8]> {
+        if bytes.len() < n {
+            return None;
+        }
+        let (head, tail) = bytes.split_at(n);
+        *bytes = tail;
+        Some(head)
+    }
+    fn take_u128(bytes: &mut &[u8]) -> Option<u128> {
+        let mut buf = [0u8; 16];
+        buf.copy_from_slice(take(bytes, 16)?);
+        Some(u128::from_le_bytes(buf))
+    }
+    fn take_f64(bytes: &mut &[u8]) -> Option<f64> {
+        let mut buf = [0u8; 8];
+        buf.copy_from_slice(take(bytes, 8)?);
+        Some(f64::from_le_bytes(buf))
+    }
+
+    let mut bytes = bytes;
+    let mut choices = Vec::new();
+    while !bytes.is_empty() {
+        let tag = take(&mut bytes, 1)?[0];
+        choices.push(match tag {
+            0 => Choice::Integer {
+                value: take_u128(&mut bytes)?,
+                min: take_u128(&mut bytes)?,
+                max: take_u128(&mut bytes)?,
+                shrink_to: take_u128(&mut bytes)?,
+            },
+            1 => Choice::Float {
+                value: take_f64(&mut bytes)?,
+                min: take_f64(&mut bytes)?,
+                max: take_f64(&mut bytes)?,
+                allow_nan: 0 != take(&mut bytes, 1)?[0],
+            },
+            2 => Choice::Bool {
+                value: 0 != take(&mut bytes, 1)?[0],
+            },
+            3 => {
+                let mut buf = [0u8; 4];
+                buf.copy_from_slice(take(&mut bytes, 4)?);
+                Choice::RawU32 {
+                    value: u32::from_le_bytes(buf),
+                }
+            }
+            4 => {
+                let mut buf = [0u8; 8];
+                buf.copy_from_slice(take(&mut bytes, 8)?);
+                Choice::RawU64 {
+                    value: u64::from_le_bytes(buf),
+                }
+            }
+            5 => {
+                let mut buf = [0u8; 4];
+                buf.copy_from_slice(take(&mut bytes, 4)?);
+                let len = u32::from_le_bytes(buf) as usize;
+                Choice::RawBytes {
+                    value: take(&mut bytes, len)?.to_vec(),
+                }
+            }
+            _ => return None,
+        });
+    }
+    Some(Tape {
+        choices,
+        spans: Vec::new(),
+    })
+}
+
 /// Order-preserving embedding of primitive integers into u128 offset space.
 pub(crate) trait TapeInt: Copy {
     fn encode(self) -> u128;
@@ -534,6 +660,7 @@ pub(crate) fn float_round_to_precision(v: f64, k: i32) -> f64 {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::std_facade::Box;
 
     fn tape_of(choices: Vec<Choice>) -> Tape {
         Tape {
@@ -1082,6 +1209,131 @@ mod test {
                 crate::test_runner::RngAlgorithm::default(),
             ),
         )
+    }
+
+    #[test]
+    fn tape_serialization_roundtrips() {
+        let tape = tape_of(vec![
+            Choice::Integer {
+                value: i64::encode(-42),
+                min: i64::encode(i64::MIN),
+                max: i64::encode(i64::MAX),
+                shrink_to: i64::encode_zero(),
+            },
+            Choice::Float {
+                value: 2.5,
+                min: f64::NEG_INFINITY,
+                max: f64::INFINITY,
+                allow_nan: true,
+            },
+            Choice::Bool { value: true },
+            Choice::RawU32 { value: 0xDEAD },
+            Choice::RawU64 { value: 0xBEEF_CAFE },
+            Choice::RawBytes {
+                value: vec![1, 2, 3, 4, 5],
+            },
+        ]);
+        let bytes = serialize_tape(&tape);
+        assert_eq!(Some(tape), deserialize_tape(&bytes));
+        // Strictness: truncated input is rejected.
+        assert_eq!(None, deserialize_tape(&bytes[..bytes.len() - 1]));
+        assert_eq!(None, deserialize_tape(&[99]));
+    }
+
+    #[test]
+    fn persisted_tape_form_roundtrips_as_string() {
+        use core::str::FromStr;
+        let seed = crate::test_runner::PersistedSeed(
+            crate::test_runner::failure_persistence::PersistedFailure::Tape(
+                vec![0xab, 0xcd, 0x01],
+            ),
+        );
+        let string = format!("{}", seed);
+        assert!(string.starts_with("ct1 "), "got: {}", string);
+        assert_eq!(
+            Ok(seed),
+            crate::test_runner::PersistedSeed::from_str(&string)
+        );
+    }
+
+    #[test]
+    fn persisted_tape_replays_exact_shrunken_value() {
+        use crate::strategy::Strategy;
+
+        // Run 1: fail on v >= 1.7, shrink to 2.0, persist.
+        let mut config = engine_config();
+        config.failure_persistence = Some(Box::new(
+            crate::test_runner::MapFailurePersistence::default(),
+        ));
+        config.source_file = Some("tape_persistence_test");
+        let mut runner = crate::test_runner::TestRunner::new_with_rng(
+            config,
+            crate::test_runner::TestRng::deterministic_rng(
+                crate::test_runner::RngAlgorithm::default(),
+            ),
+        );
+        let strategy = 0.0f64..10.0;
+        match runner.run(&strategy, |v| {
+            if v >= 1.7 {
+                Err(crate::test_runner::TestCaseError::fail("too big"))
+            } else {
+                Ok(())
+            }
+        }) {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!(2.0, value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+
+        // The persisted entry is a tape, not a seed.
+        let map = runner
+            .config()
+            .failure_persistence
+            .as_ref()
+            .unwrap()
+            .as_any()
+            .downcast_ref::<crate::test_runner::MapFailurePersistence>()
+            .unwrap()
+            .map
+            .clone();
+        let entries = &map[&"tape_persistence_test"];
+        assert_eq!(1, entries.len());
+        assert!(format!("{}", entries.iter().next().unwrap())
+            .starts_with("ct1 "));
+
+        // Run 2: fresh runner and RNG; the test only fails at *exactly*
+        // 2.0, which random generation will essentially never produce.
+        // Only replaying the persisted tape can find it.
+        let mut config = engine_config();
+        config.cases = 10;
+        config.failure_persistence = Some(Box::new(
+            crate::test_runner::MapFailurePersistence { map },
+        ));
+        config.source_file = Some("tape_persistence_test");
+        let mut runner = crate::test_runner::TestRunner::new_with_rng(
+            config,
+            crate::test_runner::TestRng::from_seed(
+                crate::test_runner::RngAlgorithm::ChaCha,
+                &[7; 32],
+            ),
+        );
+        match runner.run(&(0.0f64..10.0), |v| {
+            if v == 2.0 {
+                Err(crate::test_runner::TestCaseError::fail("replayed"))
+            } else {
+                Ok(())
+            }
+        }) {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!(2.0, value)
+            }
+            other => panic!(
+                "persisted tape did not replay the failure: {:?}",
+                other
+            ),
+        }
+        let _ = strategy;
     }
 
     #[test]
