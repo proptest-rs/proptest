@@ -748,6 +748,52 @@ mod test {
     }
 
     #[test]
+    fn replay_engine_shrinks_any_float_to_round_value() {
+        // f64::ANY (class-based generation) records its value as a typed
+        // Float choice, so it gets round-value shrinking too.
+        let mut runner = engine_runner();
+        let result = runner.run(&crate::num::f64::ANY, |v| {
+            if v.is_finite() && v >= 1.7 {
+                Err(crate::test_runner::TestCaseError::fail("too big"))
+            } else {
+                Ok(())
+            }
+        });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!(2.0, value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn replay_engine_keeps_class_restricted_floats_in_class() {
+        // Shrink proposals (0.0, truncation, ...) fall outside the
+        // allowed class set; the conform hook maps them back in, so the
+        // minimal example is the smallest positive subnormal, not 0.0.
+        let mut runner = engine_runner();
+        let strategy =
+            crate::num::f64::POSITIVE | crate::num::f64::SUBNORMAL;
+        let result = runner.run(&strategy, |_| {
+            Err(crate::test_runner::TestCaseError::fail("always"))
+        });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert!(
+                    value.is_sign_positive()
+                        && value.classify()
+                            == core::num::FpCategory::Subnormal,
+                    "value left the strategy's class set: {:?}",
+                    value
+                );
+                assert_eq!(f64::from_bits(1), value);
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
     fn replay_engine_deletes_vec_elements() {
         // Element deletion is a generic span-deletion pass under the tape
         // engine; remaining elements minimize to their targets.

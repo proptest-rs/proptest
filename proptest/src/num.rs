@@ -778,23 +778,40 @@ macro_rules! float_any {
                              true, false)),
                     ].new_tree(runner)?.current();
 
-                let mut generated_value: <$typ as FloatLayout>::Bits =
-                    runner.rng().random();
-                generated_value &= sign_mask | class_mask;
-                generated_value |= sign_or | class_or;
-                let exp = generated_value & $typ::EXP_MASK;
-                if !allow_edge_exp && (0 == exp || $typ::EXP_MASK == exp) {
-                    generated_value &= !$typ::EXP_MASK;
-                    generated_value |= $typ::EXP_ZERO;
-                }
-                if !allow_zero_mant &&
-                    0 == generated_value & <$typ as FloatLayout>::MANTISSA_MASK
-                {
-                    generated_value |= 1;
-                }
+                // The value is one typed Float choice on the tape; the
+                // conform hook keeps shrink proposals inside the allowed
+                // class set (the class pick above is a separate typed
+                // choice via prop_oneof).
+                let value = runner.draw_f64_in_with(
+                    <$typ>::NEG_INFINITY as f64,
+                    <$typ>::INFINITY as f64,
+                    flags.intersects(
+                        FloatTypes::QUIET_NAN | FloatTypes::SIGNALING_NAN,
+                    ),
+                    |v| conform_to_types(v as $typ, flags) as f64,
+                    |r| {
+                        let mut generated_value:
+                            <$typ as FloatLayout>::Bits = r.rng().random();
+                        generated_value &= sign_mask | class_mask;
+                        generated_value |= sign_or | class_or;
+                        let exp = generated_value & $typ::EXP_MASK;
+                        if !allow_edge_exp
+                            && (0 == exp || $typ::EXP_MASK == exp)
+                        {
+                            generated_value &= !$typ::EXP_MASK;
+                            generated_value |= $typ::EXP_ZERO;
+                        }
+                        if !allow_zero_mant
+                            && 0 == generated_value
+                                & <$typ as FloatLayout>::MANTISSA_MASK
+                        {
+                            generated_value |= 1;
+                        }
+                        $typ::from_bits(generated_value) as f64
+                    },
+                ) as $typ;
 
-                Ok(BinarySearch::new_with_types(
-                    $typ::from_bits(generated_value), flags))
+                Ok(BinarySearch::new_with_types(value, flags))
             }
         }
     }
@@ -815,6 +832,78 @@ macro_rules! float_bin_search {
             use super::{FloatLayout, FloatTypes};
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
+
+            /// Whether `v`'s class and sign are permitted by `allowed`.
+            fn float_class_allowed(v: $typ, allowed: FloatTypes) -> bool {
+                use core::num::FpCategory::*;
+
+                let class_allowed = match v.classify() {
+                    Nan =>
+                    // We don't need to inspect whether the
+                    // signallingness of the NaN matches the allowed
+                    // set, as we never try to switch between them,
+                    // instead shrinking to 0.
+                    {
+                        allowed.contains(FloatTypes::QUIET_NAN)
+                            || allowed.contains(FloatTypes::SIGNALING_NAN)
+                    }
+                    Infinite => allowed.contains(FloatTypes::INFINITE),
+                    Zero => allowed.contains(FloatTypes::ZERO),
+                    Subnormal => allowed.contains(FloatTypes::SUBNORMAL),
+                    Normal => allowed.contains(FloatTypes::NORMAL),
+                };
+                let signum = v.signum();
+                let sign_allowed = if signum > 0.0 {
+                    allowed.contains(FloatTypes::POSITIVE)
+                } else if signum < 0.0 {
+                    allowed.contains(FloatTypes::NEGATIVE)
+                } else {
+                    true
+                };
+
+                class_allowed && sign_allowed
+            }
+
+            /// Map an arbitrary float (e.g. a tape shrink proposal) to a
+            /// value the class-restricted `Any` strategy could actually
+            /// generate: keep it if allowed, else try the sign flip, else
+            /// fall back to the simplest allowed value.
+            fn conform_to_types(v: $typ, allowed: FloatTypes) -> $typ {
+                if float_class_allowed(v, allowed) {
+                    return v;
+                }
+                if float_class_allowed(-v, allowed) {
+                    return -v;
+                }
+                let sign: $typ =
+                    if allowed.contains(FloatTypes::POSITIVE) {
+                        1.0
+                    } else {
+                        -1.0
+                    };
+                if allowed.contains(FloatTypes::ZERO) {
+                    return sign * 0.0;
+                }
+                if allowed.contains(FloatTypes::NORMAL) {
+                    return sign * 1.0;
+                }
+                if allowed.contains(FloatTypes::SUBNORMAL) {
+                    return sign * $typ::from_bits(1);
+                }
+                if allowed.contains(FloatTypes::INFINITE) {
+                    return sign * ::core::$typ::INFINITY;
+                }
+                if allowed.contains(FloatTypes::QUIET_NAN) {
+                    return ::core::$typ::NAN;
+                }
+                // Signaling NaN only: same construction as in
+                // `Any::new_tree`.
+                let quiet_or = ::core::$typ::NAN.to_bits()
+                    & ($typ::EXP_MASK | ($typ::EXP_MASK >> 1));
+                let signaling =
+                    (quiet_or ^ ($typ::EXP_MASK >> 1)) | $typ::EXP_MASK | 1;
+                $typ::from_bits(signaling)
+            }
 
             float_any!($typ);
 
@@ -867,38 +956,7 @@ macro_rules! float_bin_search {
                 }
 
                 fn current_allowed(&self) -> bool {
-                    use core::num::FpCategory::*;
-
-                    // Don't reposition if the new value is not allowed
-                    let class_allowed = match self.curr.classify() {
-                        Nan =>
-                        // We don't need to inspect whether the
-                        // signallingness of the NaN matches the allowed
-                        // set, as we never try to switch between them,
-                        // instead shrinking to 0.
-                        {
-                            self.allowed.contains(FloatTypes::QUIET_NAN)
-                                || self
-                                    .allowed
-                                    .contains(FloatTypes::SIGNALING_NAN)
-                        }
-                        Infinite => self.allowed.contains(FloatTypes::INFINITE),
-                        Zero => self.allowed.contains(FloatTypes::ZERO),
-                        Subnormal => {
-                            self.allowed.contains(FloatTypes::SUBNORMAL)
-                        }
-                        Normal => self.allowed.contains(FloatTypes::NORMAL),
-                    };
-                    let signum = self.curr.signum();
-                    let sign_allowed = if signum > 0.0 {
-                        self.allowed.contains(FloatTypes::POSITIVE)
-                    } else if signum < 0.0 {
-                        self.allowed.contains(FloatTypes::NEGATIVE)
-                    } else {
-                        true
-                    };
-
-                    class_allowed && sign_allowed
+                    float_class_allowed(self.curr, self.allowed)
                 }
 
                 fn ensure_acceptable(&mut self) {

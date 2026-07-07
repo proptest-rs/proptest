@@ -1034,6 +1034,25 @@ impl TestRunner {
         allow_nan: bool,
         sample: impl FnOnce(&mut Self) -> f64,
     ) -> f64 {
+        self.draw_f64_in_with(min, max, allow_nan, |v| v, sample)
+    }
+
+    /// Like `draw_f64_in`, but with a `conform` hook applied to replayed
+    /// values after the min/max/NaN normalization. Strategies whose
+    /// support is not a simple interval (e.g. the class-restricted float
+    /// `Any` strategies) use it to map an arbitrary shrink proposal to
+    /// the nearest value they could actually generate; the conformed
+    /// value is what gets re-recorded, so accepted tapes stay
+    /// self-consistent. `sample`d values are assumed conformant by
+    /// construction.
+    pub(crate) fn draw_f64_in_with(
+        &mut self,
+        min: f64,
+        max: f64,
+        allow_nan: bool,
+        conform: impl FnOnce(f64) -> f64,
+        sample: impl FnOnce(&mut Self) -> f64,
+    ) -> f64 {
         if !self.rng.tape.is_on() {
             return sample(self);
         }
@@ -1052,6 +1071,7 @@ impl TestRunner {
                 } else {
                     value.clamp(min, max)
                 };
+                let value = conform(value);
                 self.rng.tape.record(Choice::Float {
                     value,
                     min,
