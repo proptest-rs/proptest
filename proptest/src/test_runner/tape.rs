@@ -769,6 +769,27 @@ mod test {
     }
 
     #[test]
+    fn replay_engine_deletes_long_vec_via_batched_deletion() {
+        // Starts around 50 elements on average; batched span deletion
+        // takes out long runs in O(log n) attempts.
+        let mut runner = engine_runner();
+        let result =
+            runner.run(&crate::collection::vec(0i32..100, 0..100), |v| {
+                if v.len() >= 5 {
+                    Err(crate::test_runner::TestCaseError::fail("too long"))
+                } else {
+                    Ok(())
+                }
+            });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!(vec![0, 0, 0, 0, 0], value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
     fn replay_engine_minimizes_vec_elements() {
         let mut runner = engine_runner();
         let result =

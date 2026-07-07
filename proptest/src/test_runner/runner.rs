@@ -1380,6 +1380,51 @@ impl TestRunner {
             ) {
                 TapeAttemptResult::Accepted => {
                     improved = true;
+                    // Adaptive batching: a successful deletion often means
+                    // many neighbors are deletable too (think "shrink a
+                    // 100-element vec to 3"). Try deleting geometrically
+                    // growing blocks of spans at this position while that
+                    // keeps working, covering long runs in O(log n)
+                    // attempts instead of one by one.
+                    let mut block_len = 2usize;
+                    loop {
+                        let nspans = best.tape.spans.len();
+                        if pos >= nspans {
+                            break;
+                        }
+                        let hi_idx = nspans - 1 - pos;
+                        if hi_idx + 1 < block_len {
+                            break;
+                        }
+                        let lo_idx = hi_idx + 1 - block_len;
+                        let block = &best.tape.spans[lo_idx..=hi_idx];
+                        let start =
+                            block.iter().map(|s| s.start).min().unwrap();
+                        let end =
+                            block.iter().map(|s| s.end).max().unwrap();
+                        if end > best.tape.choices.len() || start >= end {
+                            break;
+                        }
+                        match self.tape_attempt(
+                            strategy,
+                            test,
+                            rng_snapshot,
+                            best.tape
+                                .with_span_deleted(tape::Span { start, end }),
+                            best,
+                            budget,
+                            result_cache,
+                            fork_output,
+                        ) {
+                            TapeAttemptResult::Accepted => {
+                                block_len *= 2;
+                            }
+                            TapeAttemptResult::Rejected => break,
+                            TapeAttemptResult::Exhausted => {
+                                return (improved, true)
+                            }
+                        }
+                    }
                 }
                 TapeAttemptResult::Rejected => {
                     pos += 1;
