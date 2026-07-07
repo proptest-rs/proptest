@@ -1302,6 +1302,34 @@ impl TestRunner {
                 break;
             }
 
+            let (imp, ex) = self.tape_redistribute_pairs(
+                strategy,
+                test,
+                &rng_snapshot,
+                &mut best,
+                &mut budget,
+                result_cache,
+                fork_output,
+            );
+            improved |= imp;
+            if ex {
+                break;
+            }
+
+            let (imp, ex) = self.tape_minimize_duplicates(
+                strategy,
+                test,
+                &rng_snapshot,
+                &mut best,
+                &mut budget,
+                result_cache,
+                fork_output,
+            );
+            improved |= imp;
+            if ex {
+                break;
+            }
+
             let mut idx = 0;
             while idx < best.tape.choices.len() {
                 let (imp, ex) = self.tape_minimize_choice(
@@ -1486,6 +1514,219 @@ impl TestRunner {
                     pos += 1;
                 }
                 TapeAttemptResult::Exhausted => return (improved, true),
+            }
+        }
+        (improved, false)
+    }
+
+    /// Cross-value pass: move weight from an earlier integer choice to
+    /// the next integer choice after it, preserving their sum. Shortlex
+    /// prefers earlier choices being smaller, so `[27, 23]` becomes
+    /// `[0, 50]` when the failure depends only on the sum — after which
+    /// the deletion pass can remove the zero. Returns
+    /// `(improved_anything, budget_exhausted)`.
+    fn tape_redistribute_pairs<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: &TestRng,
+        best: &mut TapeBest<S::Tree>,
+        budget: &mut TapeShrinkBudget,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> (bool, bool) {
+        let mut improved = false;
+        let mut i = 0;
+        'outer: while i < best.tape.choices.len() {
+            // Repeatedly re-read: accepted attempts rewrite the tape.
+            let (value_i, min_i, max_i, shrink_to_i) =
+                match best.tape.choices[i] {
+                    Choice::Integer {
+                        value,
+                        min,
+                        max,
+                        shrink_to,
+                    } if value != shrink_to => (value, min, max, shrink_to),
+                    _ => {
+                        i += 1;
+                        continue;
+                    }
+                };
+            let j = match (i + 1..best.tape.choices.len())
+                .find(|&j| matches!(best.tape.choices[j], Choice::Integer { .. }))
+            {
+                Some(j) => j,
+                None => break,
+            };
+            let (value_j, min_j, max_j, shrink_to_j) =
+                match best.tape.choices[j] {
+                    Choice::Integer {
+                        value,
+                        min,
+                        max,
+                        shrink_to,
+                    } => (value, min, max, shrink_to),
+                    _ => unreachable!(),
+                };
+
+            // Transfer moves choice i toward its target and choice j the
+            // opposite way, within j's constraints. All values are in
+            // offset space, where differences equal value-space
+            // differences regardless of signedness.
+            let above = value_i > shrink_to_i;
+            let d_max = if above {
+                (value_i - shrink_to_i).min(max_j - value_j)
+            } else {
+                (shrink_to_i - value_i).min(value_j - min_j)
+            };
+
+            let mut d = d_max;
+            while d > 0 {
+                let (new_i, new_j) = if above {
+                    (value_i - d, value_j + d)
+                } else {
+                    (value_i + d, value_j - d)
+                };
+                let proposal = best
+                    .tape
+                    .with_choice(
+                        i,
+                        Choice::Integer {
+                            value: new_i,
+                            min: min_i,
+                            max: max_i,
+                            shrink_to: shrink_to_i,
+                        },
+                    )
+                    .with_choice(
+                        j,
+                        Choice::Integer {
+                            value: new_j,
+                            min: min_j,
+                            max: max_j,
+                            shrink_to: shrink_to_j,
+                        },
+                    );
+                match self.tape_attempt(
+                    strategy,
+                    test,
+                    rng_snapshot,
+                    proposal,
+                    best,
+                    budget,
+                    result_cache,
+                    fork_output,
+                ) {
+                    TapeAttemptResult::Accepted => {
+                        improved = true;
+                        // Values changed (and the tape may have been
+                        // restructured); restart this position.
+                        continue 'outer;
+                    }
+                    TapeAttemptResult::Rejected => d /= 2,
+                    TapeAttemptResult::Exhausted => return (improved, true),
+                }
+            }
+            i += 1;
+        }
+        (improved, false)
+    }
+
+    /// Cross-value pass: lower groups of identical integer choices
+    /// together. Catches failures conditioned on equality (`a == b`)
+    /// that no single-choice edit can preserve. Returns
+    /// `(improved_anything, budget_exhausted)`.
+    fn tape_minimize_duplicates<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: &TestRng,
+        best: &mut TapeBest<S::Tree>,
+        budget: &mut TapeShrinkBudget,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> (bool, bool) {
+        let mut improved = false;
+        // Distinct (value, shrink_to) pairs occurring in 2+ integer
+        // choices of the incumbent tape.
+        let mut groups: Vec<(u128, u128)> = Vec::new();
+        for choice in &best.tape.choices {
+            if let Choice::Integer {
+                value, shrink_to, ..
+            } = *choice
+            {
+                if value != shrink_to
+                    && best
+                        .tape
+                        .choices
+                        .iter()
+                        .filter(|c| {
+                            matches!(
+                                c,
+                                Choice::Integer { value: v, shrink_to: t, .. }
+                                    if *v == value && *t == shrink_to
+                            )
+                        })
+                        .count()
+                        >= 2
+                    && !groups.contains(&(value, shrink_to))
+                {
+                    groups.push((value, shrink_to));
+                }
+            }
+        }
+
+        for (value, shrink_to) in groups {
+            // Propose moving every member of the group to the same new
+            // value, bisecting the distance toward the shared target.
+            let above = value > shrink_to;
+            let dist = if above {
+                value - shrink_to
+            } else {
+                shrink_to - value
+            };
+            let mut d = dist;
+            while d > 0 {
+                let new_value =
+                    if above { value - d } else { value + d };
+                let mut proposal = best.tape.clone();
+                let mut members = 0;
+                for choice in &mut proposal.choices {
+                    if let Choice::Integer {
+                        value: v,
+                        shrink_to: t,
+                        ..
+                    } = choice
+                    {
+                        if *v == value && *t == shrink_to {
+                            *v = new_value;
+                            members += 1;
+                        }
+                    }
+                }
+                if members < 2 {
+                    // The group dissolved under earlier edits.
+                    break;
+                }
+                match self.tape_attempt(
+                    strategy,
+                    test,
+                    rng_snapshot,
+                    proposal,
+                    best,
+                    budget,
+                    result_cache,
+                    fork_output,
+                ) {
+                    TapeAttemptResult::Accepted => {
+                        improved = true;
+                        // The group's shared value changed; move on and
+                        // let the next round regroup.
+                        break;
+                    }
+                    TapeAttemptResult::Rejected => d /= 2,
+                    TapeAttemptResult::Exhausted => return (improved, true),
+                }
             }
         }
         (improved, false)

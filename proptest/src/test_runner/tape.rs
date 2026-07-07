@@ -974,6 +974,74 @@ mod test {
     }
 
     #[test]
+    fn replay_engine_redistributes_vec_sum_to_single_element() {
+        // Needs the cross-value redistribute pass: [27, 23] -> [0, 50],
+        // then deletion of the zero -> [50].
+        let mut runner = engine_runner();
+        let result =
+            runner.run(&crate::collection::vec(0i32..100, 0..20), |v| {
+                if v.iter().sum::<i32>() >= 50 {
+                    Err(crate::test_runner::TestCaseError::fail("big sum"))
+                } else {
+                    Ok(())
+                }
+            });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!(vec![50], value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn replay_engine_redistributes_pair_within_constraints() {
+        // Transfer clamps at the second component's upper bound.
+        let mut runner = engine_runner();
+        let result = runner.run(&(0i32..60, 0i32..60), |(a, b)| {
+            if a + b >= 100 {
+                Err(crate::test_runner::TestCaseError::fail("big sum"))
+            } else {
+                Ok(())
+            }
+        });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, (a, b))) => {
+                assert_eq!((41, 59), (a, b))
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn replay_engine_lowers_duplicates_together() {
+        // No single-choice edit preserves a == b; the duplicates pass
+        // lowers both together. Equal pairs are rare (1/1000 per case),
+        // so give the runner enough cases to find one.
+        let mut config = engine_config();
+        config.cases = 20_000;
+        let mut runner = crate::test_runner::TestRunner::new_with_rng(
+            config,
+            crate::test_runner::TestRng::deterministic_rng(
+                crate::test_runner::RngAlgorithm::default(),
+            ),
+        );
+        let result = runner.run(&(0i32..1000, 0i32..1000), |(a, b)| {
+            if a == b && a >= 10 {
+                Err(crate::test_runner::TestCaseError::fail("equal"))
+            } else {
+                Ok(())
+            }
+        });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!((10, 10), value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
     fn replay_engine_respects_zero_shrink_budget() {
         let mut config = engine_config();
         config.max_shrink_iters = 0;
