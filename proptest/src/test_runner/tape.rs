@@ -794,6 +794,44 @@ mod test {
     }
 
     #[test]
+    fn replay_engine_shrinks_char_range_to_boundary() {
+        let mut runner = engine_runner();
+        let result = runner.run(&crate::char::range('a', 'z'), |c| {
+            if c >= 'd' {
+                Err(crate::test_runner::TestCaseError::fail("too big"))
+            } else {
+                Ok(())
+            }
+        });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!('d', value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn replay_engine_shrinks_any_char_to_convenient_bottom() {
+        // char shrink targets are the hard-wired convenient characters
+        // ('a', 'A', '0', ' ', '¡', or NUL), not necessarily NUL.
+        let mut runner = engine_runner();
+        let result = runner.run(&crate::char::any(), |_| {
+            Err(crate::test_runner::TestCaseError::fail("always"))
+        });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert!(
+                    ['\0', ' ', '0', 'A', 'a', '¡'].contains(&value),
+                    "expected a convenient bottom, got {:?}",
+                    value
+                );
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
     fn replay_engine_deletes_vec_elements() {
         // Element deletion is a generic span-deletion pass under the tape
         // engine; remaining elements minimize to their targets.

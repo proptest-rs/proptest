@@ -986,26 +986,56 @@ impl TestRunner {
     where
         T: TapeInt,
     {
+        self.draw_integer_in_with(
+            min,
+            max,
+            |_| T::decode(T::encode_zero().clamp(T::encode(min), T::encode(max))),
+            |v| v,
+            sample,
+        )
+    }
+
+    /// Like `draw_integer_in`, but with custom shrinking metadata and a
+    /// `conform` hook for strategies whose support is not one contiguous
+    /// interval (e.g. `char`, whose support is a union of ranges with
+    /// surrogate holes).
+    ///
+    /// `shrink_to_of` gives the shrink target *for a particular value*
+    /// (chars shrink to 'a' when they start at or above 'a', etc.);
+    /// `conform` maps a replayed shrink proposal to the nearest value the
+    /// strategy could actually generate. The conformed value is what gets
+    /// re-recorded, so accepted tapes stay self-consistent. Sampled
+    /// values are assumed conformant by construction.
+    pub(crate) fn draw_integer_in_with<T>(
+        &mut self,
+        min: T,
+        max: T,
+        shrink_to_of: impl Fn(T) -> T,
+        conform: impl Fn(T) -> T,
+        sample: impl FnOnce(&mut Self) -> T,
+    ) -> T
+    where
+        T: TapeInt,
+    {
         if !self.rng.tape.is_on() {
             return sample(self);
         }
         let emin = T::encode(min);
         let emax = T::encode(max);
-        let shrink_to = T::encode_zero().clamp(emin, emax);
         if self.rng.tape.is_replaying() {
             if let Some(Choice::Integer { value, .. }) = self
                 .rng
                 .tape
                 .pop_replay(|c| matches!(c, Choice::Integer { .. }))
             {
-                let value = value.clamp(emin, emax);
+                let value = conform(T::decode(value.clamp(emin, emax)));
                 self.rng.tape.record(Choice::Integer {
-                    value,
+                    value: T::encode(value),
                     min: emin,
                     max: emax,
-                    shrink_to,
+                    shrink_to: T::encode(shrink_to_of(value)),
                 });
-                return T::decode(value);
+                return value;
             }
         }
         // Recording, or drawing fresh after a replay misalignment.
@@ -1016,7 +1046,7 @@ impl TestRunner {
             value: T::encode(sampled),
             min: emin,
             max: emax,
-            shrink_to,
+            shrink_to: T::encode(shrink_to_of(sampled)),
         });
         sampled
     }
