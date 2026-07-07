@@ -93,7 +93,7 @@ macro_rules! unsupported_int_any {
 }
 
 macro_rules! int_any {
-    ($typ: ident, $int_any: ident) => {
+    ($typ: ident, $int_any: ident, $uniform: ident, $incl: ident) => {
         /// Type of the `ANY` constant.
         #[derive(Clone, Copy, Debug)]
         #[must_use = "strategies do nothing unless used"]
@@ -107,29 +107,53 @@ macro_rules! int_any {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-                Ok(BinarySearch::new($int_any!(runner, $typ)))
+                // One typed choice when the tape is on; the closure is the
+                // unchanged upstream sampling path when it is off.
+                Ok(BinarySearch::new(runner.draw_integer_in(
+                    <$typ>::MIN,
+                    <$typ>::MAX,
+                    |r| $int_any!(r, $typ),
+                )))
             }
+        }
+
+        /// Tape-aware uniform sample from `[lo, hi)`.
+        fn tape_sample(
+            runner: &mut TestRunner,
+            lo: $typ,
+            hi: $typ,
+        ) -> $typ {
+            assert!(lo < hi, "Uniform::new called with `low >= high`");
+            runner.draw_integer_in(lo, hi - 1, |r| {
+                $crate::num::$uniform::<$typ>(r, lo.into(), hi.into())
+                    .into()
+            })
+        }
+
+        /// Tape-aware uniform sample from `[lo, hi]`.
+        fn tape_sample_incl(
+            runner: &mut TestRunner,
+            lo: $typ,
+            hi: $typ,
+        ) -> $typ {
+            assert!(
+                lo <= hi,
+                "Uniform::new_inclusive called with `low > high`"
+            );
+            runner.draw_integer_in(lo, hi, |r| {
+                $crate::num::$incl::<$typ>(r, lo.into(), hi.into()).into()
+            })
         }
     };
 }
 
+// Implements the `Strategy` for the five range types. The invoking module
+// must define `tape_sample(runner, lo, hi)` (uniform over the half-open
+// range `[lo, hi)`) and `tape_sample_incl(runner, lo, hi)` (uniform over
+// the closed range `[lo, hi]`); both record the draw on the choice tape
+// when the tape shrink engine is active.
 macro_rules! numeric_api {
     ($typ:ident, $epsilon:expr) => {
-        numeric_api!($typ, $typ, $epsilon);
-    };
-    ($typ:ident, $sample_typ:ty, $epsilon:expr) => {
-        numeric_api!(
-            $typ,
-            $sample_typ,
-            $epsilon,
-            sample_uniform,
-            sample_uniform_incl
-        );
-    };
-    ($typ:ident, $epsilon:expr, $uniform:ident, $incl:ident) => {
-        numeric_api!($typ, $typ, $epsilon, $uniform, $incl);
-    };
-    ($typ:ident, $sample_typ:ty, $epsilon:expr, $uniform:ident, $incl:ident) => {
         impl Strategy for ::core::ops::Range<$typ> {
             type Tree = BinarySearch;
             type Value = $typ;
@@ -144,12 +168,7 @@ macro_rules! numeric_api {
 
                 Ok(BinarySearch::new_clamped(
                     self.start,
-                    $crate::num::$uniform::<$sample_typ>(
-                        runner,
-                        self.start.into(),
-                        self.end.into(),
-                    )
-                    .into(),
+                    tape_sample(runner, self.start, self.end),
                     self.end - $epsilon,
                 ))
             }
@@ -170,12 +189,7 @@ macro_rules! numeric_api {
 
                 Ok(BinarySearch::new_clamped(
                     *self.start(),
-                    $crate::num::$incl::<$sample_typ>(
-                        runner,
-                        (*self.start()).into(),
-                        (*self.end()).into(),
-                    )
-                    .into(),
+                    tape_sample_incl(runner, *self.start(), *self.end()),
                     *self.end(),
                 ))
             }
@@ -188,12 +202,7 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     self.start,
-                    $crate::num::$incl::<$sample_typ>(
-                        runner,
-                        self.start.into(),
-                        <$typ>::MAX.into(),
-                    )
-                    .into(),
+                    tape_sample_incl(runner, self.start, <$typ>::MAX),
                     <$typ>::MAX,
                 ))
             }
@@ -206,12 +215,7 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     <$typ>::MIN,
-                    $crate::num::$uniform::<$sample_typ>(
-                        runner,
-                        <$typ>::MIN.into(),
-                        self.end.into(),
-                    )
-                    .into(),
+                    tape_sample(runner, <$typ>::MIN, self.end),
                     self.end,
                 ))
             }
@@ -224,12 +228,7 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     <$typ>::MIN,
-                    $crate::num::$incl::<$sample_typ>(
-                        runner,
-                        <$typ>::MIN.into(),
-                        self.end.into(),
-                    )
-                    .into(),
+                    tape_sample_incl(runner, <$typ>::MIN, self.end),
                     self.end,
                 ))
             }
@@ -255,7 +254,7 @@ macro_rules! signed_integer_bin_search {
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
 
-            int_any!($typ, $int_any);
+            int_any!($typ, $int_any, $uniform, $incl);
 
             /// Shrinks an integer towards 0, using binary search to find
             /// boundary points.
@@ -343,7 +342,7 @@ macro_rules! signed_integer_bin_search {
                 }
             }
 
-            numeric_api!($typ, 1, $uniform, $incl);
+            numeric_api!($typ, 1);
         }
     };
 }
@@ -366,7 +365,7 @@ macro_rules! unsigned_integer_bin_search {
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
 
-            int_any!($typ, $int_any);
+            int_any!($typ, $int_any, $uniform, $incl);
 
             /// Shrinks an integer towards 0, using binary search to find
             /// boundary points.
@@ -440,7 +439,7 @@ macro_rules! unsigned_integer_bin_search {
                 }
             }
 
-            numeric_api!($typ, 1, $uniform, $incl);
+            numeric_api!($typ, 1);
         }
     };
 }
@@ -982,7 +981,76 @@ macro_rules! float_bin_search {
                 }
             }
 
-            numeric_api!($typ, $sample_typ, 0.0);
+            /// The largest value of `$typ` strictly below `a`, assuming
+            /// `a` is neither NaN nor the minimum finite value. `-0.0` is
+            /// treated as `0.0`.
+            fn tape_next_down(a: $typ) -> $typ {
+                if a == 0.0 {
+                    -$typ::from_bits(1)
+                } else if a < 0.0 {
+                    $typ::from_bits(a.to_bits() + 1)
+                } else {
+                    $typ::from_bits(a.to_bits() - 1)
+                }
+            }
+
+            /// Tape-aware uniform sample from `[lo, hi)`. The recorded
+            /// choice's constraints are inclusive, so the upper constraint
+            /// is the next value down from `hi`.
+            fn tape_sample(
+                runner: &mut TestRunner,
+                lo: $typ,
+                hi: $typ,
+            ) -> $typ {
+                let sampled = runner.draw_f64_in(
+                    lo as f64,
+                    tape_next_down(hi) as f64,
+                    false,
+                    |r| {
+                        let s: $typ = $crate::num::sample_uniform::<
+                            $sample_typ,
+                        >(r, lo.into(), hi.into())
+                        .into();
+                        s as f64
+                    },
+                );
+                // Narrowing from the f64 choice back to $typ can round
+                // past the range bounds; clamp in $typ space.
+                let mut out = sampled as $typ;
+                if !(out >= lo) {
+                    out = lo;
+                }
+                if !(out < hi) {
+                    out = tape_next_down(hi);
+                }
+                out
+            }
+
+            /// Tape-aware uniform sample from `[lo, hi]`.
+            fn tape_sample_incl(
+                runner: &mut TestRunner,
+                lo: $typ,
+                hi: $typ,
+            ) -> $typ {
+                let sampled =
+                    runner.draw_f64_in(lo as f64, hi as f64, false, |r| {
+                        let s: $typ = $crate::num::sample_uniform_incl::<
+                            $sample_typ,
+                        >(r, lo.into(), hi.into())
+                        .into();
+                        s as f64
+                    });
+                let mut out = sampled as $typ;
+                if !(out >= lo) {
+                    out = lo;
+                }
+                if !(out <= hi) {
+                    out = hi;
+                }
+                out
+            }
+
+            numeric_api!($typ, 0.0);
         }
     };
 }

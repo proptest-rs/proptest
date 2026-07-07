@@ -110,10 +110,17 @@ impl fmt::Display for RngAlgorithm {
     }
 }
 
+use crate::test_runner::tape::{Choice, TapeState};
+
 /// Proptest's random number generator.
 #[derive(Clone, Debug)]
 pub struct TestRng {
     rng: TestRngImpl,
+    /// Choice-tape state for the experimental tape shrink engine. `Off`
+    /// (and thus zero-cost beyond a branch) unless the engine is active.
+    /// Lives here rather than on `TestRunner` so that raw `RngCore` calls
+    /// and the runner's typed draws share one tape.
+    pub(crate) tape: TapeState,
 }
 
 #[derive(Clone, Debug)]
@@ -192,18 +199,60 @@ impl TestRng {
     }
 }
 
+// The choice-tape interception seam: rand 0.10 routes all infallible RNG
+// use through `TryRng`, so recording/replaying here covers every raw draw
+// any strategy makes.
 impl TryRng for TestRng {
     type Error = Infallible;
 
     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        if self.tape.raw_active() {
+            if let Some(Choice::RawU32 { value }) =
+                self.tape.pop_replay(|c| matches!(c, Choice::RawU32 { .. }))
+            {
+                self.tape.record(Choice::RawU32 { value });
+                return Ok(value);
+            }
+            let value = self.next_u32_inner();
+            self.tape.record(Choice::RawU32 { value });
+            return Ok(value);
+        }
         Ok(self.next_u32_inner())
     }
 
     fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        if self.tape.raw_active() {
+            if let Some(Choice::RawU64 { value }) =
+                self.tape.pop_replay(|c| matches!(c, Choice::RawU64 { .. }))
+            {
+                self.tape.record(Choice::RawU64 { value });
+                return Ok(value);
+            }
+            let value = self.next_u64_inner();
+            self.tape.record(Choice::RawU64 { value });
+            return Ok(value);
+        }
         Ok(self.next_u64_inner())
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        if self.tape.raw_active() {
+            if let Some(Choice::RawBytes { value }) =
+                self.tape.pop_replay(|c| matches!(
+                    c,
+                    Choice::RawBytes { value } if value.len() == dest.len()
+                ))
+            {
+                dest.copy_from_slice(&value);
+                self.tape.record(Choice::RawBytes { value });
+                return Ok(());
+            }
+            self.fill_bytes_inner(dest);
+            self.tape.record(Choice::RawBytes {
+                value: dest.to_vec(),
+            });
+            return Ok(());
+        }
         self.fill_bytes_inner(dest);
         Ok(())
     }
@@ -439,6 +488,7 @@ impl TestRng {
                     },
                     RngAlgorithm::_NonExhaustive => unreachable!(),
                 },
+                tape: TapeState::default(),
             }
         }
         #[cfg(all(
@@ -553,9 +603,12 @@ impl TestRng {
         Self::from_seed_internal(self.new_rng_seed())
     }
 
-    /// Overwrite the given TestRng with the provided seed.
+    /// Overwrite the given TestRng with the provided seed, preserving any
+    /// active choice-tape state.
     pub(crate) fn set_seed(&mut self, seed: Seed) {
+        let tape = core::mem::take(&mut self.tape);
         *self = Self::from_seed_internal(seed);
+        self.tape = tape;
     }
 
     /// Generate a new randomized seed, set it to this TestRng,
@@ -568,6 +621,43 @@ impl TestRng {
 
     /// Randomize a perturbed randomized seed from the given TestRng.
     pub(crate) fn new_rng_seed(&mut self) -> Seed {
+        // When the choice tape is active, derive child seeds through the
+        // intercepted `fill_bytes` path so that the derivation is recorded
+        // on (and replayed from) the tape. This keeps strategies that
+        // derive RNGs (`prop_perturb`, `Just`-with-rng, ...) deterministic
+        // under tape replay even though the inner RNG's state diverges
+        // between recording and replay.
+        if self.tape.raw_active() {
+            match self.rng {
+                TestRngImpl::XorShift(..) => {
+                    let mut seed = [0u8; 16];
+                    self.fill_bytes(&mut seed);
+                    // Perturb the seed as in the untaped path below, in
+                    // case the tape happens to replay the RNG's own next
+                    // output.
+                    for word in seed.chunks_mut(4) {
+                        word[3] ^= 0xde;
+                        word[2] ^= 0xad;
+                        word[1] ^= 0xbe;
+                        word[0] ^= 0xef;
+                    }
+                    return Seed::XorShift(seed);
+                }
+                TestRngImpl::ChaCha(..) => {
+                    let mut seed = [0u8; 32];
+                    self.fill_bytes(&mut seed);
+                    return Seed::ChaCha(seed);
+                }
+                TestRngImpl::Recorder { .. } => {
+                    let mut seed = [0u8; 32];
+                    self.fill_bytes(&mut seed);
+                    return Seed::Recorder(seed);
+                }
+                // PassThrough splits its remaining data rather than
+                // drawing entropy; fall through to the untaped path.
+                TestRngImpl::PassThrough { .. } => (),
+            }
+        }
         match self.rng {
             TestRngImpl::XorShift(ref mut rng) => {
                 let mut seed = rng.random::<[u8; 16]>();
@@ -634,6 +724,7 @@ impl TestRng {
                     record: Vec::new(),
                 },
             },
+            tape: TapeState::default(),
         }
     }
 }

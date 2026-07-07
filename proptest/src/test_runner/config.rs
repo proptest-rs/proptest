@@ -13,6 +13,49 @@ use core::{fmt, str, u32};
 use crate::test_runner::result_cache::{noop_result_cache, ResultCache};
 use crate::test_runner::rng::RngAlgorithm;
 use crate::test_runner::FailurePersistence;
+/// Selects the algorithm used to shrink failing test cases.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShrinkEngine {
+    /// The classic shrinker: walk the failing case's `ValueTree` with
+    /// `simplify()`/`complicate()`. This is the default.
+    ValueTree,
+    /// Experimental: Conjecture-style choice-tape shrinking. Generation is
+    /// recorded as a tape of typed choices; shrinking edits the tape and
+    /// re-runs generation, accepting an edit iff the test still fails and
+    /// the result is simpler. Produces rounder minimal values (especially
+    /// for floats) and does not get stuck on `prop_filter`, at the cost of
+    /// re-running generation for every shrink attempt.
+    ///
+    /// Not yet supported together with `fork`/`timeout`; those
+    /// configurations fall back to `ValueTree`.
+    Tape,
+}
+
+impl Default for ShrinkEngine {
+    fn default() -> Self {
+        ShrinkEngine::ValueTree
+    }
+}
+
+impl str::FromStr for ShrinkEngine {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, ()> {
+        match s {
+            "valuetree" | "value-tree" => Ok(ShrinkEngine::ValueTree),
+            "tape" => Ok(ShrinkEngine::Tape),
+            _ => Err(()),
+        }
+    }
+}
+
+impl fmt::Display for ShrinkEngine {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ShrinkEngine::ValueTree => write!(f, "valuetree"),
+            ShrinkEngine::Tape => write!(f, "tape"),
+        }
+    }
+}
 
 /// Override the config fields from environment variables, if any are set.
 /// Without the `std` feature this function returns config unchanged.
@@ -38,6 +81,7 @@ pub fn contextualize_config(mut result: Config) -> Config {
     const VERBOSE: &str = "PROPTEST_VERBOSE";
     const RNG_ALGORITHM: &str = "PROPTEST_RNG_ALGORITHM";
     const RNG_SEED: &str = "PROPTEST_RNG_SEED";
+    const SHRINK_ENGINE: &str = "PROPTEST_SHRINK_ENGINE";
     const DISABLE_FAILURE_PERSISTENCE: &str =
         "PROPTEST_DISABLE_FAILURE_PERSISTENCE";
 
@@ -138,6 +182,13 @@ pub fn contextualize_config(mut result: Config) -> Config {
             );
         } else if var == RNG_SEED {
             parse_or_warn(&value, &mut result.rng_seed, "u64", RNG_SEED);
+        } else if var == SHRINK_ENGINE {
+            parse_or_warn(
+                &value,
+                &mut result.shrink_engine,
+                "ShrinkEngine (valuetree|tape)",
+                SHRINK_ENGINE,
+            );
         } else if var == DISABLE_FAILURE_PERSISTENCE {
             result.failure_persistence = None;
         } else if var.starts_with("PROPTEST_") {
@@ -176,6 +227,7 @@ fn default_default_config() -> Config {
         verbose: 0,
         rng_algorithm: RngAlgorithm::default(),
         rng_seed: RngSeed::Random,
+        shrink_engine: ShrinkEngine::default(),
         _non_exhaustive: (),
     }
 }
@@ -431,6 +483,18 @@ pub struct Config {
     /// Seed used for the RNG. Set by using the PROPTEST_RNG_SEED environment variable
     /// If the environment variable is undefined, a random seed is generated (this is the default option).
     pub rng_seed: RngSeed,
+
+    /// Which shrink engine to use when a failing test case is found.
+    ///
+    /// The default is `ShrinkEngine::ValueTree`, the classic proptest
+    /// shrinker. `ShrinkEngine::Tape` selects the experimental
+    /// Conjecture-style choice-tape shrinker.
+    ///
+    /// The default can be overridden by setting the
+    /// `PROPTEST_SHRINK_ENGINE` environment variable to `valuetree` or
+    /// `tape`. (The variable is only considered when the `std` feature is
+    /// enabled, which it is by default.)
+    pub shrink_engine: ShrinkEngine,
 
     // Needs to be public so FRU syntax can be used.
     #[doc(hidden)]
