@@ -19,6 +19,8 @@ use rand::rand_core::UnwrapErr;
 use rand::rngs::SysRng;
 use rand_chacha::ChaChaRng;
 use rand_xorshift::XorShiftRng;
+#[cfg(feature = "antithesis")]
+use antithesis_sdk::random::AntithesisRng;
 
 /// Identifies a particular RNG algorithm supported by proptest.
 ///
@@ -63,6 +65,13 @@ pub enum RngAlgorithm {
     /// `proptest!` macro, as otherwise there is no way to obtain the bytes
     /// this captures.
     Recorder,
+    /// Draws randomness from the [Antithesis](https://antithesis.com)
+    /// deterministic simulation testing platform, via
+    /// [`antithesis_sdk::random::AntithesisRng`].
+    ///
+    /// Only available when the `antithesis` feature is enabled.
+    #[cfg(feature = "antithesis")]
+    Antithesis,
     #[allow(missing_docs)]
     #[doc(hidden)]
     _NonExhaustive,
@@ -81,6 +90,8 @@ impl RngAlgorithm {
             RngAlgorithm::ChaCha => "cc",
             RngAlgorithm::PassThrough => "pt",
             RngAlgorithm::Recorder => "rc",
+            #[cfg(feature = "antithesis")]
+            RngAlgorithm::Antithesis => "at",
             RngAlgorithm::_NonExhaustive => unreachable!(),
         }
     }
@@ -91,6 +102,8 @@ impl RngAlgorithm {
             "cc" => Some(RngAlgorithm::ChaCha),
             "pt" => Some(RngAlgorithm::PassThrough),
             "rc" => Some(RngAlgorithm::Recorder),
+            #[cfg(feature = "antithesis")]
+            "at" => Some(RngAlgorithm::Antithesis),
             _ => None,
         }
     }
@@ -129,6 +142,8 @@ enum TestRngImpl {
         rng: ChaChaRng,
         record: Vec<u8>,
     },
+    #[cfg(feature = "antithesis")]
+    Antithesis,
 }
 
 #[cfg(feature = "std")]
@@ -152,6 +167,8 @@ impl TestRng {
                 record.extend_from_slice(&read.to_le_bytes());
                 read
             }
+            #[cfg(feature = "antithesis")]
+            TestRngImpl::Antithesis => AntithesisRng.next_u32(),
         }
     }
 
@@ -169,6 +186,8 @@ impl TestRng {
                 record.extend_from_slice(&read.to_le_bytes());
                 read
             }
+            #[cfg(feature = "antithesis")]
+            TestRngImpl::Antithesis => AntithesisRng.next_u64(),
         }
     }
 
@@ -188,6 +207,8 @@ impl TestRng {
                 rng.fill_bytes(dest);
                 record.extend_from_slice(dest);
             }
+            #[cfg(feature = "antithesis")]
+            TestRngImpl::Antithesis => AntithesisRng.fill_bytes(dest),
         }
     }
 }
@@ -215,6 +236,8 @@ pub(crate) enum Seed {
     ChaCha([u8; 32]),
     PassThrough(Option<(usize, usize)>, Arc<[u8]>),
     Recorder([u8; 32]),
+    #[cfg(feature = "antithesis")]
+    Antithesis,
 }
 
 impl Seed {
@@ -242,6 +265,9 @@ impl Seed {
                 buf.copy_from_slice(seed);
                 Seed::Recorder(buf)
             }
+
+            #[cfg(feature = "antithesis")]
+            RngAlgorithm::Antithesis => Seed::Antithesis,
 
             RngAlgorithm::_NonExhaustive => unreachable!(),
         }
@@ -321,6 +347,14 @@ impl Seed {
                     Some(Seed::Recorder(seed))
                 }
 
+                #[cfg(feature = "antithesis")]
+                RngAlgorithm::Antithesis => {
+                    if 1 != parts.len() {
+                        return None;
+                    }
+                    Some(Seed::Antithesis)
+                }
+
                 RngAlgorithm::_NonExhaustive => unreachable!(),
             },
         )
@@ -375,6 +409,11 @@ impl Seed {
                 string.push(' ');
                 to_base16(&mut string, seed);
                 string
+            }
+
+            #[cfg(feature = "antithesis")]
+            Seed::Antithesis => {
+                RngAlgorithm::Antithesis.persistence_key().to_owned()
             }
         }
     }
@@ -437,6 +476,8 @@ impl TestRng {
                         };
                         TestRngImpl::Recorder {rng, record: Vec::new()}
                     },
+                    #[cfg(feature = "antithesis")]
+                    RngAlgorithm::Antithesis => TestRngImpl::Antithesis,
                     RngAlgorithm::_NonExhaustive => unreachable!(),
                 },
             }
@@ -511,6 +552,8 @@ impl TestRng {
                 }
                 Seed::Recorder(seed)
             }
+            #[cfg(feature = "antithesis")]
+            RngAlgorithm::Antithesis => Seed::Antithesis,
             RngAlgorithm::_NonExhaustive => unreachable!(),
         })
     }
@@ -539,6 +582,8 @@ impl TestRng {
                 panic!("deterministic RNG not available for PassThrough")
             }
             RngAlgorithm::Recorder => Seed::Recorder(TestRng::SEED_FOR_CHA_CHA),
+            #[cfg(feature = "antithesis")]
+            RngAlgorithm::Antithesis => Seed::Antithesis,
             RngAlgorithm::_NonExhaustive => unreachable!(),
         })
     }
@@ -601,6 +646,9 @@ impl TestRng {
             TestRngImpl::Recorder { ref mut rng, .. } => {
                 Seed::Recorder(rng.random())
             }
+
+            #[cfg(feature = "antithesis")]
+            TestRngImpl::Antithesis => Seed::Antithesis,
         }
     }
 
@@ -629,6 +677,9 @@ impl TestRng {
                     rng: ChaChaRng::from_seed(seed),
                     record: Vec::new(),
                 },
+
+                #[cfg(feature = "antithesis")]
+                Seed::Antithesis => TestRngImpl::Antithesis,
             },
         }
     }
@@ -875,6 +926,35 @@ mod test {
         expected.extend_from_slice(&fill);
 
         assert_eq!(expected, rng.bytes_used());
+    }
+
+    #[cfg(feature = "antithesis")]
+    #[test]
+    fn antithesis_rng_draws_values_and_persists() {
+        let mut rng = TestRng::from_seed(RngAlgorithm::Antithesis, &[]);
+
+        // We can't assert determinism outside of Antithesis, only that every
+        // code path pulls a value from the SDK without panicking. The 20-byte
+        // buffer is deliberately not a multiple of 8 to exercise the remainder
+        // handling in `AntithesisRng::fill_bytes`.
+        let _ = rng.next_u32();
+        let _ = rng.next_u64();
+        let mut buf = [0u8; 20];
+        rng.fill_bytes(&mut buf);
+
+        let mut child = rng.gen_rng();
+        let _ = child.next_u64();
+
+        let mut det = TestRng::deterministic_rng(RngAlgorithm::Antithesis);
+        let _ = det.next_u64();
+
+        let seed = Seed::from_bytes(RngAlgorithm::Antithesis, &[]);
+        assert_eq!("at", seed.to_persistence());
+        assert_eq!(seed, Seed::from_persistence("at").unwrap());
+        assert_eq!(
+            Some(RngAlgorithm::Antithesis),
+            RngAlgorithm::from_persistence_key("at")
+        );
     }
 
 }
