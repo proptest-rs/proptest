@@ -29,8 +29,22 @@
   edge cases like issue #500's `total_count % count == 0` are found
   reliably instead of essentially never. Float draws occasionally inject
   boundary and special values (bounds, one ulp inside the bounds, plus
-  or minus zero and one, simple fractions, NaN where allowed). Tests
-  that depended on the old uniform distributions may need adjusting.
+  or minus zero and one, simple fractions, NaN where allowed). These
+  generation changes apply regardless of the configured shrink engine;
+  selecting `ShrinkEngine::ValueTree` does not restore the old uniform
+  distributions. Tests that depended on them may need adjusting.
+- Under the tape engine (only), collection and state-machine sequence
+  lengths are encoded as per-element continuation flags, changing the
+  length distribution from uniform over the size range to a
+  truncated-geometric shape with the same order of mean: short lengths
+  and the exact maximum become more likely, upper-middle lengths less
+  likely. Length-sensitive properties may want explicit size ranges.
+- Because generation consumes randomness differently than before, RNG
+  seed entries in existing regression files (`xs`/`cc` lines) still
+  parse but generally regenerate different values than the failure they
+  were saved for; delete them or re-trigger the failures to repopulate.
+  Tape entries (`ct1` lines, the new default) do not have this problem:
+  they replay the recorded values themselves.
 
 ### Bug Fixes
 

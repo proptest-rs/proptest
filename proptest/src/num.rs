@@ -98,8 +98,11 @@ macro_rules! int_any {
         #[derive(Clone, Copy, Debug)]
         #[must_use = "strategies do nothing unless used"]
         pub struct Any(());
-        /// Generates integers with completely arbitrary values, uniformly
-        /// distributed over the whole range.
+        /// Generates integers with completely arbitrary values over the
+        /// whole range, biased toward interesting cases: exact boundary
+        /// values appear occasionally, most values have small magnitude,
+        /// and a uniform tail keeps the full range reachable. The bias
+        /// applies regardless of the configured shrink engine.
         pub const ANY: Any = Any(());
 
         impl Strategy for Any {
@@ -857,14 +860,25 @@ macro_rules! float_bin_search {
                 use core::num::FpCategory::*;
 
                 let class_allowed = match v.classify() {
-                    Nan =>
-                    // We don't need to inspect whether the
-                    // signallingness of the NaN matches the allowed
-                    // set, as we never try to switch between them,
-                    // instead shrinking to 0.
-                    {
-                        allowed.contains(FloatTypes::QUIET_NAN)
-                            || allowed.contains(FloatTypes::SIGNALING_NAN)
+                    Nan => {
+                        // Check the signalling bit: weird-value
+                        // injection and tape replay can propose the
+                        // "wrong" kind of NaN, which conform_to_types
+                        // must be able to reject. (The hardware's
+                        // interpretation of the bit is taken from the
+                        // NAN constant, as in Any::new_tree.)
+                        let quiet_bit = ::core::$typ::NAN.to_bits()
+                            & ($typ::EXP_MASK >> 1)
+                            & <$typ as FloatLayout>::MANTISSA_MASK;
+                        let is_quiet = (v.to_bits()
+                            & ($typ::EXP_MASK >> 1)
+                            & <$typ as FloatLayout>::MANTISSA_MASK)
+                            == quiet_bit;
+                        if is_quiet {
+                            allowed.contains(FloatTypes::QUIET_NAN)
+                        } else {
+                            allowed.contains(FloatTypes::SIGNALING_NAN)
+                        }
                     }
                     Infinite => allowed.contains(FloatTypes::INFINITE),
                     Zero => allowed.contains(FloatTypes::ZERO),
@@ -982,7 +996,19 @@ macro_rules! float_bin_search {
                 }
 
                 fn current_allowed(&self) -> bool {
-                    float_class_allowed(self.curr, self.allowed)
+                    // The binary search moves values through float
+                    // arithmetic, which quiets signaling NaNs on most
+                    // hardware, so class membership here must treat the
+                    // two NaN classes as one. (conform_to_types uses the
+                    // strict check: tape proposals are pure bit
+                    // patterns, never results of arithmetic.)
+                    let nan = FloatTypes::QUIET_NAN | FloatTypes::SIGNALING_NAN;
+                    let allowed = if self.allowed.intersects(nan) {
+                        self.allowed | nan
+                    } else {
+                        self.allowed
+                    };
+                    float_class_allowed(self.curr, allowed)
                 }
 
                 fn ensure_acceptable(&mut self) {
@@ -1065,19 +1091,6 @@ macro_rules! float_bin_search {
                 }
             }
 
-            /// The largest value of `$typ` strictly below `a`, assuming
-            /// `a` is neither NaN nor the minimum finite value. `-0.0` is
-            /// treated as `0.0`.
-            fn tape_next_down(a: $typ) -> $typ {
-                if a == 0.0 {
-                    -$typ::from_bits(1)
-                } else if a < 0.0 {
-                    $typ::from_bits(a.to_bits() + 1)
-                } else {
-                    $typ::from_bits(a.to_bits() - 1)
-                }
-            }
-
             /// Tape-aware uniform sample from `[lo, hi)`. The recorded
             /// choice's constraints are inclusive, so the upper constraint
             /// is the next value down from `hi`.
@@ -1088,7 +1101,7 @@ macro_rules! float_bin_search {
             ) -> $typ {
                 let sampled = runner.draw_f64_in(
                     lo as f64,
-                    tape_next_down(hi) as f64,
+                    hi.next_down() as f64,
                     false,
                     |r| {
                         let s: $typ =
@@ -1108,7 +1121,7 @@ macro_rules! float_bin_search {
                     out = lo;
                 }
                 if !(out < hi) {
-                    out = tape_next_down(hi);
+                    out = hi.next_down();
                 }
                 out
             }
@@ -1575,6 +1588,40 @@ mod test {
         assert!(value.current().is_nan());
         assert!(!value.clone().complicate());
         assert!(!value.clone().simplify());
+    }
+
+    #[test]
+    fn signaling_nan_class_never_yields_quiet_nan() {
+        // Weird-value injection proposes plain NAN (a quiet NaN);
+        // conform_to_types must map it to a signaling NaN when the
+        // class flags exclude QUIET_NAN. Regression test: previously
+        // the class check accepted any NaN, so about 0.5% of draws
+        // from a SIGNALING_NAN-only strategy were quiet.
+        //
+        // Skip on platforms that do not honour NaN payloads in
+        // from_bits (same check as the generation tests).
+        let fidelity_1 = f32::from_bits(0x7F80_0001).to_bits();
+        let fidelity_2 = f32::from_bits(0xFF80_0001).to_bits();
+        if fidelity_1 == fidelity_2 {
+            return;
+        }
+
+        let quiet_mask = 0x0008_0000_0000_0000u64;
+        let quiet_pattern = ::std::f64::NAN.to_bits() & quiet_mask;
+        let mut runner = TestRunner::deterministic();
+        for _ in 0..4096 {
+            let value = f64::SIGNALING_NAN
+                .new_tree(&mut runner)
+                .unwrap()
+                .current();
+            assert!(value.is_nan());
+            assert_ne!(
+                quiet_pattern,
+                value.to_bits() & quiet_mask,
+                "SIGNALING_NAN-only strategy generated a quiet NaN: {:#x}",
+                value.to_bits()
+            );
+        }
     }
 
     #[test]

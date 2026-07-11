@@ -561,13 +561,11 @@ impl<T: Strategy> Strategy for VecStrategy<T> {
         // length distribution becomes truncated-geometric with the same
         // mean instead of uniform.
         if runner.tape_is_on() {
-            let extra = (end - start) as f64 / 2.0;
-            let p_continue = extra / (extra + 1.0);
             let mut elements = Vec::with_capacity(start);
             let mut i = 0;
-            while i < end {
+            loop {
                 runner.start_span();
-                if i >= start && !runner.draw_bool(p_continue) {
+                if !runner.draw_element_flag(i, start, end, false) {
                     runner.end_span();
                     break;
                 }
@@ -575,13 +573,6 @@ impl<T: Strategy> Strategy for VecStrategy<T> {
                 runner.end_span();
                 elements.push(element?);
                 i += 1;
-            }
-            if i == end && end > start {
-                // A maximum-length vec never draws a "stop" flag, which
-                // would leave its tape one Bool shorter than shorter
-                // vecs' tapes and misalign every deletion edit. Record a
-                // forced stop marker so all lengths share one shape.
-                runner.record_forced_bool(false);
             }
             let len = elements.len();
             return Ok(VecValueTree {

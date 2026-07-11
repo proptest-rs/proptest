@@ -62,27 +62,38 @@ pub(crate) enum Choice {
     },
 }
 
-/// Complexity key of a single choice. Lower keys are "simpler" values; the
-/// all-target tape has all-zero keys.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum Key {
-    Int(u128),
-    Bytes(usize, Vec<u8>),
-}
-
 impl Choice {
-    pub(crate) fn key(&self) -> Key {
+    /// Complexity of a scalar choice. Lower is "simpler"; the shrink
+    /// target keys to 0. `None` for RawBytes, which order after all
+    /// scalars by (len, bytes) in `cmp_complexity`.
+    fn scalar_key(&self) -> Option<u128> {
         match self {
             Choice::Integer {
                 value, shrink_to, ..
-            } => Key::Int(zigzag(*value, *shrink_to)),
-            Choice::Float { value, .. } => Key::Int(float_key(*value)),
-            Choice::Bool { value } => Key::Int(*value as u128),
-            Choice::RawU32 { value } => Key::Int(*value as u128),
-            Choice::RawU64 { value } => Key::Int(*value as u128),
-            Choice::RawBytes { value } => {
-                Key::Bytes(value.len(), value.clone())
-            }
+            } => Some(zigzag(*value, *shrink_to)),
+            Choice::Float { value, .. } => Some(float_key(*value)),
+            Choice::Bool { value } => Some(*value as u128),
+            Choice::RawU32 { value } => Some(*value as u128),
+            Choice::RawU64 { value } => Some(*value as u128),
+            Choice::RawBytes { .. } => None,
+        }
+    }
+
+    /// Allocation-free complexity comparison between two choices,
+    /// consistent with the historical ordering (all scalar keys order
+    /// before byte blobs; byte blobs order by length then contents).
+    pub(crate) fn cmp_complexity(&self, other: &Choice) -> Ordering {
+        match (self.scalar_key(), other.scalar_key()) {
+            (Some(a), Some(b)) => a.cmp(&b),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => match (self, other) {
+                (
+                    Choice::RawBytes { value: a },
+                    Choice::RawBytes { value: b },
+                ) => a.len().cmp(&b.len()).then_with(|| a.cmp(b)),
+                _ => unreachable!(),
+            },
         }
     }
 
@@ -242,7 +253,7 @@ impl Tape {
     pub(crate) fn cmp_key(&self, other: &Tape) -> Ordering {
         self.choices.len().cmp(&other.choices.len()).then_with(|| {
             for (a, b) in self.choices.iter().zip(&other.choices) {
-                match a.key().cmp(&b.key()) {
+                match a.cmp_complexity(b) {
                     Ordering::Equal => continue,
                     unequal => return unequal,
                 }
@@ -259,11 +270,17 @@ impl Tape {
         }
     }
 
-    /// A copy of the tape with the choice at `idx` replaced.
+    /// A copy of the tape with the choice at `idx` replaced. Like
+    /// `with_span_deleted`, the copy's span list is dropped: replay
+    /// ignores input spans, and an accepted proposal re-records fresh
+    /// ones on its output tape.
     pub(crate) fn with_choice(&self, idx: usize, choice: Choice) -> Tape {
-        let mut out = self.clone();
-        out.choices[idx] = choice;
-        out
+        let mut choices = self.choices.clone();
+        choices[idx] = choice;
+        Tape {
+            choices,
+            spans: Vec::new(),
+        }
     }
 
     /// A copy of the tape with the choices of `span` removed. The copy's
@@ -1258,9 +1275,10 @@ mod test {
     fn persisted_tape_form_roundtrips_as_string() {
         use core::str::FromStr;
         let seed = crate::test_runner::PersistedSeed(
-            crate::test_runner::failure_persistence::PersistedFailure::Tape(
-                vec![0xab, 0xcd, 0x01],
-            ),
+            crate::test_runner::failure_persistence::PersistedFailure::Tape {
+                bytes: vec![0xab, 0xcd, 0x01],
+                seed: None,
+            },
         );
         let string = format!("{}", seed);
         assert!(string.starts_with("ct1 "), "got: {}", string);
@@ -1272,8 +1290,6 @@ mod test {
 
     #[test]
     fn persisted_tape_replays_exact_shrunken_value() {
-        use crate::strategy::Strategy;
-
         // Run 1: fail on v >= 1.7, shrink to 2.0, persist.
         let mut config = engine_config();
         config.failure_persistence = Some(Box::new(
@@ -1347,6 +1363,84 @@ mod test {
             }
         }
         let _ = strategy;
+    }
+
+    #[test]
+    fn replay_engine_shrinks_weighted_bool_to_false() {
+        // bool::weighted draws through a typed Bool choice; the raw
+        // fallback would shrink toward `true` (rand's Bernoulli maps a
+        // zeroed u64 to true for any p > 0).
+        let mut runner = engine_runner();
+        match runner.run(&crate::bool::weighted(0.5), |_| {
+            Err(crate::test_runner::TestCaseError::fail("always"))
+        }) {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!(false, value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn replay_engine_shrinking_does_not_exhaust_local_rejects() {
+        // Shrink attempts re-vet proposals through filters; the local
+        // rejects they incur must not drain the run-wide budget, or
+        // shrinking silently stalls once it crosses max_local_rejects.
+        let mut config = engine_config();
+        config.max_local_rejects = 32;
+        let mut runner = crate::test_runner::TestRunner::new_with_rng(
+            config,
+            crate::test_runner::TestRng::deterministic_rng(
+                crate::test_runner::RngAlgorithm::default(),
+            ),
+        );
+        use crate::strategy::Strategy;
+        let strategy = (0i32..1000).prop_filter("even", |v| 0 == v % 2);
+        match runner.run(&strategy, |v| {
+            if v >= 100 {
+                Err(crate::test_runner::TestCaseError::fail("too big"))
+            } else {
+                Ok(())
+            }
+        }) {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!(100, value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn corrupt_persisted_tape_aborts_loudly() {
+        // A regression entry that cannot replay guards nothing; it must
+        // fail the run like a dead persisted seed does, not continue as
+        // a pass.
+        use crate::std_facade::BTreeMap;
+        use crate::std_facade::BTreeSet;
+        let mut entries = BTreeSet::new();
+        entries.insert(crate::test_runner::PersistedSeed(
+            crate::test_runner::failure_persistence::PersistedFailure::Tape {
+                bytes: vec![99],
+                seed: None,
+            },
+        ));
+        let mut map = BTreeMap::new();
+        map.insert("corrupt_tape_test", entries);
+        let mut config = engine_config();
+        config.failure_persistence = Some(Box::new(
+            crate::test_runner::MapFailurePersistence { map },
+        ));
+        config.source_file = Some("corrupt_tape_test");
+        let mut runner = crate::test_runner::TestRunner::new_with_rng(
+            config,
+            crate::test_runner::TestRng::deterministic_rng(
+                crate::test_runner::RngAlgorithm::default(),
+            ),
+        );
+        match runner.run(&(0i32..10), |_| Ok(())) {
+            Err(crate::test_runner::TestError::Abort(_)) => (),
+            other => panic!("expected loud abort, got: {:?}", other),
+        }
     }
 
     #[test]

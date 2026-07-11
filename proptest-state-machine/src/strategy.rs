@@ -213,25 +213,16 @@ impl<
         // transition fewer, with preconditions re-checked against the
         // re-evolved state during replay.
         if runner.tape_is_on() {
-            let extra = (end - min_size) as f64 / 2.0;
-            let p_continue = extra / (extra + 1.0);
             let mut transitions = Vec::with_capacity(min_size);
             let mut acceptable_transitions = Vec::with_capacity(min_size);
             let mut state = initial_state.current();
             let mut i = 0;
-            while i < end {
+            loop {
                 runner.start_span();
-                // Below the minimum length the flag is forced during
-                // generation (the sequence always reaches min_size), but
-                // honored during replay: the classic shrinker deletes
-                // transitions below the declared minimum too, and the
-                // tape engine must be able to match that.
-                let more = if i < min_size {
-                    runner.draw_bool_forced(true)
-                } else {
-                    runner.draw_bool(p_continue)
-                };
-                if !more {
+                // soft_minimum: the classic shrinker deletes transitions
+                // below the declared minimum too, so below-min flags are
+                // generation-forced but shrink-editable.
+                if !runner.draw_element_flag(i, min_size, end, true) {
                     runner.end_span();
                     break;
                 }
@@ -250,13 +241,6 @@ impl<
                 transitions.push(transition_tree);
                 i += 1;
             }
-            if i == end && end > 0 {
-                // Forced stop marker: maximum-length sequences must have
-                // the same tape shape as shorter ones so deletion edits
-                // stay aligned.
-                runner.record_forced_bool(false);
-            }
-
             let size = transitions.len();
             let max_ix = size.saturating_sub(1);
             return Ok(SequentialValueTree {

@@ -7,8 +7,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::std_facade::{fmt, Box, Vec};
+use crate::std_facade::{fmt, Box, String, Vec};
 use core::any::Any;
+use core::cmp::Ordering;
 use core::fmt::Display;
 use core::result::Result;
 use core::str::FromStr;
@@ -35,12 +36,57 @@ use crate::test_runner::Seed;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PersistedSeed(pub(crate) PersistedFailure);
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug)]
 pub(crate) enum PersistedFailure {
     Seed(Seed),
     /// A serialized choice tape (see `tape::serialize_tape`), written as
     /// `ct1 <base16>`.
-    Tape(Vec<u8>),
+    Tape {
+        bytes: Vec<u8>,
+        /// The RNG seed of the run that produced the failure. Not
+        /// persisted (the tape supersedes it for replay); carried so the
+        /// default `save_persisted_failure2` can keep forwarding seeds
+        /// to implementations that only override the legacy hooks.
+        /// `None` for entries loaded from a persistence file.
+        seed: Option<Seed>,
+    },
+}
+
+// Equality and ordering ignore the carried seed: a tape loaded from disk
+// (seed: None) and the same tape as saved (seed: Some) are one entry for
+// deduplication purposes.
+impl PartialEq for PersistedFailure {
+    fn eq(&self, other: &Self) -> bool {
+        Ordering::Equal == self.cmp(other)
+    }
+}
+
+impl Eq for PersistedFailure {}
+
+impl PartialOrd for PersistedFailure {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PersistedFailure {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (PersistedFailure::Seed(a), PersistedFailure::Seed(b)) => {
+                a.cmp(b)
+            }
+            (PersistedFailure::Seed(..), PersistedFailure::Tape { .. }) => {
+                Ordering::Less
+            }
+            (PersistedFailure::Tape { .. }, PersistedFailure::Seed(..)) => {
+                Ordering::Greater
+            }
+            (
+                PersistedFailure::Tape { bytes: a, .. },
+                PersistedFailure::Tape { bytes: b, .. },
+            ) => a.cmp(b),
+        }
+    }
 }
 
 const TAPE_PERSISTENCE_KEY: &str = "ct1";
@@ -51,13 +97,10 @@ impl Display for PersistedSeed {
             PersistedFailure::Seed(seed) => {
                 write!(f, "{}", seed.to_persistence())
             }
-            PersistedFailure::Tape(bytes) => {
-                write!(f, "{}", TAPE_PERSISTENCE_KEY)?;
-                write!(f, " ")?;
-                for byte in bytes {
-                    write!(f, "{:02x}", byte)?;
-                }
-                Ok(())
+            PersistedFailure::Tape { bytes, .. } => {
+                let mut hex = String::new();
+                crate::test_runner::rng::to_base16(&mut hex, bytes);
+                write!(f, "{} {}", TAPE_PERSISTENCE_KEY, hex)
             }
         }
     }
@@ -76,12 +119,12 @@ impl FromStr for PersistedSeed {
             if 0 != hex.len() % 2 {
                 return Err(());
             }
-            let mut bytes = Vec::with_capacity(hex.len() / 2);
-            for pair in hex.as_bytes().chunks(2) {
-                let s = core::str::from_utf8(pair).map_err(|_| ())?;
-                bytes.push(u8::from_str_radix(s, 16).map_err(|_| ())?);
-            }
-            return Ok(PersistedSeed(PersistedFailure::Tape(bytes)));
+            let mut bytes = vec![0u8; hex.len() / 2];
+            crate::test_runner::rng::from_base16(&mut bytes, hex).ok_or(())?;
+            return Ok(PersistedSeed(PersistedFailure::Tape {
+                bytes,
+                seed: None,
+            }));
         }
         Seed::from_persistence(trimmed)
             .map(|seed| PersistedSeed(PersistedFailure::Seed(seed)))
@@ -141,7 +184,11 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
         shrunken_value: &dyn fmt::Debug,
     ) {
         match seed.0 {
-            PersistedFailure::Seed(Seed::XorShift(seed)) => {
+            PersistedFailure::Seed(Seed::XorShift(seed))
+            | PersistedFailure::Tape {
+                seed: Some(Seed::XorShift(seed)),
+                ..
+            } => {
                 self.save_persisted_failure(source_file, seed, shrunken_value)
             }
             _ => (),

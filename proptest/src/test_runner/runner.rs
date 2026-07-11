@@ -616,17 +616,30 @@ impl TestRunner {
         {
             match persisted {
                 PersistedFailure::Seed(persisted_seed) => {
+                    // Replay seeds through the classic, tape-off
+                    // generation path: seed entries are only written by
+                    // tape-off runs (fork/timeout, ValueTree engine, or
+                    // persistence impls that drop tapes), and tape-mode
+                    // generation consumes the RNG differently (e.g.
+                    // collection continuation flags), so recording here
+                    // would regenerate a different value than the one
+                    // that failed.
                     self.rng.set_seed(persisted_seed);
-                    self.gen_and_run_case(
-                        strategy,
+                    let case = unwrap_or!(strategy.new_tree(self), msg =>
+                        return Err(TestError::Abort(msg)));
+                    let ok_type = self.run_one_with_replay(
+                        case,
                         &test,
                         &mut replay_from_fork,
                         &mut *result_cache,
                         &mut fork_output,
                         true,
                     )?;
+                    if let TestCaseOk::ReplayFromForkSuccess = ok_type {
+                        self.successes += 1;
+                    }
                 }
-                PersistedFailure::Tape(bytes) => {
+                PersistedFailure::Tape { bytes, .. } => {
                     match tape::deserialize_tape(&bytes) {
                         Some(input) => self.replay_persisted_tape(
                             strategy,
@@ -636,11 +649,14 @@ impl TestRunner {
                             &mut *result_cache,
                             &mut fork_output,
                         )?,
-                        None => verbose_message!(
-                            self,
-                            ALWAYS,
-                            "Ignoring corrupt persisted choice tape"
-                        ),
+                        None => {
+                            return Err(TestError::Abort(
+                                "A persisted choice tape (ct1 entry) in \
+                                 the regression file is corrupt; delete \
+                                 the stale line to continue."
+                                    .into(),
+                            ))
+                        }
                     }
                 }
             }
@@ -674,7 +690,10 @@ impl TestRunner {
                         // the shrunken values exactly, independent of the
                         // RNG, and survives strategy refactors.
                         let persisted = match self.shrunk_tape.take() {
-                            Some(bytes) => PersistedFailure::Tape(bytes),
+                            Some(bytes) => PersistedFailure::Tape {
+                                bytes,
+                                seed: Some(seed),
+                            },
                             None => PersistedFailure::Seed(seed),
                         };
                         failure_persistence.save_persisted_failure2(
@@ -1288,15 +1307,6 @@ impl TestRunner {
         if 0 != self.rng.random_range(0..20u32) {
             return None;
         }
-        fn next_up(a: f64) -> f64 {
-            if a == 0.0 {
-                f64::from_bits(1)
-            } else if a > 0.0 {
-                f64::from_bits(a.to_bits() + 1)
-            } else {
-                f64::from_bits(a.to_bits() - 1)
-            }
-        }
         let candidates = [
             0.0,
             -0.0,
@@ -1306,8 +1316,8 @@ impl TestRunner {
             1.5,
             min,
             max,
-            if min.is_finite() { next_up(min) } else { min },
-            if max.is_finite() { -next_up(-max) } else { max },
+            if min.is_finite() { min.next_up() } else { min },
+            if max.is_finite() { max.next_down() } else { max },
             if allow_nan { f64::NAN } else { 0.0 },
         ];
         let candidate = candidates[self.rng.random_range(0..candidates.len())];
@@ -1375,6 +1385,46 @@ impl TestRunner {
     /// replayed value is honored). See `TapeState::draw_bool_forced`.
     pub fn draw_bool_forced(&mut self, forced: bool) -> bool {
         self.rng.tape.draw_bool_forced(forced)
+    }
+
+    /// Drive the tape encoding of a variable-length sequence of
+    /// generation units (collection elements, state-machine
+    /// transitions). Call once per candidate element with its index;
+    /// returns whether one more element should be generated. Only
+    /// meaningful while the tape is on; callers keep their classic
+    /// generation path for the tape-off case.
+    ///
+    /// Encodes one continuation flag per element (truncated-geometric
+    /// length with the same mean as uniform over `[min, max]`), plus a
+    /// forced stop marker at the maximum so all lengths share one tape
+    /// shape. With `soft_minimum`, elements below `min` get
+    /// generation-forced but shrink-editable flags, letting the shrinker
+    /// delete below the declared minimum (state-machine semantics);
+    /// without it, `min` is a hard floor (collection semantics).
+    pub fn draw_element_flag(
+        &mut self,
+        index: usize,
+        min: usize,
+        max: usize,
+        soft_minimum: bool,
+    ) -> bool {
+        if index >= max {
+            let any_flags = if soft_minimum { max > 0 } else { max > min };
+            if any_flags {
+                self.record_forced_bool(false);
+            }
+            return false;
+        }
+        if index < min {
+            return if soft_minimum {
+                self.draw_bool_forced(true)
+            } else {
+                true
+            };
+        }
+        let extra = (max - min) as f64 / 2.0;
+        let p_continue = extra / (extra + 1.0);
+        self.draw_bool(p_continue)
     }
 
     /// The tape-engine analogue of `gen_and_run_case`.
@@ -1593,16 +1643,22 @@ impl TestRunner {
         self.rng.tape.start_replay(input);
         let case = match strategy.new_tree(self) {
             Ok(case) => case,
-            Err(_) => {
+            Err(reason) => {
                 self.rng.tape.finish_replay();
                 self.rng = rng_snapshot;
-                verbose_message!(
-                    self,
-                    ALWAYS,
-                    "Persisted choice tape no longer generates a value; \
-                     ignoring it"
-                );
-                return Ok(());
+                // Fail as loudly as a dead persisted seed would: a
+                // regression entry that stops generating (usually after
+                // a strategy refactor) is guarding nothing, and silently
+                // continuing would let a reintroduced bug ship.
+                return Err(TestError::Abort(
+                    format!(
+                        "A persisted choice tape (ct1 entry) in the \
+                         regression file no longer generates a value \
+                         ({}); delete the stale line to continue.",
+                        reason
+                    )
+                    .into(),
+                ));
             }
         };
         let (output, _overrun) = self.rng.tape.finish_replay();
@@ -1680,7 +1736,15 @@ impl TestRunner {
 
         self.rng = rng_snapshot.clone();
         self.rng.tape.start_replay(proposal);
+        // Local rejects incurred while re-vetting a shrink proposal (e.g.
+        // a filter refusing edited values) must not drain the run-wide
+        // budget: the classic shrinker never consumes it while shrinking,
+        // and a filter-heavy strategy could otherwise exhaust it mid-way
+        // and silently doom every remaining attempt. Each attempt still
+        // has the remaining budget as its own retry bound.
+        let local_rejects_before = self.local_rejects;
         let tree = strategy.new_tree(self);
+        self.local_rejects = local_rejects_before;
         let (output, overrun) = self.rng.tape.finish_replay();
         let tree = match tree {
             Ok(tree) => tree,
@@ -1880,26 +1944,23 @@ impl TestRunner {
                 } else {
                     (value_i + d, value_j - d)
                 };
-                let proposal = best
-                    .tape
-                    .with_choice(
-                        i,
-                        Choice::Integer {
-                            value: new_i,
-                            min: min_i,
-                            max: max_i,
-                            shrink_to: shrink_to_i,
-                        },
-                    )
-                    .with_choice(
-                        j,
-                        Choice::Integer {
-                            value: new_j,
-                            min: min_j,
-                            max: max_j,
-                            shrink_to: shrink_to_j,
-                        },
-                    );
+                // One clone for the two-index edit (chaining with_choice
+                // would clone the whole tape twice).
+                let mut proposal = best.tape.with_choice(
+                    i,
+                    Choice::Integer {
+                        value: new_i,
+                        min: min_i,
+                        max: max_i,
+                        shrink_to: shrink_to_i,
+                    },
+                );
+                proposal.choices[j] = Choice::Integer {
+                    value: new_j,
+                    min: min_j,
+                    max: max_j,
+                    shrink_to: shrink_to_j,
+                };
                 match self.tape_attempt(
                     strategy,
                     test,
