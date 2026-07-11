@@ -6,6 +6,7 @@
 
 ### Bug Fixes
 
+- Fixed a panic when generating arbitrary `Duration` values near the maximum. ([\#657](https://github.com/proptest-rs/proptest/pull/657))
 - Fixed a panic when sampling from a single-point inclusive float range like `0.0..=0.0`. ([\#479](https://github.com/proptest-rs/proptest/issues/479))
 - [Soundness] Asserts that rdrand feature is supported by the CPU before invoking rdrand functions ([\#648](https://github.com/proptest-rs/proptest/issues/648))
 - [Soundness] Fixes data race on static mut between assigning thread and accessing thread ([\#648](https://github.com/proptest-rs/proptest/issues/648))
