@@ -416,11 +416,10 @@ strategy:
   `ShrinkEngine` config, runner integration. Tests: round-float minimal
   examples, filter no-stall, flat_map shrink quality, unmigrated-strategy
   shrinking via raw choices, budget respect.
-  **Status: DONE — see `design/choice-tape-status.md`.**
+  **Status: DONE.**
 - **Phase 2:** spans; continuation encoding for `vec`/collections;
   `delete_spans`; `prop_oneof` branch choice.
-  **Status: DONE except adaptive deletion batching — see
-  `design/choice-tape-status.md`.**
+  **Status: DONE, including adaptive deletion batching.**
 - **Phase 3:** migrate char/string/bits/sample; state-machine crate
   evaluation.
 - **Phase 4:** cross-value passes (duplicates, redistribute, reorder).
