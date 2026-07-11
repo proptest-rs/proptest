@@ -3,12 +3,45 @@
 ### Breaking Changes
 
 - The minimum supported Rust version has been increased to 1.86.0.
+- The default shrink engine is now the Conjecture-style choice tape
+  (`Config::shrink_engine = ShrinkEngine::Tape`). Generation is recorded
+  as a tape of typed choices; shrinking edits the tape and re-runs
+  generation. Compared to the classic `ValueTree` shrinker this produces
+  rounder minimal values (a float threshold failure shrinks to `2.0`
+  instead of an arbitrary long fraction, or often not shrinking at all),
+  does not get stuck on `prop_filter`, shrinks cleanly through
+  `prop_flat_map`, deletes collection elements via a generic span pass,
+  and has cross-value passes (redistributing weight between numeric
+  choices, lowering equal choices together). Set
+  `ShrinkEngine::ValueTree` or `PROPTEST_SHRINK_ENGINE=valuetree` to get
+  the old shrinker. `fork`/`timeout` configurations still use the
+  `ValueTree` engine.
+- Failures shrunk by the tape engine persist as `ct1` choice-tape entries
+  in the regression file instead of RNG seeds. Replaying a tape
+  regenerates the exact shrunken values, independent of RNG algorithm and
+  robust to strategy refactors. Old seed entries are still understood.
+- Numeric generation now hunts edge cases, after Hypothesis: wide integer
+  ranges mostly produce values within a small random bit-size of the
+  shrink target with occasional exact bounds and a uniform tail (e.g.
+  `any::<i64>()` now actually generates `i64::MIN`); float draws
+  occasionally inject boundary and special values (bounds, one ulp inside
+  the bounds, plus/minus zero and one, simple fractions, NaN where
+  allowed). Tests that depended on the old uniform distributions may need
+  adjusting.
 
 ### Bug Fixes
 
 - Fixed a panic when sampling from a single-point inclusive float range like `0.0..=0.0`. ([\#479](https://github.com/proptest-rs/proptest/issues/479))
 - [Soundness] Asserts that rdrand feature is supported by the CPU before invoking rdrand functions ([\#648](https://github.com/proptest-rs/proptest/issues/648))
 - [Soundness] Fixes data race on static mut between assigning thread and accessing thread ([\#648](https://github.com/proptest-rs/proptest/issues/648))
+- `Arbitrary for Duration` no longer panics when generating `u64::MAX`
+  seconds together with nanoseconds that carry over (found immediately by
+  the edge-case-biased generator).
+
+### New Features
+
+- `Config::shrink_engine` / `PROPTEST_SHRINK_ENGINE` select between the
+  choice-tape and ValueTree shrink engines.
 
 ### Other Notes
 

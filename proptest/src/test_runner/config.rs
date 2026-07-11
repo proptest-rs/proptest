@@ -17,23 +17,27 @@ use crate::test_runner::FailurePersistence;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShrinkEngine {
     /// The classic shrinker: walk the failing case's `ValueTree` with
-    /// `simplify()`/`complicate()`. This is the default.
+    /// `simplify()`/`complicate()`.
     ValueTree,
-    /// Experimental: Conjecture-style choice-tape shrinking. Generation is
+    /// Conjecture-style choice-tape shrinking, the default. Generation is
     /// recorded as a tape of typed choices; shrinking edits the tape and
     /// re-runs generation, accepting an edit iff the test still fails and
-    /// the result is simpler. Produces rounder minimal values (especially
-    /// for floats) and does not get stuck on `prop_filter`, at the cost of
-    /// re-running generation for every shrink attempt.
+    /// the result is simpler. Compared to `ValueTree` it produces rounder
+    /// minimal values (especially for floats), does not get stuck on
+    /// `prop_filter`, shrinks naturally through `prop_flat_map`, has
+    /// cross-value passes (redistribution, joint lowering of duplicates),
+    /// and persists failures as replayable choice tapes (`ct1` entries)
+    /// instead of RNG seeds. The cost is re-running generation for every
+    /// shrink attempt.
     ///
-    /// Not yet supported together with `fork`/`timeout`; those
+    /// Not supported together with `fork`/`timeout` yet; those
     /// configurations fall back to `ValueTree`.
     Tape,
 }
 
 impl Default for ShrinkEngine {
     fn default() -> Self {
-        ShrinkEngine::ValueTree
+        ShrinkEngine::Tape
     }
 }
 
@@ -486,9 +490,9 @@ pub struct Config {
 
     /// Which shrink engine to use when a failing test case is found.
     ///
-    /// The default is `ShrinkEngine::ValueTree`, the classic proptest
-    /// shrinker. `ShrinkEngine::Tape` selects the experimental
-    /// Conjecture-style choice-tape shrinker.
+    /// The default is `ShrinkEngine::Tape`, the Conjecture-style
+    /// choice-tape shrinker. `ShrinkEngine::ValueTree` selects the classic
+    /// proptest shrinker.
     ///
     /// The default can be overridden by setting the
     /// `PROPTEST_SHRINK_ENGINE` environment variable to `valuetree` or

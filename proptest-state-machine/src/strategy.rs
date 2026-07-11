@@ -1041,8 +1041,18 @@ mod test {
                 // We need to explicitly run create a runner so that we can
                 // inspect the output, and determine if it does return an input that
                 // should fail, and is minimal.
+                // State-machine strategies rely on their hand-written
+                // ValueTree shrinker (transition deletion, initial-state
+                // shrinking), which the choice-tape engine cannot yet
+                // match for unmigrated strategies; pin the classic
+                // engine until the sequential strategy records typed
+                // choices and spans.
+                let config = Config {
+                    shrink_engine: proptest::test_runner::ShrinkEngine::ValueTree,
+                    ..Config::default()
+                };
                 let mut runner = TestRunner::new_with_rng(
-                    Config::default(), TestRng::from_seed(Default::default(), &seed));
+                    config, TestRng::from_seed(Default::default(), &seed));
                 let result = runner.run(
                     &FailIfLessThan::sequential_strategy(10..50_usize),
                     |(ref_state, transitions, seen_counter)| {
