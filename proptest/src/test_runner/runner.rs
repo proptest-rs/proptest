@@ -1033,6 +1033,107 @@ impl TestRunner {
         )
     }
 
+    /// Like `draw_integer_in`, but sampling with the edge-case-hunting
+    /// distribution: mostly small distances from the shrink target, with
+    /// occasional boundary values and a uniform tail. Used by the numeric
+    /// range strategies (NOT by union picks, which must stay
+    /// weight-faithful).
+    pub(crate) fn draw_integer_in_biased<T>(
+        &mut self,
+        min: T,
+        max: T,
+        sample_uniform: impl Fn(&mut Self) -> T,
+    ) -> T
+    where
+        T: TapeInt,
+    {
+        self.draw_integer_in_with(
+            min,
+            max,
+            |_| T::decode(T::encode_zero().clamp(T::encode(min), T::encode(max))),
+            |v| v,
+            |runner| {
+                runner.sample_integer_biased(min, max, &sample_uniform)
+            },
+        )
+    }
+
+    /// The phase-6 integer distribution, after Hypothesis: for wide
+    /// ranges (> 24 bits), 1/16 of draws take a boundary-ish value, 2/16
+    /// stay uniform over the whole range, and 13/16 land within a
+    /// weighted random bit-size of the shrink target — so small values
+    /// and exact bounds both show up often, while the full range remains
+    /// reachable. Narrow ranges stay uniform.
+    fn sample_integer_biased<T>(
+        &mut self,
+        min: T,
+        max: T,
+        sample_uniform: &impl Fn(&mut Self) -> T,
+    ) -> T
+    where
+        T: TapeInt,
+    {
+        let emin = T::encode(min);
+        let emax = T::encode(max);
+        let width = emax - emin;
+        if width < (1u128 << 24) {
+            return sample_uniform(self);
+        }
+        let target = T::encode_zero().clamp(emin, emax);
+
+        match self.rng.random_range(0..16u32) {
+            0 => {
+                // Boundary-ish values.
+                let candidates = [
+                    emin,
+                    emin + 1,
+                    emax,
+                    emax - 1,
+                    target,
+                    target.saturating_add(1).min(emax),
+                ];
+                let pick =
+                    self.rng.random_range(0..candidates.len());
+                T::decode(candidates[pick])
+            }
+            1 | 2 => sample_uniform(self),
+            _ => {
+                // Magnitude within a weighted random bit-size of the
+                // target; the same spirit as Hypothesis's INT_SIZES
+                // (small sizes heavily preferred, huge tail retained).
+                let bits: u32 = match self.rng.random_range(0..15u32) {
+                    0..=3 => 8,
+                    4..=11 => 16,
+                    12 => 32,
+                    13 => 64,
+                    14 => 128,
+                    _ => unreachable!(),
+                };
+                let mask = if bits >= 128 {
+                    u128::MAX
+                } else {
+                    (1u128 << bits) - 1
+                };
+                let magnitude = self.rng.random::<u128>() & mask;
+                let up_room = emax - target;
+                let down_room = target - emin;
+                let up = if 0 == down_room {
+                    true
+                } else if 0 == up_room {
+                    false
+                } else {
+                    self.rng.random::<bool>()
+                };
+                let value = if up {
+                    target + magnitude.min(up_room)
+                } else {
+                    target - magnitude.min(down_room)
+                };
+                T::decode(value)
+            }
+        }
+    }
+
     /// Like `draw_integer_in`, but with custom shrinking metadata and a
     /// `conform` hook for strategies whose support is not one contiguous
     /// interval (e.g. `char`, whose support is a union of ranges with
@@ -1118,11 +1219,15 @@ impl TestRunner {
         min: f64,
         max: f64,
         allow_nan: bool,
-        conform: impl FnOnce(f64) -> f64,
+        conform: impl Fn(f64) -> f64,
         sample: impl FnOnce(&mut Self) -> f64,
     ) -> f64 {
         if !self.rng.tape.is_on() {
-            return sample(self);
+            return match self.maybe_weird_float(min, max, allow_nan, &conform)
+            {
+                Some(weird) => weird,
+                None => sample(self),
+            };
         }
         if self.rng.tape.is_replaying() {
             if let Some(Choice::Float { value, .. }) = self
@@ -1150,7 +1255,11 @@ impl TestRunner {
             }
         }
         self.rng.tape.suppress_raw();
-        let sampled = sample(self);
+        let sampled =
+            match self.maybe_weird_float(min, max, allow_nan, &conform) {
+                Some(weird) => weird,
+                None => sample(self),
+            };
         self.rng.tape.unsuppress_raw();
         self.rng.tape.record(Choice::Float {
             value: sampled,
@@ -1159,6 +1268,57 @@ impl TestRunner {
             allow_nan,
         });
         sampled
+    }
+
+    /// With probability 1/20, propose a boundary or otherwise "weird"
+    /// float for the draw instead of sampling the strategy's own
+    /// distribution — bounds, values one ulp inside the bounds, ±0, ±1,
+    /// simple fractions, and NaN where permitted. Returns `None` (draw
+    /// normally) otherwise, or when the picked candidate is out of range
+    /// after conforming.
+    fn maybe_weird_float(
+        &mut self,
+        min: f64,
+        max: f64,
+        allow_nan: bool,
+        conform: &impl Fn(f64) -> f64,
+    ) -> Option<f64> {
+        if 0 != self.rng.random_range(0..20u32) {
+            return None;
+        }
+        fn next_up(a: f64) -> f64 {
+            if a == 0.0 {
+                f64::from_bits(1)
+            } else if a > 0.0 {
+                f64::from_bits(a.to_bits() + 1)
+            } else {
+                f64::from_bits(a.to_bits() - 1)
+            }
+        }
+        let candidates = [
+            0.0,
+            -0.0,
+            1.0,
+            -1.0,
+            0.5,
+            1.5,
+            min,
+            max,
+            if min.is_finite() { next_up(min) } else { min },
+            if max.is_finite() { -next_up(-max) } else { max },
+            if allow_nan { f64::NAN } else { 0.0 },
+        ];
+        let candidate =
+            candidates[self.rng.random_range(0..candidates.len())];
+        let candidate = conform(candidate);
+        if candidate.is_nan() {
+            return if allow_nan { Some(candidate) } else { None };
+        }
+        if candidate >= min && candidate <= max {
+            Some(candidate)
+        } else {
+            None
+        }
     }
 
     /// Draw a boolean that is true with probability `probability_true`,
@@ -1902,28 +2062,43 @@ impl TestRunner {
             }};
         }
 
-        // Bisect in "distance from target" space: `cur` is the current
-        // (known-failing) value, candidates move toward `target`. The
+        // Minimize distance-from-target for a known-failing value: probe
+        // exponentially outward from the target (1, 2, 4, ...) until a
+        // failing distance is found, then bisect the last gap. This costs
+        // O(log(final distance)) attempts rather than O(log(range)) —
+        // crucial when the starting value is ~1e300 but the failure
+        // boundary is near the target, which is the common case. The
         // target itself must already have been tried and rejected.
         macro_rules! bisect_u128 {
             ($cur:expr, $target:expr, $mk:expr) => {{
                 let cur: u128 = $cur;
                 let target: u128 = $target;
                 let above = cur >= target;
-                let mut d_fail =
-                    if above { cur - target } else { target - cur };
+                let dist = if above { cur - target } else { target - cur };
+                let cand_at = |d: u128| {
+                    if above {
+                        target + d
+                    } else {
+                        target - d
+                    }
+                };
                 let mut d_ok = 0u128;
+                let mut d_fail = dist;
+                let mut probe = 1u128;
+                while probe < dist {
+                    if attempt!($mk(cand_at(probe))) {
+                        d_fail = probe;
+                        break;
+                    }
+                    d_ok = probe;
+                    probe = probe.saturating_mul(2);
+                }
                 loop {
                     let d_mid = d_ok + (d_fail - d_ok) / 2;
                     if d_mid == d_ok || d_mid == d_fail {
                         break;
                     }
-                    let cand = if above {
-                        target + d_mid
-                    } else {
-                        target - d_mid
-                    };
-                    if attempt!($mk(cand)) {
+                    if attempt!($mk(cand_at(d_mid))) {
                         d_fail = d_mid;
                     } else {
                         d_ok = d_mid;
@@ -2010,9 +2185,23 @@ impl TestRunner {
                 if cur == tape::float_trunc(cur)
                     && target == tape::float_trunc(target)
                 {
-                    // Bisect over integer-valued floats toward the target.
-                    let mut fail = cur;
+                    // Minimize over integer-valued floats: exponential
+                    // probe outward from the target, then bisect the
+                    // last gap (see bisect_u128 for why).
+                    let dir = if cur >= target { 1.0 } else { -1.0 };
                     let mut ok = target;
+                    let mut fail = cur;
+                    let mut probe = 1.0f64;
+                    while probe < (cur - target).abs() {
+                        let cand =
+                            tape::float_trunc(target + dir * probe);
+                        if attempt!(mk(cand)) {
+                            fail = cand;
+                            break;
+                        }
+                        ok = cand;
+                        probe *= 2.0;
+                    }
                     loop {
                         let mid =
                             tape::float_trunc(ok + (fail - ok) / 2.0);
@@ -2720,7 +2909,12 @@ mod timeout_tests {
 
     fn test_shrink_bail(config: Config) {
         let mut runner = TestRunner::new(config);
-        let result = runner.run(&crate::num::u64::ANY, |v| {
+        // Every value of this range fails the assertion below, so the
+        // failing case is found on the first generation regardless of
+        // the generator's distribution; the test is about the shrink
+        // budget, and each test call costs 250ms against the fork
+        // harness's timeout.
+        let result = runner.run(&((u32::MAX as u64 + 1)..), |v| {
             thread::sleep(Duration::from_millis(250));
             prop_assert!(v <= u32::MAX as u64);
             Ok(())

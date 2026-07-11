@@ -107,8 +107,32 @@ macro_rules! int_any {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-                // One typed choice when the tape is on; the closure is the
-                // unchanged upstream sampling path when it is off.
+                Ok(BinarySearch::new(runner.draw_integer_in_biased(
+                    <$typ>::MIN,
+                    <$typ>::MAX,
+                    |r| $int_any!(r, $typ),
+                )))
+            }
+        }
+
+        /// Like `Any`, but strictly uniform over the whole range.
+        /// Crate-internal: for draws whose value is positional (a
+        /// fraction of a collection, like `sample::Index`) rather than a
+        /// magnitude, where edge-case biasing would skew what gets
+        /// selected instead of making values more interesting.
+        #[derive(Clone, Copy, Debug)]
+        #[must_use = "strategies do nothing unless used"]
+        #[allow(dead_code)]
+        pub(crate) struct AnyUniform(());
+
+        #[allow(dead_code)]
+        pub(crate) const ANY_UNIFORM: AnyUniform = AnyUniform(());
+
+        impl Strategy for AnyUniform {
+            type Tree = BinarySearch;
+            type Value = $typ;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new(runner.draw_integer_in(
                     <$typ>::MIN,
                     <$typ>::MAX,
@@ -117,20 +141,20 @@ macro_rules! int_any {
             }
         }
 
-        /// Tape-aware uniform sample from `[lo, hi)`.
+        /// Tape-aware, edge-case-biased sample from `[lo, hi)`.
         fn tape_sample(
             runner: &mut TestRunner,
             lo: $typ,
             hi: $typ,
         ) -> $typ {
             assert!(lo < hi, "Uniform::new called with `low >= high`");
-            runner.draw_integer_in(lo, hi - 1, |r| {
+            runner.draw_integer_in_biased(lo, hi - 1, |r| {
                 $crate::num::$uniform::<$typ>(r, lo.into(), hi.into())
                     .into()
             })
         }
 
-        /// Tape-aware uniform sample from `[lo, hi]`.
+        /// Tape-aware, edge-case-biased sample from `[lo, hi]`.
         fn tape_sample_incl(
             runner: &mut TestRunner,
             lo: $typ,
@@ -140,7 +164,7 @@ macro_rules! int_any {
                 lo <= hi,
                 "Uniform::new_inclusive called with `low > high`"
             );
-            runner.draw_integer_in(lo, hi, |r| {
+            runner.draw_integer_in_biased(lo, hi, |r| {
                 $crate::num::$incl::<$typ>(r, lo.into(), hi.into()).into()
             })
         }
@@ -852,13 +876,14 @@ macro_rules! float_bin_search {
                     Subnormal => allowed.contains(FloatTypes::SUBNORMAL),
                     Normal => allowed.contains(FloatTypes::NORMAL),
                 };
-                let signum = v.signum();
-                let sign_allowed = if signum > 0.0 {
-                    allowed.contains(FloatTypes::POSITIVE)
-                } else if signum < 0.0 {
+                // Check the sign bit directly so that NaNs (whose signum
+                // is NaN) are sign-checked too; the generator masks NaN
+                // sign bits to match the flags, and conform_to_types must
+                // hold shrink proposals to the same standard.
+                let sign_allowed = if v.is_sign_negative() {
                     allowed.contains(FloatTypes::NEGATIVE)
                 } else {
-                    true
+                    allowed.contains(FloatTypes::POSITIVE)
                 };
 
                 class_allowed && sign_allowed
@@ -894,14 +919,21 @@ macro_rules! float_bin_search {
                     return sign * ::core::$typ::INFINITY;
                 }
                 if allowed.contains(FloatTypes::QUIET_NAN) {
-                    return ::core::$typ::NAN;
+                    return if sign < 0.0 {
+                        -::core::$typ::NAN
+                    } else {
+                        ::core::$typ::NAN
+                    };
                 }
                 // Signaling NaN only: same construction as in
                 // `Any::new_tree`.
                 let quiet_or = ::core::$typ::NAN.to_bits()
                     & ($typ::EXP_MASK | ($typ::EXP_MASK >> 1));
-                let signaling =
+                let mut signaling =
                     (quiet_or ^ ($typ::EXP_MASK >> 1)) | $typ::EXP_MASK | 1;
+                if sign < 0.0 {
+                    signaling |= $typ::SIGN_MASK;
+                }
                 $typ::from_bits(signaling)
             }
 
@@ -1124,6 +1156,77 @@ mod test {
     use crate::test_runner::*;
 
     use super::*;
+
+    #[test]
+    fn any_finds_extreme_values() {
+        // The README used to cite `abs(i64::MIN)` as a bug property
+        // testing would "virtually always" miss, because uniform
+        // sampling cannot hit one value out of 2^64. The edge-case-biased
+        // generator produces boundary values deliberately.
+        let mut runner = TestRunner::new_with_rng(
+            Config {
+                failure_persistence: None,
+                ..Config::default()
+            },
+            TestRng::deterministic_rng(RngAlgorithm::default()),
+        );
+        match runner.run(&super::i64::ANY, |v| {
+            if i64::MIN == v {
+                Err(TestCaseError::fail("hit i64::MIN"))
+            } else {
+                Ok(())
+            }
+        }) {
+            Err(TestError::Fail(_, value)) => assert_eq!(i64::MIN, value),
+            other => panic!("i64::MIN was not found: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn any_biases_toward_small_magnitudes() {
+        let mut runner = TestRunner::new_with_rng(
+            Config {
+                failure_persistence: None,
+                ..Config::default()
+            },
+            TestRng::deterministic_rng(RngAlgorithm::default()),
+        );
+        let mut small = 0;
+        for _ in 0..512 {
+            let v = super::i64::ANY
+                .new_tree(&mut runner)
+                .unwrap()
+                .current();
+            if v.unsigned_abs() < (1 << 16) {
+                small += 1;
+            }
+        }
+        assert!(
+            small > 512 * 3 / 10,
+            "only {}/512 samples were small",
+            small
+        );
+    }
+
+    #[test]
+    fn float_ranges_inject_boundary_values() {
+        let mut runner = TestRunner::new_with_rng(
+            Config {
+                failure_persistence: None,
+                ..Config::default()
+            },
+            TestRng::deterministic_rng(RngAlgorithm::default()),
+        );
+        let mut hit_max = false;
+        for _ in 0..4000 {
+            let v = (1.5f64..=8.5).new_tree(&mut runner).unwrap().current();
+            assert!(v >= 1.5 && v <= 8.5, "out of range: {}", v);
+            if 8.5 == v {
+                hit_max = true;
+            }
+        }
+        assert!(hit_max, "inclusive maximum never generated");
+    }
 
     #[test]
     fn u8_inclusive_end_included() {

@@ -267,7 +267,7 @@ opaque_strategy_wrapper! {
     /// Created via `any::<Index>()`.
     #[derive(Clone, Debug)]
     pub struct IndexStrategy[][](
-        statics::Map<num::usize::Any, UsizeToIndex>)
+        statics::Map<num::usize::AnyUniform, UsizeToIndex>)
         -> IndexValueTree;
     /// `ValueTree` corresponding to `IndexStrategy`.
     #[derive(Clone, Debug)]
@@ -278,7 +278,7 @@ opaque_strategy_wrapper! {
 
 impl IndexStrategy {
     pub(crate) fn new() -> Self {
-        IndexStrategy(statics::Map::new(num::usize::ANY, UsizeToIndex))
+        IndexStrategy(statics::Map::new(num::usize::ANY_UNIFORM, UsizeToIndex))
     }
 }
 
