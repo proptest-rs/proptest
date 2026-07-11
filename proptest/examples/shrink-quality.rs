@@ -67,7 +67,8 @@ fn compare<S: Strategy>(
 ) where
     S::Value: Debug,
 {
-    let (vt_value, vt_calls) = run_case(ShrinkEngine::ValueTree, &strategy, &fail);
+    let (vt_value, vt_calls) =
+        run_case(ShrinkEngine::ValueTree, &strategy, &fail);
     let (tp_value, tp_calls) = run_case(ShrinkEngine::Tape, &strategy, &fail);
     println!("{}", name);
     println!("  valuetree: {:<40} ({} test calls)", vt_value, vt_calls);

@@ -834,7 +834,7 @@ impl TestRunner {
                 INFO_LOG,
                 "Shrinking disabled by configuration"
             );
-            return None
+            return None;
         }
 
         #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
@@ -1027,7 +1027,11 @@ impl TestRunner {
         self.draw_integer_in_with(
             min,
             max,
-            |_| T::decode(T::encode_zero().clamp(T::encode(min), T::encode(max))),
+            |_| {
+                T::decode(
+                    T::encode_zero().clamp(T::encode(min), T::encode(max)),
+                )
+            },
             |v| v,
             sample,
         )
@@ -1050,11 +1054,13 @@ impl TestRunner {
         self.draw_integer_in_with(
             min,
             max,
-            |_| T::decode(T::encode_zero().clamp(T::encode(min), T::encode(max))),
-            |v| v,
-            |runner| {
-                runner.sample_integer_biased(min, max, &sample_uniform)
+            |_| {
+                T::decode(
+                    T::encode_zero().clamp(T::encode(min), T::encode(max)),
+                )
             },
+            |v| v,
+            |runner| runner.sample_integer_biased(min, max, &sample_uniform),
         )
     }
 
@@ -1220,8 +1226,7 @@ impl TestRunner {
         sample: impl FnOnce(&mut Self) -> f64,
     ) -> f64 {
         if !self.rng.tape.is_on() {
-            return match self.maybe_weird_float(min, max, allow_nan, &conform)
-            {
+            return match self.maybe_weird_float(min, max, allow_nan, &conform) {
                 Some(weird) => weird,
                 None => sample(self),
             };
@@ -1305,8 +1310,7 @@ impl TestRunner {
             if max.is_finite() { -next_up(-max) } else { max },
             if allow_nan { f64::NAN } else { 0.0 },
         ];
-        let candidate =
-            candidates[self.rng.random_range(0..candidates.len())];
+        let candidate = candidates[self.rng.random_range(0..candidates.len())];
         let candidate = conform(candidate);
         if candidate.is_nan() {
             return if allow_nan { Some(candidate) } else { None };
@@ -1738,8 +1742,7 @@ impl TestRunner {
                 break;
             }
             let span = best.tape.spans[nspans - 1 - pos];
-            if span.end > best.tape.choices.len() || span.start >= span.end
-            {
+            if span.end > best.tape.choices.len() || span.start >= span.end {
                 pos += 1;
                 continue;
             }
@@ -1775,8 +1778,7 @@ impl TestRunner {
                         let block = &best.tape.spans[lo_idx..=hi_idx];
                         let start =
                             block.iter().map(|s| s.start).min().unwrap();
-                        let end =
-                            block.iter().map(|s| s.end).max().unwrap();
+                        let end = block.iter().map(|s| s.end).max().unwrap();
                         if end > best.tape.choices.len() || start >= end {
                             break;
                         }
@@ -1843,9 +1845,9 @@ impl TestRunner {
                         continue;
                     }
                 };
-            let j = match (i + 1..best.tape.choices.len())
-                .find(|&j| matches!(best.tape.choices[j], Choice::Integer { .. }))
-            {
+            let j = match (i + 1..best.tape.choices.len()).find(|&j| {
+                matches!(best.tape.choices[j], Choice::Integer { .. })
+            }) {
                 Some(j) => j,
                 None => break,
             };
@@ -1978,8 +1980,7 @@ impl TestRunner {
             };
             let mut d = dist;
             while d > 0 {
-                let new_value =
-                    if above { value - d } else { value + d };
+                let new_value = if above { value - d } else { value + d };
                 let mut proposal = best.tape.clone();
                 let mut members = 0;
                 for choice in &mut proposal.choices {
@@ -2145,14 +2146,12 @@ impl TestRunner {
                     allow_nan,
                 };
                 let target = tape::float_shrink_target(min, max);
-                let read_current = |best: &TapeBest<S::Tree>| match best
-                    .tape
-                    .choices
-                    .get(idx)
-                {
-                    Some(Choice::Float { value, .. }) => Some(*value),
-                    _ => None,
-                };
+                let read_current =
+                    |best: &TapeBest<S::Tree>| match best.tape.choices.get(idx)
+                    {
+                        Some(Choice::Float { value, .. }) => Some(*value),
+                        _ => None,
+                    };
 
                 if value == target {
                     return (improved, false);
@@ -2197,8 +2196,7 @@ impl TestRunner {
                     let mut fail = cur;
                     let mut probe = 1.0f64;
                     while probe < (cur - target).abs() {
-                        let cand =
-                            tape::float_trunc(target + dir * probe);
+                        let cand = tape::float_trunc(target + dir * probe);
                         if attempt!(mk(cand)) {
                             fail = cand;
                             break;
@@ -2207,8 +2205,7 @@ impl TestRunner {
                         probe *= 2.0;
                     }
                     loop {
-                        let mid =
-                            tape::float_trunc(ok + (fail - ok) / 2.0);
+                        let mid = tape::float_trunc(ok + (fail - ok) / 2.0);
                         if mid == ok || mid == fail {
                             break;
                         }
@@ -2627,7 +2624,8 @@ mod test {
 
         // create value with recorder rng
         let default_config = Config::default();
-        let recorder_rng = TestRng::default_rng(RngSeed::Random, RngAlgorithm::Recorder);
+        let recorder_rng =
+            TestRng::default_rng(RngSeed::Random, RngAlgorithm::Recorder);
         let mut runner =
             TestRunner::new_with_rng(default_config.clone(), recorder_rng);
         let random_byte_array1 = runner.rng().random::<[u8; 16]>();

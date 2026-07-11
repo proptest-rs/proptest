@@ -257,8 +257,7 @@ impl<'a> Strategy for CharStrategy<'a> {
         if runner.tape_is_on() {
             let global_min =
                 self.ranges.iter().map(|r| *r.start() as u32).min();
-            let global_max =
-                self.ranges.iter().map(|r| *r.end() as u32).max();
+            let global_max = self.ranges.iter().map(|r| *r.end() as u32).max();
             let (global_min, global_max) = match (global_min, global_max) {
                 (Some(lo), Some(hi)) => (lo, hi),
                 _ => panic!("CharStrategy with no ranges"),
@@ -272,12 +271,8 @@ impl<'a> Strategy for CharStrategy<'a> {
                 |v| shrink_bottom(v, base_of(v, ranges)),
                 |v| conform_to_ranges(v, ranges),
                 |r| {
-                    let (base, offset) = select_range_index(
-                        r.rng(),
-                        special,
-                        preferred,
-                        ranges,
-                    );
+                    let (base, offset) =
+                        select_range_index(r.rng(), special, preferred, ranges);
                     base + offset
                 },
             );

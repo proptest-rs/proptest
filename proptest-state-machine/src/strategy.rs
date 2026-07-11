@@ -240,8 +240,7 @@ impl<
                     if (self.preconditions)(&state, &tree.current()) {
                         break tree;
                     }
-                    runner
-                        .reject_local("Pre-conditions were not satisfied")?;
+                    runner.reject_local("Pre-conditions were not satisfied")?;
                 };
                 runner.end_span();
                 let transition = transition_tree.current();
@@ -1164,10 +1163,15 @@ mod test {
         // Call simplify - this should trigger the optimization
         let simplified = value_tree.simplify();
 
-        assert_eq!(value_tree.included_transitions.count(), 0,
-            "All transitions should be removed when none were seen");
-        assert!(matches!(value_tree.shrink, InitialState),
-            "Shrink should be set to InitialState when kept_count == 0");
+        assert_eq!(
+            value_tree.included_transitions.count(),
+            0,
+            "All transitions should be removed when none were seen"
+        );
+        assert!(
+            matches!(value_tree.shrink, InitialState),
+            "Shrink should be set to InitialState when kept_count == 0"
+        );
 
         // The HeapStateMachine uses Just(vec![]) for initial state, which is not shrinkable
         // So simplify() should return false, but the optimization still works correctly
@@ -1175,7 +1179,9 @@ mod test {
             "Simplification should return false since initial state (Just(vec![])) is not shrinkable");
 
         let (_, transitions, _) = value_tree.current();
-        assert!(transitions.is_empty(),
-            "No transitions should remain when none were seen");
+        assert!(
+            transitions.is_empty(),
+            "No transitions should remain when none were seen"
+        );
     }
 }

@@ -47,11 +47,19 @@ pub(crate) enum Choice {
         allow_nan: bool,
     },
     #[allow(dead_code)] // constructed starting with the collection encoding
-    Bool { value: bool },
+    Bool {
+        value: bool,
+    },
     /// Untyped entropy recorded by the `RngCore` compat wrapper.
-    RawU32 { value: u32 },
-    RawU64 { value: u64 },
-    RawBytes { value: Vec<u8> },
+    RawU32 {
+        value: u32,
+    },
+    RawU64 {
+        value: u64,
+    },
+    RawBytes {
+        value: Vec<u8>,
+    },
 }
 
 /// Complexity key of a single choice. Lower keys are "simpler" values; the
@@ -232,18 +240,15 @@ impl Tape {
     /// Shortlex comparison: fewer choices first, then elementwise by
     /// complexity key. `Less` means `self` is simpler than `other`.
     pub(crate) fn cmp_key(&self, other: &Tape) -> Ordering {
-        self.choices
-            .len()
-            .cmp(&other.choices.len())
-            .then_with(|| {
-                for (a, b) in self.choices.iter().zip(&other.choices) {
-                    match a.key().cmp(&b.key()) {
-                        Ordering::Equal => continue,
-                        unequal => return unequal,
-                    }
+        self.choices.len().cmp(&other.choices.len()).then_with(|| {
+            for (a, b) in self.choices.iter().zip(&other.choices) {
+                match a.key().cmp(&b.key()) {
+                    Ordering::Equal => continue,
+                    unequal => return unequal,
                 }
-                Ordering::Equal
-            })
+            }
+            Ordering::Equal
+        })
     }
 
     /// The tape with every choice at its shrink target.
@@ -265,9 +270,8 @@ impl Tape {
     /// span list is dropped (it would be stale); an accepted proposal gets
     /// fresh spans from the replay's output tape anyway.
     pub(crate) fn with_span_deleted(&self, span: Span) -> Tape {
-        let mut choices = Vec::with_capacity(
-            self.choices.len() - (span.end - span.start),
-        );
+        let mut choices =
+            Vec::with_capacity(self.choices.len() - (span.end - span.start));
         choices.extend_from_slice(&self.choices[..span.start]);
         choices.extend_from_slice(&self.choices[span.end..]);
         Tape {
@@ -759,10 +763,7 @@ mod test {
         assert_eq!(0.0, float_shrink_target(-10.0, 10.0));
         assert_eq!(1.5, float_shrink_target(1.5, 10.0));
         assert_eq!(-1.5, float_shrink_target(-10.0, -1.5));
-        assert_eq!(
-            0.0,
-            float_shrink_target(f64::NEG_INFINITY, f64::INFINITY)
-        );
+        assert_eq!(0.0, float_shrink_target(f64::NEG_INFINITY, f64::INFINITY));
     }
 
     #[test]
@@ -844,8 +845,7 @@ mod test {
         // re-vets every proposal through the filter.
         use crate::strategy::Strategy;
         let mut runner = engine_runner();
-        let strategy = (0i32..1000)
-            .prop_filter("even", |v| 0 == v % 2);
+        let strategy = (0i32..1000).prop_filter("even", |v| 0 == v % 2);
         let result = runner.run(&strategy, |v| {
             if v >= 100 {
                 Err(crate::test_runner::TestCaseError::fail("too big"))
@@ -946,8 +946,7 @@ mod test {
         // allowed class set; the conform hook maps them back in, so the
         // minimal example is the smallest positive subnormal, not 0.0.
         let mut runner = engine_runner();
-        let strategy =
-            crate::num::f64::POSITIVE | crate::num::f64::SUBNORMAL;
+        let strategy = crate::num::f64::POSITIVE | crate::num::f64::SUBNORMAL;
         let result = runner.run(&strategy, |_| {
             Err(crate::test_runner::TestCaseError::fail("always"))
         });
@@ -955,8 +954,7 @@ mod test {
             Err(crate::test_runner::TestError::Fail(_, value)) => {
                 assert!(
                     value.is_sign_positive()
-                        && value.classify()
-                            == core::num::FpCategory::Subnormal,
+                        && value.classify() == core::num::FpCategory::Subnormal,
                     "value left the strategy's class set: {:?}",
                     value
                 );
@@ -1060,24 +1058,17 @@ mod test {
                     &[seed_byte; 32],
                 ),
             );
-            let result = runner
-                .run(&crate::collection::vec(0i32..100, 0..6), |v| {
+            let result =
+                runner.run(&crate::collection::vec(0i32..100, 0..6), |v| {
                     if v.len() >= 2 {
-                        Err(crate::test_runner::TestCaseError::fail(
-                            "too long",
-                        ))
+                        Err(crate::test_runner::TestCaseError::fail("too long"))
                     } else {
                         Ok(())
                     }
                 });
             match result {
                 Err(crate::test_runner::TestError::Fail(_, value)) => {
-                    assert_eq!(
-                        vec![0, 0],
-                        value,
-                        "seed byte {}",
-                        seed_byte
-                    )
+                    assert_eq!(vec![0, 0], value, "seed byte {}", seed_byte)
                 }
                 other => panic!(
                     "unexpected result for seed byte {}: {:?}",
@@ -1090,14 +1081,13 @@ mod test {
     #[test]
     fn replay_engine_minimizes_vec_elements() {
         let mut runner = engine_runner();
-        let result =
-            runner.run(&crate::collection::vec(0i32..100, 3), |v| {
-                if v.iter().any(|&e| e >= 7) {
-                    Err(crate::test_runner::TestCaseError::fail("big elem"))
-                } else {
-                    Ok(())
-                }
-            });
+        let result = runner.run(&crate::collection::vec(0i32..100, 3), |v| {
+            if v.iter().any(|&e| e >= 7) {
+                Err(crate::test_runner::TestCaseError::fail("big elem"))
+            } else {
+                Ok(())
+            }
+        });
         match result {
             Err(crate::test_runner::TestError::Fail(_, mut value)) => {
                 value.sort();
@@ -1111,10 +1101,8 @@ mod test {
     fn replay_engine_shrinks_union_to_first_branch() {
         use crate::strategy::Strategy;
         let mut runner = engine_runner();
-        let strategy = crate::prop_oneof![
-            crate::strategy::Just(3i32),
-            10i32..20,
-        ];
+        let strategy =
+            crate::prop_oneof![crate::strategy::Just(3i32), 10i32..20,];
         let result = runner.run(&strategy.boxed(), |_| {
             Err(crate::test_runner::TestCaseError::fail("always"))
         });
@@ -1325,17 +1313,17 @@ mod test {
             .clone();
         let entries = &map[&"tape_persistence_test"];
         assert_eq!(1, entries.len());
-        assert!(format!("{}", entries.iter().next().unwrap())
-            .starts_with("ct1 "));
+        assert!(
+            format!("{}", entries.iter().next().unwrap()).starts_with("ct1 ")
+        );
 
         // Run 2: fresh runner and RNG; the test only fails at *exactly*
         // 2.0, which random generation will essentially never produce.
         // Only replaying the persisted tape can find it.
         let mut config = engine_config();
         config.cases = 10;
-        config.failure_persistence = Some(Box::new(
-            crate::test_runner::MapFailurePersistence { map },
-        ));
+        config.failure_persistence =
+            Some(Box::new(crate::test_runner::MapFailurePersistence { map }));
         config.source_file = Some("tape_persistence_test");
         let mut runner = crate::test_runner::TestRunner::new_with_rng(
             config,
@@ -1354,10 +1342,9 @@ mod test {
             Err(crate::test_runner::TestError::Fail(_, value)) => {
                 assert_eq!(2.0, value)
             }
-            other => panic!(
-                "persisted tape did not replay the failure: {:?}",
-                other
-            ),
+            other => {
+                panic!("persisted tape did not replay the failure: {:?}", other)
+            }
         }
         let _ = strategy;
     }
@@ -1370,8 +1357,7 @@ mod test {
             Choice::RawU64 { value: 9 },
         ]));
         // Matching kind pops.
-        let popped =
-            state.pop_replay(|c| matches!(c, Choice::RawU32 { .. }));
+        let popped = state.pop_replay(|c| matches!(c, Choice::RawU32 { .. }));
         assert_eq!(Some(Choice::RawU32 { value: 7 }), popped);
         // Kind mismatch does not consume...
         assert_eq!(
@@ -1379,8 +1365,7 @@ mod test {
             state.pop_replay(|c| matches!(c, Choice::RawU32 { .. }))
         );
         // ...so the u64 is still there.
-        let popped =
-            state.pop_replay(|c| matches!(c, Choice::RawU64 { .. }));
+        let popped = state.pop_replay(|c| matches!(c, Choice::RawU64 { .. }));
         assert_eq!(Some(Choice::RawU64 { value: 9 }), popped);
         // Overrun.
         assert_eq!(

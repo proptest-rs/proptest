@@ -142,15 +142,10 @@ macro_rules! int_any {
         }
 
         /// Tape-aware, edge-case-biased sample from `[lo, hi)`.
-        fn tape_sample(
-            runner: &mut TestRunner,
-            lo: $typ,
-            hi: $typ,
-        ) -> $typ {
+        fn tape_sample(runner: &mut TestRunner, lo: $typ, hi: $typ) -> $typ {
             assert!(lo < hi, "Uniform::new called with `low >= high`");
             runner.draw_integer_in_biased(lo, hi - 1, |r| {
-                $crate::num::$uniform::<$typ>(r, lo.into(), hi.into())
-                    .into()
+                $crate::num::$uniform::<$typ>(r, lo.into(), hi.into()).into()
             })
         }
 
@@ -900,12 +895,11 @@ macro_rules! float_bin_search {
                 if float_class_allowed(-v, allowed) {
                     return -v;
                 }
-                let sign: $typ =
-                    if allowed.contains(FloatTypes::POSITIVE) {
-                        1.0
-                    } else {
-                        -1.0
-                    };
+                let sign: $typ = if allowed.contains(FloatTypes::POSITIVE) {
+                    1.0
+                } else {
+                    -1.0
+                };
                 if allowed.contains(FloatTypes::ZERO) {
                     return sign * 0.0;
                 }
@@ -1097,10 +1091,13 @@ macro_rules! float_bin_search {
                     tape_next_down(hi) as f64,
                     false,
                     |r| {
-                        let s: $typ = $crate::num::sample_uniform::<
-                            $sample_typ,
-                        >(r, lo.into(), hi.into())
-                        .into();
+                        let s: $typ =
+                            $crate::num::sample_uniform::<$sample_typ>(
+                                r,
+                                lo.into(),
+                                hi.into(),
+                            )
+                            .into();
                         s as f64
                     },
                 );
@@ -1232,10 +1229,7 @@ mod test {
         );
         let mut small = 0;
         for _ in 0..512 {
-            let v = super::i64::ANY
-                .new_tree(&mut runner)
-                .unwrap()
-                .current();
+            let v = super::i64::ANY.new_tree(&mut runner).unwrap().current();
             if v.unsigned_abs() < (1 << 16) {
                 small += 1;
             }
