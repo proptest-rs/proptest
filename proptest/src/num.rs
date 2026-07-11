@@ -1183,6 +1183,38 @@ mod test {
     }
 
     #[test]
+    fn finds_divisibility_edge_case_from_upstream_issue_500() {
+        // https://github.com/proptest-rs/proptest/issues/500: a paging
+        // computation `total_count / count + 1` is wrong exactly when
+        // `total_count % count == 0`, and uniform generation over these
+        // ranges essentially never produces a multiple (P per case is
+        // about 1e-4). Boundary injection produces `total_count == 0`
+        // (a multiple of everything) and `count == 1` (divides
+        // everything) constantly, so the bug is found reliably, and the
+        // failure shrinks to the minimal witness (0, 1).
+        let mut runner = TestRunner::new_with_rng(
+            Config {
+                failure_persistence: None,
+                ..Config::default()
+            },
+            TestRng::deterministic_rng(RngAlgorithm::default()),
+        );
+        match runner.run(
+            &(0usize..1_000_000, 1usize..100_000),
+            |(total_count, count)| {
+                if 0 == total_count % count {
+                    Err(TestCaseError::fail("get_total_pages off by one"))
+                } else {
+                    Ok(())
+                }
+            },
+        ) {
+            Err(TestError::Fail(_, value)) => assert_eq!((0, 1), value),
+            other => panic!("issue 500 bug was not found: {:?}", other),
+        }
+    }
+
+    #[test]
     fn any_biases_toward_small_magnitudes() {
         let mut runner = TestRunner::new_with_rng(
             Config {

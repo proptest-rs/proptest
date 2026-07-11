@@ -1058,12 +1058,13 @@ impl TestRunner {
         )
     }
 
-    /// The phase-6 integer distribution, after Hypothesis: for wide
-    /// ranges (> 24 bits), 1/16 of draws take a boundary-ish value, 2/16
-    /// stay uniform over the whole range, and 13/16 land within a
-    /// weighted random bit-size of the shrink target — so small values
-    /// and exact bounds both show up often, while the full range remains
-    /// reachable. Narrow ranges stay uniform.
+    /// The phase-6 integer distribution, after Hypothesis: 1/16 of draws
+    /// take a boundary-ish value (any range width; this is what finds
+    /// bugs guarded by `x % y == 0`, `== 0`, or exact bounds, cf.
+    /// upstream issue #500); the rest stay uniform for narrow ranges,
+    /// while wide ranges (> 24 bits) additionally land mostly within a
+    /// weighted random bit-size of the shrink target, so small values
+    /// dominate without making the full range unreachable.
     fn sample_integer_biased<T>(
         &mut self,
         min: T,
@@ -1076,62 +1077,58 @@ impl TestRunner {
         let emin = T::encode(min);
         let emax = T::encode(max);
         let width = emax - emin;
-        if width < (1u128 << 24) {
-            return sample_uniform(self);
-        }
         let target = T::encode_zero().clamp(emin, emax);
 
-        match self.rng.random_range(0..16u32) {
-            0 => {
-                // Boundary-ish values.
-                let candidates = [
-                    emin,
-                    emin + 1,
-                    emax,
-                    emax - 1,
-                    target,
-                    target.saturating_add(1).min(emax),
-                ];
-                let pick =
-                    self.rng.random_range(0..candidates.len());
-                T::decode(candidates[pick])
-            }
-            1 | 2 => sample_uniform(self),
-            _ => {
-                // Magnitude within a weighted random bit-size of the
-                // target; the same spirit as Hypothesis's INT_SIZES
-                // (small sizes heavily preferred, huge tail retained).
-                let bits: u32 = match self.rng.random_range(0..15u32) {
-                    0..=3 => 8,
-                    4..=11 => 16,
-                    12 => 32,
-                    13 => 64,
-                    14 => 128,
-                    _ => unreachable!(),
-                };
-                let mask = if bits >= 128 {
-                    u128::MAX
-                } else {
-                    (1u128 << bits) - 1
-                };
-                let magnitude = self.rng.random::<u128>() & mask;
-                let up_room = emax - target;
-                let down_room = target - emin;
-                let up = if 0 == down_room {
-                    true
-                } else if 0 == up_room {
-                    false
-                } else {
-                    self.rng.random::<bool>()
-                };
-                let value = if up {
-                    target + magnitude.min(up_room)
-                } else {
-                    target - magnitude.min(down_room)
-                };
-                T::decode(value)
-            }
+        let roll = self.rng.random_range(0..16u32);
+        if 0 == roll {
+            // Boundary-ish values (saturate and clamp so degenerate
+            // ranges stay in bounds).
+            let candidates = [
+                emin,
+                emin.saturating_add(1).min(emax),
+                emax,
+                emax.saturating_sub(1).max(emin),
+                target,
+                target.saturating_add(1).min(emax),
+            ];
+            let pick = self.rng.random_range(0..candidates.len());
+            return T::decode(candidates[pick]);
         }
+        if width < (1u128 << 24) || roll <= 2 {
+            return sample_uniform(self);
+        }
+        // Magnitude within a weighted random bit-size of the target; the
+        // same spirit as Hypothesis's INT_SIZES (small sizes heavily
+        // preferred, huge tail retained).
+        let bits: u32 = match self.rng.random_range(0..15u32) {
+            0..=3 => 8,
+            4..=11 => 16,
+            12 => 32,
+            13 => 64,
+            14 => 128,
+            _ => unreachable!(),
+        };
+        let mask = if bits >= 128 {
+            u128::MAX
+        } else {
+            (1u128 << bits) - 1
+        };
+        let magnitude = self.rng.random::<u128>() & mask;
+        let up_room = emax - target;
+        let down_room = target - emin;
+        let up = if 0 == down_room {
+            true
+        } else if 0 == up_room {
+            false
+        } else {
+            self.rng.random::<bool>()
+        };
+        let value = if up {
+            target + magnitude.min(up_room)
+        } else {
+            target - magnitude.min(down_room)
+        };
+        T::decode(value)
     }
 
     /// Like `draw_integer_in`, but with custom shrinking metadata and a

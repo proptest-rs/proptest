@@ -20,14 +20,17 @@
   in the regression file instead of RNG seeds. Replaying a tape
   regenerates the exact shrunken values, independent of RNG algorithm and
   robust to strategy refactors. Old seed entries are still understood.
-- Numeric generation now hunts edge cases, after Hypothesis: wide integer
-  ranges mostly produce values within a small random bit-size of the
-  shrink target with occasional exact bounds and a uniform tail (e.g.
-  `any::<i64>()` now actually generates `i64::MIN`); float draws
-  occasionally inject boundary and special values (bounds, one ulp inside
-  the bounds, plus/minus zero and one, simple fractions, NaN where
-  allowed). Tests that depended on the old uniform distributions may need
-  adjusting.
+- Numeric generation now hunts edge cases, after Hypothesis: integer
+  ranges of any width occasionally produce exact boundary values (min,
+  max, one inside each bound, the shrink target and its successor), and
+  wide ranges (over 24 bits) additionally produce mostly values within a
+  small random bit-size of the shrink target, keeping a uniform tail.
+  `any::<i64>()` now actually generates `i64::MIN`, and divisibility
+  edge cases like issue #500's `total_count % count == 0` are found
+  reliably instead of essentially never. Float draws occasionally inject
+  boundary and special values (bounds, one ulp inside the bounds, plus
+  or minus zero and one, simple fractions, NaN where allowed). Tests
+  that depended on the old uniform distributions may need adjusting.
 
 ### Bug Fixes
 
