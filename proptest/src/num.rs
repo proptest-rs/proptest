@@ -1192,9 +1192,16 @@ mod test {
         // (a multiple of everything) and `count == 1` (divides
         // everything) constantly, so the bug is found reliably, and the
         // failure shrinks to the minimal witness (0, 1).
+        //
+        // Finding the bug is engine-independent, but the exact minimal
+        // witness needs the tape engine: the ValueTree shrinker cannot
+        // renavigate the sparse set of multiples after the other tuple
+        // component has changed. Pin the engine so the assertion holds
+        // under PROPTEST_SHRINK_ENGINE=valuetree runs too.
         let mut runner = TestRunner::new_with_rng(
             Config {
                 failure_persistence: None,
+                shrink_engine: ShrinkEngine::Tape,
                 ..Config::default()
             },
             TestRng::deterministic_rng(RngAlgorithm::default()),
