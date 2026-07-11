@@ -443,6 +443,32 @@ impl TapeState {
         self.record(Choice::Bool { value });
     }
 
+    /// Record a boolean that generation forces to `forced` (drawing no
+    /// entropy), but that shrinking may edit: during replay the next
+    /// input Bool's value is honored if present. Used for units that are
+    /// structurally mandatory during generation yet deletable during
+    /// shrinking, e.g. a state-machine sequence's transitions below the
+    /// declared minimum length, which the classic shrinker deliberately
+    /// deletes past.
+    ///
+    /// Contrast `record_forced_bool`, which ignores the replayed value
+    /// (for markers whose value can never matter, like the stop flag of
+    /// a maximum-length collection).
+    pub(crate) fn draw_bool_forced(&mut self, forced: bool) -> bool {
+        if !self.is_on() {
+            return forced;
+        }
+        if let Some(Choice::Bool { value }) =
+            self.pop_replay(|c| matches!(c, Choice::Bool { .. }))
+        {
+            self.record(Choice::Bool { value });
+            return value;
+        }
+        // Not replaying, kind mismatch, or overrun: use the forced value.
+        self.record(Choice::Bool { value: forced });
+        forced
+    }
+
     /// During replay, consume and return the next input choice if `matcher`
     /// accepts it. Returns `None` (and samples must go fresh) on kind
     /// mismatch, on overrun (also setting the overrun flag), or when not

@@ -203,6 +203,85 @@ impl<
         let last_valid_initial_state = initial_state.current();
 
         let (min_size, end) = self.size.start_end_incl();
+
+        // Under the choice-tape shrink engine, encode the number of
+        // transitions as one continuation flag per transition beyond the
+        // minimum, with each transition (including its flag and any
+        // precondition-rejected retries) wrapped in a deletable span.
+        // This is the same encoding as proptest's collection strategies:
+        // deleting a span replays as the same sequence with one
+        // transition fewer, with preconditions re-checked against the
+        // re-evolved state during replay.
+        if runner.tape_is_on() {
+            let extra = (end - min_size) as f64 / 2.0;
+            let p_continue = extra / (extra + 1.0);
+            let mut transitions = Vec::with_capacity(min_size);
+            let mut acceptable_transitions = Vec::with_capacity(min_size);
+            let mut state = initial_state.current();
+            let mut i = 0;
+            while i < end {
+                runner.start_span();
+                // Below the minimum length the flag is forced during
+                // generation (the sequence always reaches min_size), but
+                // honored during replay: the classic shrinker deletes
+                // transitions below the declared minimum too, and the
+                // tape engine must be able to match that.
+                let more = if i < min_size {
+                    runner.draw_bool_forced(true)
+                } else {
+                    runner.draw_bool(p_continue)
+                };
+                if !more {
+                    runner.end_span();
+                    break;
+                }
+                let transition_tree = loop {
+                    let tree = (self.transitions)(&state).new_tree(runner)?;
+                    if (self.preconditions)(&state, &tree.current()) {
+                        break tree;
+                    }
+                    runner
+                        .reject_local("Pre-conditions were not satisfied")?;
+                };
+                runner.end_span();
+                let transition = transition_tree.current();
+                state = (self.next)(state, &transition);
+                acceptable_transitions
+                    .push((TransitionState::Accepted, transition));
+                transitions.push(transition_tree);
+                i += 1;
+            }
+            if i == end && end > 0 {
+                // Forced stop marker: maximum-length sequences must have
+                // the same tape shape as shorter ones so deletion edits
+                // stay aligned.
+                runner.record_forced_bool(false);
+            }
+
+            let size = transitions.len();
+            let max_ix = size.saturating_sub(1);
+            return Ok(SequentialValueTree {
+                initial_state,
+                is_initial_state_shrinkable: true,
+                last_valid_initial_state,
+                preconditions: self.preconditions.clone(),
+                next: self.next.clone(),
+                transitions,
+                acceptable_transitions,
+                included_transitions: VarBitSet::saturated(size),
+                shrinkable_transitions: VarBitSet::saturated(size),
+                max_ix,
+                shrink: Shrink::DeleteTransition(max_ix),
+                last_shrink: None,
+                // The seen-transitions counter drives the ValueTree
+                // shrinker's delete-unseen optimization; the tape engine
+                // deletes via spans instead, and re-reads `current()`
+                // after the test has already consumed transitions, so
+                // the counter must be disabled here.
+                seen_transitions_counter: None,
+            });
+        }
+
         // Sample the maximum number of the transitions from the size range
         let max_size = sample_uniform_incl(runner, min_size, end);
         let mut transitions = Vec::with_capacity(max_size);
@@ -1041,18 +1120,8 @@ mod test {
                 // We need to explicitly run create a runner so that we can
                 // inspect the output, and determine if it does return an input that
                 // should fail, and is minimal.
-                // State-machine strategies rely on their hand-written
-                // ValueTree shrinker (transition deletion, initial-state
-                // shrinking), which the choice-tape engine cannot yet
-                // match for unmigrated strategies; pin the classic
-                // engine until the sequential strategy records typed
-                // choices and spans.
-                let config = Config {
-                    shrink_engine: proptest::test_runner::ShrinkEngine::ValueTree,
-                    ..Config::default()
-                };
                 let mut runner = TestRunner::new_with_rng(
-                    config, TestRng::from_seed(Default::default(), &seed));
+                    Config::default(), TestRng::from_seed(Default::default(), &seed));
                 let result = runner.run(
                     &FailIfLessThan::sequential_strategy(10..50_usize),
                     |(ref_state, transitions, seen_counter)| {

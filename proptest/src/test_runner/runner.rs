@@ -1323,7 +1323,7 @@ impl TestRunner {
     /// `false` is the shrink-target value, so strategies should encode
     /// "stop"/"simpler" as `false` (e.g. collection continuation flags
     /// are `true = one more element`).
-    pub(crate) fn draw_bool(&mut self, probability_true: f64) -> bool {
+    pub fn draw_bool(&mut self, probability_true: f64) -> bool {
         if !self.rng.tape.is_on() {
             return self.rng.random_bool(probability_true);
         }
@@ -1345,25 +1345,32 @@ impl TestRunner {
     /// Whether the choice tape is currently active (recording or
     /// replaying). Strategies use this to select tape-friendly encodings
     /// (e.g. continuation flags instead of an up-front collection size).
-    pub(crate) fn tape_is_on(&self) -> bool {
+    pub fn tape_is_on(&self) -> bool {
         self.rng.tape.is_on()
     }
 
     /// Record a structurally-forced boolean on the choice tape without
     /// drawing entropy. See `TapeState::record_forced_bool`.
-    pub(crate) fn record_forced_bool(&mut self, value: bool) {
+    pub fn record_forced_bool(&mut self, value: bool) {
         self.rng.tape.record_forced_bool(value);
     }
 
     /// Open a span (a deletable logical unit) on the choice tape. No-op
     /// when the tape is off. Always pair with `end_span`.
-    pub(crate) fn start_span(&mut self) {
+    pub fn start_span(&mut self) {
         self.rng.tape.start_span();
     }
 
     /// Close the innermost open span.
-    pub(crate) fn end_span(&mut self) {
+    pub fn end_span(&mut self) {
         self.rng.tape.end_span();
+    }
+
+    /// Record a boolean that generation forces to `forced` without
+    /// drawing entropy, but that the tape shrinker may edit (the
+    /// replayed value is honored). See `TapeState::draw_bool_forced`.
+    pub fn draw_bool_forced(&mut self, forced: bool) -> bool {
+        self.rng.tape.draw_bool_forced(forced)
     }
 
     /// The tape-engine analogue of `gen_and_run_case`.
