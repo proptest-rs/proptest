@@ -1606,7 +1606,10 @@ mod test {
             return;
         }
 
-        let quiet_mask = 0x0008_0000_0000_0000u64;
+        // Derive the mask exactly as the production check does
+        // (float_class_allowed), so a FloatLayout change cannot
+        // silently decouple this test from the code path it pins.
+        let quiet_mask = (f64::EXP_MASK >> 1) & <f64 as FloatLayout>::MANTISSA_MASK;
         let quiet_pattern = ::std::f64::NAN.to_bits() & quiet_mask;
         let mut runner = TestRunner::deterministic();
         for _ in 0..4096 {
