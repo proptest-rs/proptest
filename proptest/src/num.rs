@@ -1610,10 +1610,8 @@ mod test {
         let quiet_pattern = ::std::f64::NAN.to_bits() & quiet_mask;
         let mut runner = TestRunner::deterministic();
         for _ in 0..4096 {
-            let value = f64::SIGNALING_NAN
-                .new_tree(&mut runner)
-                .unwrap()
-                .current();
+            let value =
+                f64::SIGNALING_NAN.new_tree(&mut runner).unwrap().current();
             assert!(value.is_nan());
             assert_ne!(
                 quiet_pattern,

@@ -72,9 +72,7 @@ impl PartialOrd for PersistedFailure {
 impl Ord for PersistedFailure {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (PersistedFailure::Seed(a), PersistedFailure::Seed(b)) => {
-                a.cmp(b)
-            }
+            (PersistedFailure::Seed(a), PersistedFailure::Seed(b)) => a.cmp(b),
             (PersistedFailure::Seed(..), PersistedFailure::Tape { .. }) => {
                 Ordering::Less
             }
@@ -188,9 +186,7 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
             | PersistedFailure::Tape {
                 seed: Some(Seed::XorShift(seed)),
                 ..
-            } => {
-                self.save_persisted_failure(source_file, seed, shrunken_value)
-            }
+            } => self.save_persisted_failure(source_file, seed, shrunken_value),
             _ => (),
         }
     }

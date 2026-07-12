@@ -124,6 +124,15 @@ fn main() {
     );
 
     compare(
+        "matrix (1..=8, 1..=8) flat_map r*c vec (issue #181), fail iff any elem >= 10",
+        (1usize..=8, 1usize..=8).prop_flat_map(|(r, c)| {
+            proptest::collection::vec(0i32..1000, r * c)
+                .prop_map(move |data| (r, c, data))
+        }),
+        |(_, _, data)| data.iter().any(|&x| x >= 10),
+    );
+
+    compare(
         "prop_oneof![10..20, 100..200], fail always",
         prop_oneof![10i32..20, 100i32..200],
         |_| true,

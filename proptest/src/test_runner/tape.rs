@@ -922,6 +922,32 @@ mod test {
     }
 
     #[test]
+    fn replay_engine_shrinks_length_prefixed_vec_to_single_element() {
+        // Through a bind, the collection length is an explicit earlier
+        // choice, so getting from [.., 0, 100] to [100] needs the
+        // lower-and-delete pass: neither deleting a zero span (the
+        // length still demands the old count) nor lowering the length
+        // (the tail element falls off) works alone.
+        use crate::strategy::Strategy;
+        let mut runner = engine_runner();
+        let strategy = (1usize..=64)
+            .prop_flat_map(|len| crate::collection::vec(0i32..1000, len..=len));
+        let result = runner.run(&strategy, |v| {
+            if v.iter().sum::<i32>() >= 100 {
+                Err(crate::test_runner::TestCaseError::fail("sum too big"))
+            } else {
+                Ok(())
+            }
+        });
+        match result {
+            Err(crate::test_runner::TestError::Fail(_, value)) => {
+                assert_eq!(vec![100], value)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
     fn replay_engine_shrinks_unmigrated_strategy_via_raw_choices() {
         // bool::ANY draws straight from the RNG; the compat wrapper
         // records that as a raw choice and the trivial pass zeroes it.
@@ -1427,9 +1453,8 @@ mod test {
         let mut map = BTreeMap::new();
         map.insert("corrupt_tape_test", entries);
         let mut config = engine_config();
-        config.failure_persistence = Some(Box::new(
-            crate::test_runner::MapFailurePersistence { map },
-        ));
+        config.failure_persistence =
+            Some(Box::new(crate::test_runner::MapFailurePersistence { map }));
         config.source_file = Some("corrupt_tape_test");
         let mut runner = crate::test_runner::TestRunner::new_with_rng(
             config,

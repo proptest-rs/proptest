@@ -1317,7 +1317,11 @@ impl TestRunner {
             min,
             max,
             if min.is_finite() { min.next_up() } else { min },
-            if max.is_finite() { max.next_down() } else { max },
+            if max.is_finite() {
+                max.next_down()
+            } else {
+                max
+            },
             if allow_nan { f64::NAN } else { 0.0 },
         ];
         let candidate = candidates[self.rng.random_range(0..candidates.len())];
@@ -1545,6 +1549,20 @@ impl TestRunner {
             let mut improved = false;
 
             let (imp, ex) = self.tape_delete_spans(
+                strategy,
+                test,
+                &rng_snapshot,
+                &mut best,
+                &mut budget,
+                result_cache,
+                fork_output,
+            );
+            improved |= imp;
+            if ex {
+                break;
+            }
+
+            let (imp, ex) = self.tape_lower_and_delete(
                 strategy,
                 test,
                 &rng_snapshot,
@@ -1872,6 +1890,89 @@ impl TestRunner {
                 }
                 TapeAttemptResult::Exhausted => return (improved, true),
             }
+        }
+        (improved, false)
+    }
+
+    /// Cross-value pass: lower an integer choice by one while deleting a
+    /// span after it. This is what shrinks length-prefixed data behind a
+    /// `prop_flat_map`: the length is an explicit earlier choice there,
+    /// so deleting an element span alone desynchronizes replay (the
+    /// length still demands the old count) and lowering the length alone
+    /// regenerates different elements. A port of the corresponding
+    /// special case in Hypothesis's `minimize_individual_nodes`. Returns
+    /// `(improved_anything, budget_exhausted)`.
+    fn tape_lower_and_delete<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: &TestRng,
+        best: &mut TapeBest<S::Tree>,
+        budget: &mut TapeShrinkBudget,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> (bool, bool) {
+        let mut improved = false;
+        let mut i = 0;
+        'outer: while i < best.tape.choices.len() {
+            // Re-read on every iteration: accepted attempts rewrite the
+            // tape. Only above-target integers participate; a length-like
+            // choice shrinks downward.
+            let (value, min, max, shrink_to) = match best.tape.choices[i] {
+                Choice::Integer {
+                    value,
+                    min,
+                    max,
+                    shrink_to,
+                } if value > shrink_to => (value, min, max, shrink_to),
+                _ => {
+                    i += 1;
+                    continue;
+                }
+            };
+            // Pair the lowered integer with each span after it, last to
+            // first (matching the deletion pass's direction).
+            let mut pos = 0;
+            loop {
+                let nspans = best.tape.spans.len();
+                if pos >= nspans {
+                    break;
+                }
+                let span = best.tape.spans[nspans - 1 - pos];
+                pos += 1;
+                if span.start <= i
+                    || span.end > best.tape.choices.len()
+                    || span.start >= span.end
+                {
+                    continue;
+                }
+                let mut proposal = best.tape.with_span_deleted(span);
+                proposal.choices[i] = Choice::Integer {
+                    value: value - 1,
+                    min,
+                    max,
+                    shrink_to,
+                };
+                match self.tape_attempt(
+                    strategy,
+                    test,
+                    rng_snapshot,
+                    proposal,
+                    best,
+                    budget,
+                    result_cache,
+                    fork_output,
+                ) {
+                    TapeAttemptResult::Accepted => {
+                        improved = true;
+                        // The tape was rewritten; restart this position.
+                        continue 'outer;
+                    }
+                    TapeAttemptResult::Rejected => {}
+                    TapeAttemptResult::Exhausted => return (improved, true),
+                }
+            }
+            i += 1;
         }
         (improved, false)
     }
