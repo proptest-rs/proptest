@@ -72,6 +72,18 @@ macro_rules! verbose_message {
 
 type RejectionDetail = BTreeMap<Reason, u32>;
 
+/// How [`TestRunner::draw_element_flag`] treats the declared minimum
+/// length: `Hard` (collection semantics: the shrinker must respect the
+/// floor) or `Soft` (state-machine semantics: elements below the
+/// minimum get shrink-editable flags, so shrinking may go below it).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ElementMinimum {
+    /// `min` is a floor the shrinker must respect.
+    Hard,
+    /// The shrinker may delete elements below `min`.
+    Soft,
+}
+
 /// State used when running a proptest test.
 #[derive(Clone)]
 pub struct TestRunner {
@@ -611,6 +623,13 @@ impl TestRunner {
 
         let mut result_cache = self.new_cache();
 
+        // Dead regression entries (corrupt lines, or tapes that no
+        // longer generate) are collected and reported AFTER every
+        // other entry and all fresh cases have run: one bit-rotted
+        // line must not reduce the property's coverage to zero, but
+        // it must not silently pass either.
+        let mut dead_entries: Vec<String> = Vec::new();
+
         for PersistedSeed(persisted) in
             persisted_failure_seeds.into_iter().rev()
         {
@@ -625,38 +644,33 @@ impl TestRunner {
                     // would regenerate a different value than the one
                     // that failed.
                     self.rng.set_seed(persisted_seed);
-                    let case = unwrap_or!(strategy.new_tree(self), msg =>
-                        return Err(TestError::Abort(msg)));
-                    let ok_type = self.run_one_with_replay(
-                        case,
+                    self.run_classic_case(
+                        strategy,
                         &test,
                         &mut replay_from_fork,
                         &mut *result_cache,
                         &mut fork_output,
                         true,
                     )?;
-                    if let TestCaseOk::ReplayFromForkSuccess = ok_type {
-                        self.successes += 1;
-                    }
                 }
                 PersistedFailure::Tape { bytes, .. } => {
                     match tape::deserialize_tape(&bytes) {
-                        Some(input) => self.replay_persisted_tape(
-                            strategy,
-                            input,
-                            &test,
-                            &mut replay_from_fork,
-                            &mut *result_cache,
-                            &mut fork_output,
-                        )?,
-                        None => {
-                            return Err(TestError::Abort(
-                                "A persisted choice tape (ct1 entry) in \
-                                 the regression file is corrupt; delete \
-                                 the stale line to continue."
-                                    .into(),
-                            ))
+                        Some(input) => {
+                            if let Err(dead) = self.replay_persisted_tape(
+                                strategy,
+                                input,
+                                &test,
+                                &mut replay_from_fork,
+                                &mut *result_cache,
+                                &mut fork_output,
+                            )? {
+                                dead_entries.push(dead);
+                            }
                         }
+                        None => dead_entries.push(format!(
+                            "a persisted choice tape (ct1 entry) is \
+                             corrupt"
+                        )),
                     }
                 }
             }
@@ -712,6 +726,50 @@ impl TestRunner {
         }
 
         fork_output.terminate();
+
+        if !dead_entries.is_empty() {
+            return Err(TestError::Abort(
+                format!(
+                    "{} regression file entr{} stopped guarding ({}); \
+                     delete the stale line(s) or re-trigger the \
+                     failure(s) to re-record them. All other entries \
+                     and the configured fresh cases ran first.",
+                    dead_entries.len(),
+                    if dead_entries.len() == 1 { "y" } else { "ies" },
+                    dead_entries.join("; "),
+                )
+                .into(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// The classic (tape-off) generate-and-run tail shared by
+    /// `gen_and_run_case` and persisted-seed replay: one place owns the
+    /// success-accounting contract for `run_one_with_replay`.
+    fn run_classic_case<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        f: &impl Fn(S::Value) -> TestCaseResult,
+        replay_from_fork: &mut impl Iterator<Item = TestCaseResult>,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+        is_from_persisted_seed: bool,
+    ) -> TestRunResult<S> {
+        let case = unwrap_or!(strategy.new_tree(self), msg =>
+            return Err(TestError::Abort(msg)));
+        let ok_type = self.run_one_with_replay(
+            case,
+            f,
+            replay_from_fork,
+            result_cache,
+            fork_output,
+            is_from_persisted_seed,
+        )?;
+        if let TestCaseOk::ReplayFromForkSuccess = ok_type {
+            self.successes += 1;
+        }
         Ok(())
     }
 
@@ -746,7 +804,10 @@ impl TestRunner {
                 return Err(TestError::Abort(msg)));
 
         // We only count new cases to our set of successful runs against
-        // `PROPTEST_CASES` config.
+        // `PROPTEST_CASES` config. NOTE: this accounting deliberately
+        // differs from `run_classic_case` (the persisted-seed variant),
+        // which must NOT count `NewCaseSuccess`; change them together
+        // only if that distinction is meant to go away.
         let ok_type = self.run_one_with_replay(
             case,
             f,
@@ -1401,17 +1462,30 @@ impl TestRunner {
     /// Encodes one continuation flag per element (truncated-geometric
     /// length with the same mean as uniform over `[min, max]`), plus a
     /// forced stop marker at the maximum so all lengths share one tape
-    /// shape. With `soft_minimum`, elements below `min` get
-    /// generation-forced but shrink-editable flags, letting the shrinker
-    /// delete below the declared minimum (state-machine semantics);
-    /// without it, `min` is a hard floor (collection semantics).
+    /// shape.
+    ///
+    /// The `minimum` mode also selects the stop-marker condition; the
+    /// two differ deliberately and getting this wrong silently
+    /// misaligns tape shapes between lengths:
+    ///
+    /// | mode   | below `min`                      | stop marker when  |
+    /// |--------|----------------------------------|-------------------|
+    /// | `Hard` | plain `true`, nothing recorded   | `max > min`       |
+    /// | `Soft` | forced but shrink-editable flag  | `max > 0`         |
+    ///
+    /// `Hard` is collection semantics (`min` is a floor the shrinker
+    /// must respect); `Soft` is state-machine semantics (the shrinker
+    /// may delete below the declared minimum, so every element below
+    /// `min` needs an editable flag and the marker exists whenever any
+    /// element could).
     pub fn draw_element_flag(
         &mut self,
         index: usize,
         min: usize,
         max: usize,
-        soft_minimum: bool,
+        minimum: ElementMinimum,
     ) -> bool {
+        let soft_minimum = matches!(minimum, ElementMinimum::Soft);
         if index >= max {
             let any_flags = if soft_minimum { max > 0 } else { max > min };
             if any_flags {
@@ -1646,8 +1720,11 @@ impl TestRunner {
     /// Replay a persisted choice tape: regenerate a value from it, run
     /// the test, and re-shrink on failure. Stale tapes (the strategy has
     /// changed since they were saved) replay best-effort: misaligned
-    /// draws sample fresh, and a tape that no longer generates anything
-    /// is skipped.
+    /// draws sample fresh. Returns `Ok(Err(reason))` for a dead tape
+    /// (one that no longer generates a value): the caller collects
+    /// those and reports them after every other entry and all fresh
+    /// cases have run, so one bit-rotted line neither hides a later
+    /// failure nor silently passes.
     fn replay_persisted_tape<S: Strategy>(
         &mut self,
         strategy: &S,
@@ -1656,7 +1733,7 @@ impl TestRunner {
         replay_from_fork: &mut impl Iterator<Item = TestCaseResult>,
         result_cache: &mut dyn ResultCache,
         fork_output: &mut ForkOutput,
-    ) -> TestRunResult<S> {
+    ) -> Result<Result<(), String>, TestError<S::Value>> {
         let rng_snapshot = self.rng.clone();
         self.rng.tape.start_replay(input);
         let case = match strategy.new_tree(self) {
@@ -1664,19 +1741,11 @@ impl TestRunner {
             Err(reason) => {
                 self.rng.tape.finish_replay();
                 self.rng = rng_snapshot;
-                // Fail as loudly as a dead persisted seed would: a
-                // regression entry that stops generating (usually after
-                // a strategy refactor) is guarding nothing, and silently
-                // continuing would let a reintroduced bug ship.
-                return Err(TestError::Abort(
-                    format!(
-                        "A persisted choice tape (ct1 entry) in the \
-                         regression file no longer generates a value \
-                         ({}); delete the stale line to continue.",
-                        reason
-                    )
-                    .into(),
-                ));
+                return Ok(Err(format!(
+                    "a persisted choice tape (ct1 entry) no longer \
+                     generates a value ({})",
+                    reason
+                )));
             }
         };
         let (output, _overrun) = self.rng.tape.finish_replay();
@@ -1697,7 +1766,7 @@ impl TestRunner {
             match result {
                 Ok(_) => {
                     self.rng = rng_snapshot;
-                    Ok(())
+                    Ok(Ok(()))
                 }
                 Err(TestCaseError::Fail(why)) => {
                     let (why, value) = self.tape_shrink(
@@ -1715,7 +1784,7 @@ impl TestRunner {
                 Err(TestCaseError::Reject(whence)) => {
                     self.rng = rng_snapshot;
                     self.reject_global(whence)?;
-                    Ok(())
+                    Ok(Ok(()))
                 }
             }
         } else {
@@ -1730,7 +1799,7 @@ impl TestRunner {
                 fork_output,
                 true,
             )
-            .map(|_| ())
+            .map(|_| Ok(()))
         }
     }
 
@@ -1914,7 +1983,7 @@ impl TestRunner {
     ) -> (bool, bool) {
         let mut improved = false;
         let mut i = 0;
-        'outer: while i < best.tape.choices.len() {
+        while i < best.tape.choices.len() {
             // Re-read on every iteration: accepted attempts rewrite the
             // tape. Only above-target integers participate; a length-like
             // choice shrinks downward.
@@ -1930,20 +1999,26 @@ impl TestRunner {
                     continue;
                 }
             };
-            // Pair the lowered integer with each span after it, last to
-            // first (matching the deletion pass's direction).
+            // Pair the lowered integer with each span after it, walking
+            // spans in ASCENDING order and, on an accepted deletion,
+            // greedily repeating at the same span position: deletable
+            // spans cluster (the redistribute pass piles zeros early),
+            // and the sibling OCaml engine measured a 26x attempt
+            // reduction from staying in place instead of restarting the
+            // whole scan (its review round then flagged the restart as
+            // the O(n^3) hot spot here).
             let mut pos = 0;
+            let mut value = value;
             loop {
-                let nspans = best.tape.spans.len();
-                if pos >= nspans {
+                if pos >= best.tape.spans.len() {
                     break;
                 }
-                let span = best.tape.spans[nspans - 1 - pos];
-                pos += 1;
+                let span = best.tape.spans[pos];
                 if span.start <= i
                     || span.end > best.tape.choices.len()
                     || span.start >= span.end
                 {
+                    pos += 1;
                     continue;
                 }
                 let mut proposal = best.tape.with_span_deleted(span);
@@ -1965,10 +2040,19 @@ impl TestRunner {
                 ) {
                     TapeAttemptResult::Accepted => {
                         improved = true;
-                        // The tape was rewritten; restart this position.
-                        continue 'outer;
+                        // Stay at this span position with the choice's
+                        // refreshed value; the next deletable span
+                        // usually sits exactly here.
+                        match best.tape.choices.get(i) {
+                            Some(Choice::Integer {
+                                value: new_value, ..
+                            }) if *new_value > shrink_to => {
+                                value = *new_value;
+                            }
+                            _ => break,
+                        }
                     }
-                    TapeAttemptResult::Rejected => {}
+                    TapeAttemptResult::Rejected => pos += 1,
                     TapeAttemptResult::Exhausted => return (improved, true),
                 }
             }

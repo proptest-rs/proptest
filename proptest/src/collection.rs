@@ -565,7 +565,12 @@ impl<T: Strategy> Strategy for VecStrategy<T> {
             let mut i = 0;
             loop {
                 runner.start_span();
-                if !runner.draw_element_flag(i, start, end, false) {
+                if !runner.draw_element_flag(
+                    i,
+                    start,
+                    end,
+                    ElementMinimum::Hard,
+                ) {
                     runner.end_span();
                     break;
                 }

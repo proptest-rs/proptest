@@ -19,7 +19,7 @@ use proptest::std_facade::fmt::{Debug, Formatter, Result};
 use proptest::std_facade::Vec;
 use proptest::strategy::BoxedStrategy;
 use proptest::strategy::{NewTree, Strategy, ValueTree};
-use proptest::test_runner::TestRunner;
+use proptest::test_runner::{ElementMinimum, TestRunner};
 
 /// This trait is used to model system under test as an abstract state machine.
 ///
@@ -222,7 +222,12 @@ impl<
                 // soft_minimum: the classic shrinker deletes transitions
                 // below the declared minimum too, so below-min flags are
                 // generation-forced but shrink-editable.
-                if !runner.draw_element_flag(i, min_size, end, true) {
+                if !runner.draw_element_flag(
+                    i,
+                    min_size,
+                    end,
+                    ElementMinimum::Soft,
+                ) {
                     runner.end_span();
                     break;
                 }

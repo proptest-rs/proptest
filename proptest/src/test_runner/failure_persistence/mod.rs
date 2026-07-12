@@ -187,7 +187,22 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
                 seed: Some(Seed::XorShift(seed)),
                 ..
             } => self.save_persisted_failure(source_file, seed, shrunken_value),
-            _ => (),
+            _ => {
+                // The deprecated hook's signature is XorShift-only
+                // ([u8; 16]); ChaCha seeds and seedless tapes cannot be
+                // forwarded through it. Defaults produce exactly those,
+                // so a legacy-only implementation would silently
+                // persist nothing: say so instead.
+                #[cfg(feature = "std")]
+                eprintln!(
+                    "proptest: failure NOT persisted: this \
+                     FailurePersistence implementation only overrides \
+                     the deprecated XorShift-based hook; implement \
+                     save_persisted_failure2/load_persisted_failures2 \
+                     to persist failures under the default \
+                     configuration."
+                );
+            }
         }
     }
 
