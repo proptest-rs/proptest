@@ -940,7 +940,11 @@ macro_rules! float_bin_search {
                 let mut signaling =
                     (quiet_or ^ ($typ::EXP_MASK >> 1)) | $typ::EXP_MASK | 1;
                 if sign < 0.0 {
-                    signaling |= $typ::SIGN_MASK;
+                    // Fully qualified: newer std adds an inherent
+                    // `f32`/`f64::SIGN_MASK`, and the resulting name
+                    // collision is a `future_incompatible` lint, which
+                    // this crate forbids. Matches lines 755/762.
+                    signaling |= <$typ as FloatLayout>::SIGN_MASK;
                 }
                 $typ::from_bits(signaling)
             }
