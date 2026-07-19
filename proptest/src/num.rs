@@ -867,7 +867,7 @@ macro_rules! float_bin_search {
                         // must be able to reject. (The hardware's
                         // interpretation of the bit is taken from the
                         // NAN constant, as in Any::new_tree.)
-                        let quiet_bit = ::core::$typ::NAN.to_bits()
+                        let quiet_bit = $typ::NAN.to_bits()
                             & ($typ::EXP_MASK >> 1)
                             & <$typ as FloatLayout>::MANTISSA_MASK;
                         let is_quiet = (v.to_bits()
@@ -924,18 +924,18 @@ macro_rules! float_bin_search {
                     return sign * $typ::from_bits(1);
                 }
                 if allowed.contains(FloatTypes::INFINITE) {
-                    return sign * ::core::$typ::INFINITY;
+                    return sign * $typ::INFINITY;
                 }
                 if allowed.contains(FloatTypes::QUIET_NAN) {
                     return if sign < 0.0 {
-                        -::core::$typ::NAN
+                        -$typ::NAN
                     } else {
-                        ::core::$typ::NAN
+                        $typ::NAN
                     };
                 }
                 // Signaling NaN only: same construction as in
                 // `Any::new_tree`.
-                let quiet_or = ::core::$typ::NAN.to_bits()
+                let quiet_or = $typ::NAN.to_bits()
                     & ($typ::EXP_MASK | ($typ::EXP_MASK >> 1));
                 let mut signaling =
                     (quiet_or ^ ($typ::EXP_MASK >> 1)) | $typ::EXP_MASK | 1;
