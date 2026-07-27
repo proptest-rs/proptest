@@ -423,6 +423,8 @@ pub struct Config {
     ///
     /// - `xs` — `RngAlgorithm::XorShift`
     /// - `cc` — `RngAlgorithm::ChaCha`
+    /// - `at` — `RngAlgorithm::Antithesis` (only when the `antithesis` feature
+    ///   is enabled)
     ///
     /// (The variable is only considered when the `std` feature is enabled,
     /// which it is by default.)

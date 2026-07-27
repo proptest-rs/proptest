@@ -10,6 +10,7 @@ resolver = "2"
 exclude = ["proptest/test-persistence-location/*"]
 
 [workspace.dependencies]
+antithesis_sdk = { version = "0.2.9", default-features = false, features = ["full", "rand_v0_10"] }
 bit-set = "0.8.0"
 bit-vec = "0.8.0"
 bitflags = "2.10"

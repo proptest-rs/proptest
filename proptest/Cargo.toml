@@ -61,6 +61,15 @@ atomic64bit = []
 
 bit-set = ["dep:bit-set", "dep:bit-vec"]
 
+# Enables the `Antithesis` RNG algorithm, which pulls randomness directly from
+# the Antithesis deterministic simulation testing SDK on every call, with no
+# buffering. Also pulls in the `antithesis_sdk` crate.
+#
+# Requires `std`. Outside the Antithesis environment the SDK falls back to its
+# own local entropy source; inside it, the platform supplies (and branches) the
+# entropy stream.
+antithesis = ["std", "dep:antithesis_sdk"]
+
 # Enables proper handling of panics
 # In particular, hides all intermediate panics flowing into stderr during shrink phase
 handle-panics = ["std"]
@@ -80,6 +89,7 @@ rand_chacha = { workspace = true }
 rusty-fork = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 x86 = { workspace = true, optional = true }
+antithesis_sdk = { workspace = true, optional = true }
 
 [package.metadata.docs.rs]
 all-features = true
