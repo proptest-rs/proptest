@@ -7,8 +7,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::std_facade::{fmt, Box, Vec};
+use crate::std_facade::{fmt, Box, String, Vec};
 use core::any::Any;
+use core::cmp::Ordering;
 use core::fmt::Display;
 use core::result::Result;
 use core::str::FromStr;
@@ -25,16 +26,81 @@ pub use self::map::*;
 
 use crate::test_runner::Seed;
 
-/// Opaque struct representing a seed which can be persisted.
+/// Opaque struct representing a persisted failure: either an RNG seed
+/// (regenerates and re-shrinks the historical failure) or, under the tape
+/// shrink engine, a recorded choice tape (replays the already-shrunken
+/// values exactly, surviving strategy refactors and RNG changes).
 ///
 /// The `Display` and `FromStr` implementations go to and from the format
 /// Proptest uses for its persistence file.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PersistedSeed(pub(crate) Seed);
+pub struct PersistedSeed(pub(crate) PersistedFailure);
+
+#[derive(Clone, Debug)]
+pub(crate) enum PersistedFailure {
+    Seed(Seed),
+    /// A serialized choice tape (see `tape::serialize_tape`), written as
+    /// `ct1 <base16>`.
+    Tape {
+        bytes: Vec<u8>,
+        /// The RNG seed of the run that produced the failure. Not
+        /// persisted (the tape supersedes it for replay); carried so the
+        /// default `save_persisted_failure2` can keep forwarding seeds
+        /// to implementations that only override the legacy hooks.
+        /// `None` for entries loaded from a persistence file.
+        seed: Option<Seed>,
+    },
+}
+
+// Equality and ordering ignore the carried seed: a tape loaded from disk
+// (seed: None) and the same tape as saved (seed: Some) are one entry for
+// deduplication purposes.
+impl PartialEq for PersistedFailure {
+    fn eq(&self, other: &Self) -> bool {
+        Ordering::Equal == self.cmp(other)
+    }
+}
+
+impl Eq for PersistedFailure {}
+
+impl PartialOrd for PersistedFailure {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PersistedFailure {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (PersistedFailure::Seed(a), PersistedFailure::Seed(b)) => a.cmp(b),
+            (PersistedFailure::Seed(..), PersistedFailure::Tape { .. }) => {
+                Ordering::Less
+            }
+            (PersistedFailure::Tape { .. }, PersistedFailure::Seed(..)) => {
+                Ordering::Greater
+            }
+            (
+                PersistedFailure::Tape { bytes: a, .. },
+                PersistedFailure::Tape { bytes: b, .. },
+            ) => a.cmp(b),
+        }
+    }
+}
+
+const TAPE_PERSISTENCE_KEY: &str = "ct1";
 
 impl Display for PersistedSeed {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.to_persistence())
+        match &self.0 {
+            PersistedFailure::Seed(seed) => {
+                write!(f, "{}", seed.to_persistence())
+            }
+            PersistedFailure::Tape { bytes, .. } => {
+                let mut hex = String::new();
+                crate::test_runner::rng::to_base16(&mut hex, bytes);
+                write!(f, "{} {}", TAPE_PERSISTENCE_KEY, hex)
+            }
+        }
     }
 }
 
@@ -42,7 +108,25 @@ impl FromStr for PersistedSeed {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, ()> {
-        Seed::from_persistence(s).map(PersistedSeed).ok_or(())
+        let trimmed = s.trim();
+        if let Some(hex) = trimmed
+            .strip_prefix(TAPE_PERSISTENCE_KEY)
+            .and_then(|rest| rest.strip_prefix(' '))
+        {
+            let hex = hex.trim();
+            if 0 != hex.len() % 2 {
+                return Err(());
+            }
+            let mut bytes = vec![0u8; hex.len() / 2];
+            crate::test_runner::rng::from_base16(&mut bytes, hex).ok_or(())?;
+            return Ok(PersistedSeed(PersistedFailure::Tape {
+                bytes,
+                seed: None,
+            }));
+        }
+        Seed::from_persistence(trimmed)
+            .map(|seed| PersistedSeed(PersistedFailure::Seed(seed)))
+            .ok_or(())
     }
 }
 
@@ -67,7 +151,9 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
     ) -> Vec<PersistedSeed> {
         self.load_persisted_failures(source_file)
             .into_iter()
-            .map(|seed| PersistedSeed(Seed::XorShift(seed)))
+            .map(|seed| {
+                PersistedSeed(PersistedFailure::Seed(Seed::XorShift(seed)))
+            })
             .collect()
     }
 
@@ -96,10 +182,27 @@ pub trait FailurePersistence: Send + Sync + fmt::Debug {
         shrunken_value: &dyn fmt::Debug,
     ) {
         match seed.0 {
-            Seed::XorShift(seed) => {
-                self.save_persisted_failure(source_file, seed, shrunken_value)
+            PersistedFailure::Seed(Seed::XorShift(seed))
+            | PersistedFailure::Tape {
+                seed: Some(Seed::XorShift(seed)),
+                ..
+            } => self.save_persisted_failure(source_file, seed, shrunken_value),
+            _ => {
+                // The deprecated hook's signature is XorShift-only
+                // ([u8; 16]); ChaCha seeds and seedless tapes cannot be
+                // forwarded through it. Defaults produce exactly those,
+                // so a legacy-only implementation would silently
+                // persist nothing: say so instead.
+                #[cfg(feature = "std")]
+                eprintln!(
+                    "proptest: failure NOT persisted: this \
+                     FailurePersistence implementation only overrides \
+                     the deprecated XorShift-based hook; implement \
+                     save_persisted_failure2/load_persisted_failures2 \
+                     to persist failures under the default \
+                     configuration."
+                );
             }
-            _ => (),
         }
     }
 
@@ -144,12 +247,13 @@ impl Clone for Box<dyn FailurePersistence> {
 
 #[cfg(test)]
 mod tests {
-    use super::PersistedSeed;
+    use super::{PersistedFailure, PersistedSeed};
     use crate::test_runner::rng::Seed;
 
-    pub const INC_SEED: PersistedSeed = PersistedSeed(Seed::XorShift([
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-    ]));
+    pub const INC_SEED: PersistedSeed =
+        PersistedSeed(PersistedFailure::Seed(Seed::XorShift([
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+        ])));
 
     pub const HI_PATH: Option<&str> = Some("hi");
     pub const UNREL_PATH: Option<&str> = Some("unrelated");

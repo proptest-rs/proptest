@@ -12,8 +12,6 @@
 use crate::strategy::*;
 use crate::test_runner::*;
 
-use rand::RngExt;
-
 /// The type of the `ANY` constant.
 #[derive(Clone, Copy, Debug)]
 pub struct Any(());
@@ -28,7 +26,11 @@ impl Strategy for Any {
     type Value = bool;
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-        Ok(BoolValueTree::new(runner.rng().random()))
+        // A typed choice so the tape engine shrinks toward `false`. The
+        // raw fallback would depend on the sampler's bit mapping (rand's
+        // Bernoulli maps a zeroed u64 to `true`, inverting the shrink
+        // direction).
+        Ok(BoolValueTree::new(runner.draw_bool(0.5)))
     }
 }
 
@@ -50,7 +52,7 @@ impl Strategy for Weighted {
     type Value = bool;
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-        Ok(BoolValueTree::new(runner.rng().random_bool(self.0)))
+        Ok(BoolValueTree::new(runner.draw_bool(self.0)))
     }
 }
 

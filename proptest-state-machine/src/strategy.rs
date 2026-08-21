@@ -19,7 +19,7 @@ use proptest::std_facade::fmt::{Debug, Formatter, Result};
 use proptest::std_facade::Vec;
 use proptest::strategy::BoxedStrategy;
 use proptest::strategy::{NewTree, Strategy, ValueTree};
-use proptest::test_runner::TestRunner;
+use proptest::test_runner::{ElementMinimum, TestRunner};
 
 /// This trait is used to model system under test as an abstract state machine.
 ///
@@ -203,6 +203,73 @@ impl<
         let last_valid_initial_state = initial_state.current();
 
         let (min_size, end) = self.size.start_end_incl();
+
+        // Under the choice-tape shrink engine, encode the number of
+        // transitions as one continuation flag per transition beyond the
+        // minimum, with each transition (including its flag and any
+        // precondition-rejected retries) wrapped in a deletable span.
+        // This is the same encoding as proptest's collection strategies:
+        // deleting a span replays as the same sequence with one
+        // transition fewer, with preconditions re-checked against the
+        // re-evolved state during replay.
+        if runner.tape_is_on() {
+            let mut transitions = Vec::with_capacity(min_size);
+            let mut acceptable_transitions = Vec::with_capacity(min_size);
+            let mut state = initial_state.current();
+            let mut i = 0;
+            loop {
+                runner.start_span();
+                // soft_minimum: the classic shrinker deletes transitions
+                // below the declared minimum too, so below-min flags are
+                // generation-forced but shrink-editable.
+                if !runner.draw_element_flag(
+                    i,
+                    min_size,
+                    end,
+                    ElementMinimum::Soft,
+                ) {
+                    runner.end_span();
+                    break;
+                }
+                let transition_tree = loop {
+                    let tree = (self.transitions)(&state).new_tree(runner)?;
+                    if (self.preconditions)(&state, &tree.current()) {
+                        break tree;
+                    }
+                    runner.reject_local("Pre-conditions were not satisfied")?;
+                };
+                runner.end_span();
+                let transition = transition_tree.current();
+                state = (self.next)(state, &transition);
+                acceptable_transitions
+                    .push((TransitionState::Accepted, transition));
+                transitions.push(transition_tree);
+                i += 1;
+            }
+            let size = transitions.len();
+            let max_ix = size.saturating_sub(1);
+            return Ok(SequentialValueTree {
+                initial_state,
+                is_initial_state_shrinkable: true,
+                last_valid_initial_state,
+                preconditions: self.preconditions.clone(),
+                next: self.next.clone(),
+                transitions,
+                acceptable_transitions,
+                included_transitions: VarBitSet::saturated(size),
+                shrinkable_transitions: VarBitSet::saturated(size),
+                max_ix,
+                shrink: Shrink::DeleteTransition(max_ix),
+                last_shrink: None,
+                // The seen-transitions counter drives the ValueTree
+                // shrinker's delete-unseen optimization; the tape engine
+                // deletes via spans instead, and re-reads `current()`
+                // after the test has already consumed transitions, so
+                // the counter must be disabled here.
+                seen_transitions_counter: None,
+            });
+        }
+
         // Sample the maximum number of the transitions from the size range
         let max_size = sample_uniform_incl(runner, min_size, end);
         let mut transitions = Vec::with_capacity(max_size);
@@ -1085,10 +1152,15 @@ mod test {
         // Call simplify - this should trigger the optimization
         let simplified = value_tree.simplify();
 
-        assert_eq!(value_tree.included_transitions.count(), 0,
-            "All transitions should be removed when none were seen");
-        assert!(matches!(value_tree.shrink, InitialState),
-            "Shrink should be set to InitialState when kept_count == 0");
+        assert_eq!(
+            value_tree.included_transitions.count(),
+            0,
+            "All transitions should be removed when none were seen"
+        );
+        assert!(
+            matches!(value_tree.shrink, InitialState),
+            "Shrink should be set to InitialState when kept_count == 0"
+        );
 
         // The HeapStateMachine uses Just(vec![]) for initial state, which is not shrinkable
         // So simplify() should return false, but the optimization still works correctly
@@ -1096,7 +1168,9 @@ mod test {
             "Simplification should return false since initial state (Just(vec![])) is not shrinkable");
 
         let (_, transitions, _) = value_tree.current();
-        assert!(transitions.is_empty(),
-            "No transitions should remain when none were seen");
+        assert!(
+            transitions.is_empty(),
+            "No transitions should remain when none were seen"
+        );
     }
 }

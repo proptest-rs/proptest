@@ -1539,8 +1539,11 @@ mod closure_tests {
     fn test_simple() {
         let x = 420;
 
+        // These only exercise closure capture, so the assertion must
+        // hold for every `y`: edge-biased generation does eventually
+        // produce any small value, including 420.
         proptest!(|(y: i32)| {
-            assert!(x != y);
+            assert_eq!(420, x, "y = {}", y);
         });
 
         proptest!(|(y in 0..100)| {
@@ -1549,7 +1552,7 @@ mod closure_tests {
         });
 
         proptest!(|(y: i32,)| {
-            assert!(x != y);
+            assert_eq!(420, x, "y = {}", y);
         });
 
         proptest!(|(y in 0..100,)| {

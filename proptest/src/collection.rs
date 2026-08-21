@@ -551,6 +551,44 @@ impl<T: Strategy> Strategy for VecStrategy<T> {
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let (start, end) = self.size.start_end_incl();
+
+        // Under the tape shrink engine, encode the length as one
+        // continuation flag per element beyond the minimum (Hypothesis's
+        // "many" protocol) instead of an up-front size. This makes each
+        // element (with its flag) an independently deletable span:
+        // removing one replays cleanly as "the same vec, one element
+        // shorter", and flags shrink to false, truncating the tail. The
+        // length distribution becomes truncated-geometric with the same
+        // mean instead of uniform.
+        if runner.tape_is_on() {
+            let mut elements = Vec::with_capacity(start);
+            let mut i = 0;
+            loop {
+                runner.start_span();
+                if !runner.draw_element_flag(
+                    i,
+                    start,
+                    end,
+                    ElementMinimum::Hard,
+                ) {
+                    runner.end_span();
+                    break;
+                }
+                let element = self.element.new_tree(runner);
+                runner.end_span();
+                elements.push(element?);
+                i += 1;
+            }
+            let len = elements.len();
+            return Ok(VecValueTree {
+                elements,
+                included_elements: VarBitSet::saturated(len),
+                min_size: start,
+                shrink: Shrink::DeleteElement(0),
+                prev_shrink: None,
+            });
+        }
+
         let max_size = sample_uniform_incl(runner, start, end);
         let mut elements = Vec::with_capacity(max_size);
         while elements.len() < max_size {

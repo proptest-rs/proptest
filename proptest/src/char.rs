@@ -250,6 +250,38 @@ impl<'a> Strategy for CharStrategy<'a> {
     type Value = char;
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+        // Under the tape shrink engine, the selected character is one
+        // typed integer choice whose shrink target is the same "bottom"
+        // the ValueTree uses; the conform hook keeps shrink proposals
+        // inside the union of ranges (and off the surrogate hole).
+        if runner.tape_is_on() {
+            let global_min =
+                self.ranges.iter().map(|r| *r.start() as u32).min();
+            let global_max = self.ranges.iter().map(|r| *r.end() as u32).max();
+            let (global_min, global_max) = match (global_min, global_max) {
+                (Some(lo), Some(hi)) => (lo, hi),
+                _ => panic!("CharStrategy with no ranges"),
+            };
+            let special = &self.special;
+            let preferred = &self.preferred;
+            let ranges = &self.ranges;
+            let start = runner.draw_integer_in_with(
+                global_min,
+                global_max,
+                |v| shrink_bottom(v, base_of(v, ranges)),
+                |v| conform_to_ranges(v, ranges),
+                |r| {
+                    let (base, offset) =
+                        select_range_index(r.rng(), special, preferred, ranges);
+                    base + offset
+                },
+            );
+            let bottom = shrink_bottom(start, base_of(start, &self.ranges));
+            return Ok(CharValueTree {
+                value: num::u32::BinarySearch::new_above(bottom, start),
+            });
+        }
+
         let (base, offset) = select_range_index(
             runner.rng(),
             &self.special,
@@ -259,24 +291,76 @@ impl<'a> Strategy for CharStrategy<'a> {
 
         // Select a minimum point more convenient than 0
         let start = base + offset;
-        let bottom = if start >= '¡' as u32 && base < '¡' as u32 {
-            '¡' as u32
-        } else if start >= 'a' as u32 && base < 'a' as u32 {
-            'a' as u32
-        } else if start >= 'A' as u32 && base < 'A' as u32 {
-            'A' as u32
-        } else if start >= '0' as u32 && base < '0' as u32 {
-            '0' as u32
-        } else if start >= ' ' as u32 && base < ' ' as u32 {
-            ' ' as u32
-        } else {
-            base
-        };
+        let bottom = shrink_bottom(start, base);
 
         Ok(CharValueTree {
             value: num::u32::BinarySearch::new_above(bottom, start),
         })
     }
+}
+
+/// The hard-wired ASCII-oriented shrink floor: the highest of the
+/// convenient simplification targets that lies in `(base, start]`.
+fn shrink_bottom(start: u32, base: u32) -> u32 {
+    if start >= '¡' as u32 && base < '¡' as u32 {
+        '¡' as u32
+    } else if start >= 'a' as u32 && base < 'a' as u32 {
+        'a' as u32
+    } else if start >= 'A' as u32 && base < 'A' as u32 {
+        'A' as u32
+    } else if start >= '0' as u32 && base < '0' as u32 {
+        '0' as u32
+    } else if start >= ' ' as u32 && base < ' ' as u32 {
+        ' ' as u32
+    } else {
+        base
+    }
+}
+
+/// The start of the first range containing `v`, mirroring the `in_range`
+/// lookup used during selection. Falls back to `v` itself when `v` is not
+/// in any range (`shrink_bottom` then degenerates to `v`).
+fn base_of(v: u32, ranges: &[CharRange]) -> u32 {
+    ranges
+        .iter()
+        .find(|r| v >= *r.start() as u32 && v <= *r.end() as u32)
+        .map(|r| *r.start() as u32)
+        .unwrap_or(v)
+}
+
+/// Map an arbitrary code-point proposal to the nearest value inside the
+/// union of `ranges` that is a valid `char`.
+fn conform_to_ranges(v: u32, ranges: &[CharRange]) -> u32 {
+    fn fix_surrogate(c: u32, lo: u32, hi: u32) -> Option<u32> {
+        if ::core::char::from_u32(c).is_some() {
+            return Some(c);
+        }
+        // c is in the surrogate hole D800..=DFFF (the only invalid
+        // region below MAX); move to whichever side of it stays in
+        // [lo, hi].
+        if lo <= 0xD7FF {
+            Some(0xD7FF.min(hi).max(lo))
+        } else if hi >= 0xE000 {
+            Some(0xE000.max(lo).min(hi))
+        } else {
+            None
+        }
+    }
+
+    let mut best: Option<(u32, u32)> = None;
+    for range in ranges {
+        let lo = *range.start() as u32;
+        let hi = *range.end() as u32;
+        let clamped = v.clamp(lo, hi);
+        if let Some(fixed) = fix_surrogate(clamped, lo, hi) {
+            let distance = fixed.max(v) - fixed.min(v);
+            if best.map_or(true, |(d, _)| distance < d) {
+                best = Some((distance, fixed));
+            }
+        }
+    }
+    best.map(|(_, val)| val)
+        .unwrap_or_else(|| *ranges[0].start() as u32)
 }
 
 impl CharValueTree {

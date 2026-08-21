@@ -93,13 +93,16 @@ macro_rules! unsupported_int_any {
 }
 
 macro_rules! int_any {
-    ($typ: ident, $int_any: ident) => {
+    ($typ: ident, $int_any: ident, $uniform: ident, $incl: ident) => {
         /// Type of the `ANY` constant.
         #[derive(Clone, Copy, Debug)]
         #[must_use = "strategies do nothing unless used"]
         pub struct Any(());
-        /// Generates integers with completely arbitrary values, uniformly
-        /// distributed over the whole range.
+        /// Generates integers with completely arbitrary values over the
+        /// whole range, biased toward interesting cases: exact boundary
+        /// values appear occasionally, most values have small magnitude,
+        /// and a uniform tail keeps the full range reachable. The bias
+        /// applies regardless of the configured shrink engine.
         pub const ANY: Any = Any(());
 
         impl Strategy for Any {
@@ -107,29 +110,72 @@ macro_rules! int_any {
             type Value = $typ;
 
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-                Ok(BinarySearch::new($int_any!(runner, $typ)))
+                Ok(BinarySearch::new(runner.draw_integer_in_biased(
+                    <$typ>::MIN,
+                    <$typ>::MAX,
+                    |r| $int_any!(r, $typ),
+                )))
             }
+        }
+
+        /// Like `Any`, but strictly uniform over the whole range.
+        /// Crate-internal: for draws whose value is positional (a
+        /// fraction of a collection, like `sample::Index`) rather than a
+        /// magnitude, where edge-case biasing would skew what gets
+        /// selected instead of making values more interesting.
+        #[derive(Clone, Copy, Debug)]
+        #[must_use = "strategies do nothing unless used"]
+        #[allow(dead_code)]
+        pub(crate) struct AnyUniform(());
+
+        #[allow(dead_code)]
+        pub(crate) const ANY_UNIFORM: AnyUniform = AnyUniform(());
+
+        impl Strategy for AnyUniform {
+            type Tree = BinarySearch;
+            type Value = $typ;
+
+            fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+                Ok(BinarySearch::new(runner.draw_integer_in(
+                    <$typ>::MIN,
+                    <$typ>::MAX,
+                    |r| $int_any!(r, $typ),
+                )))
+            }
+        }
+
+        /// Tape-aware, edge-case-biased sample from `[lo, hi)`.
+        fn tape_sample(runner: &mut TestRunner, lo: $typ, hi: $typ) -> $typ {
+            assert!(lo < hi, "Uniform::new called with `low >= high`");
+            runner.draw_integer_in_biased(lo, hi - 1, |r| {
+                $crate::num::$uniform::<$typ>(r, lo.into(), hi.into()).into()
+            })
+        }
+
+        /// Tape-aware, edge-case-biased sample from `[lo, hi]`.
+        fn tape_sample_incl(
+            runner: &mut TestRunner,
+            lo: $typ,
+            hi: $typ,
+        ) -> $typ {
+            assert!(
+                lo <= hi,
+                "Uniform::new_inclusive called with `low > high`"
+            );
+            runner.draw_integer_in_biased(lo, hi, |r| {
+                $crate::num::$incl::<$typ>(r, lo.into(), hi.into()).into()
+            })
         }
     };
 }
 
+// Implements the `Strategy` for the five range types. The invoking module
+// must define `tape_sample(runner, lo, hi)` (uniform over the half-open
+// range `[lo, hi)`) and `tape_sample_incl(runner, lo, hi)` (uniform over
+// the closed range `[lo, hi]`); both record the draw on the choice tape
+// when the tape shrink engine is active.
 macro_rules! numeric_api {
     ($typ:ident, $epsilon:expr) => {
-        numeric_api!($typ, $typ, $epsilon);
-    };
-    ($typ:ident, $sample_typ:ty, $epsilon:expr) => {
-        numeric_api!(
-            $typ,
-            $sample_typ,
-            $epsilon,
-            sample_uniform,
-            sample_uniform_incl
-        );
-    };
-    ($typ:ident, $epsilon:expr, $uniform:ident, $incl:ident) => {
-        numeric_api!($typ, $typ, $epsilon, $uniform, $incl);
-    };
-    ($typ:ident, $sample_typ:ty, $epsilon:expr, $uniform:ident, $incl:ident) => {
         impl Strategy for ::core::ops::Range<$typ> {
             type Tree = BinarySearch;
             type Value = $typ;
@@ -144,12 +190,7 @@ macro_rules! numeric_api {
 
                 Ok(BinarySearch::new_clamped(
                     self.start,
-                    $crate::num::$uniform::<$sample_typ>(
-                        runner,
-                        self.start.into(),
-                        self.end.into(),
-                    )
-                    .into(),
+                    tape_sample(runner, self.start, self.end),
                     self.end - $epsilon,
                 ))
             }
@@ -170,12 +211,7 @@ macro_rules! numeric_api {
 
                 Ok(BinarySearch::new_clamped(
                     *self.start(),
-                    $crate::num::$incl::<$sample_typ>(
-                        runner,
-                        (*self.start()).into(),
-                        (*self.end()).into(),
-                    )
-                    .into(),
+                    tape_sample_incl(runner, *self.start(), *self.end()),
                     *self.end(),
                 ))
             }
@@ -188,12 +224,7 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     self.start,
-                    $crate::num::$incl::<$sample_typ>(
-                        runner,
-                        self.start.into(),
-                        <$typ>::MAX.into(),
-                    )
-                    .into(),
+                    tape_sample_incl(runner, self.start, <$typ>::MAX),
                     <$typ>::MAX,
                 ))
             }
@@ -206,12 +237,7 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     <$typ>::MIN,
-                    $crate::num::$uniform::<$sample_typ>(
-                        runner,
-                        <$typ>::MIN.into(),
-                        self.end.into(),
-                    )
-                    .into(),
+                    tape_sample(runner, <$typ>::MIN, self.end),
                     self.end,
                 ))
             }
@@ -224,12 +250,7 @@ macro_rules! numeric_api {
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(BinarySearch::new_clamped(
                     <$typ>::MIN,
-                    $crate::num::$incl::<$sample_typ>(
-                        runner,
-                        <$typ>::MIN.into(),
-                        self.end.into(),
-                    )
-                    .into(),
+                    tape_sample_incl(runner, <$typ>::MIN, self.end),
                     self.end,
                 ))
             }
@@ -255,7 +276,7 @@ macro_rules! signed_integer_bin_search {
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
 
-            int_any!($typ, $int_any);
+            int_any!($typ, $int_any, $uniform, $incl);
 
             /// Shrinks an integer towards 0, using binary search to find
             /// boundary points.
@@ -343,7 +364,7 @@ macro_rules! signed_integer_bin_search {
                 }
             }
 
-            numeric_api!($typ, 1, $uniform, $incl);
+            numeric_api!($typ, 1);
         }
     };
 }
@@ -366,7 +387,7 @@ macro_rules! unsigned_integer_bin_search {
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
 
-            int_any!($typ, $int_any);
+            int_any!($typ, $int_any, $uniform, $incl);
 
             /// Shrinks an integer towards 0, using binary search to find
             /// boundary points.
@@ -440,7 +461,7 @@ macro_rules! unsigned_integer_bin_search {
                 }
             }
 
-            numeric_api!($typ, 1, $uniform, $incl);
+            numeric_api!($typ, 1);
         }
     };
 }
@@ -779,23 +800,40 @@ macro_rules! float_any {
                              true, false)),
                     ].new_tree(runner)?.current();
 
-                let mut generated_value: <$typ as FloatLayout>::Bits =
-                    runner.rng().random();
-                generated_value &= sign_mask | class_mask;
-                generated_value |= sign_or | class_or;
-                let exp = generated_value & $typ::EXP_MASK;
-                if !allow_edge_exp && (0 == exp || $typ::EXP_MASK == exp) {
-                    generated_value &= !$typ::EXP_MASK;
-                    generated_value |= $typ::EXP_ZERO;
-                }
-                if !allow_zero_mant &&
-                    0 == generated_value & <$typ as FloatLayout>::MANTISSA_MASK
-                {
-                    generated_value |= 1;
-                }
+                // The value is one typed Float choice on the tape; the
+                // conform hook keeps shrink proposals inside the allowed
+                // class set (the class pick above is a separate typed
+                // choice via prop_oneof).
+                let value = runner.draw_f64_in_with(
+                    <$typ>::NEG_INFINITY as f64,
+                    <$typ>::INFINITY as f64,
+                    flags.intersects(
+                        FloatTypes::QUIET_NAN | FloatTypes::SIGNALING_NAN,
+                    ),
+                    |v| conform_to_types(v as $typ, flags) as f64,
+                    |r| {
+                        let mut generated_value:
+                            <$typ as FloatLayout>::Bits = r.rng().random();
+                        generated_value &= sign_mask | class_mask;
+                        generated_value |= sign_or | class_or;
+                        let exp = generated_value & $typ::EXP_MASK;
+                        if !allow_edge_exp
+                            && (0 == exp || $typ::EXP_MASK == exp)
+                        {
+                            generated_value &= !$typ::EXP_MASK;
+                            generated_value |= $typ::EXP_ZERO;
+                        }
+                        if !allow_zero_mant
+                            && 0 == generated_value
+                                & <$typ as FloatLayout>::MANTISSA_MASK
+                        {
+                            generated_value |= 1;
+                        }
+                        $typ::from_bits(generated_value) as f64
+                    },
+                ) as $typ;
 
-                Ok(BinarySearch::new_with_types(
-                    $typ::from_bits(generated_value), flags))
+                Ok(BinarySearch::new_with_types(value, flags))
             }
         }
     }
@@ -816,6 +854,100 @@ macro_rules! float_bin_search {
             use super::{FloatLayout, FloatTypes};
             use crate::strategy::*;
             use crate::test_runner::TestRunner;
+
+            /// Whether `v`'s class and sign are permitted by `allowed`.
+            fn float_class_allowed(v: $typ, allowed: FloatTypes) -> bool {
+                use core::num::FpCategory::*;
+
+                let class_allowed = match v.classify() {
+                    Nan => {
+                        // Check the signalling bit: weird-value
+                        // injection and tape replay can propose the
+                        // "wrong" kind of NaN, which conform_to_types
+                        // must be able to reject. (The hardware's
+                        // interpretation of the bit is taken from the
+                        // NAN constant, as in Any::new_tree.)
+                        let quiet_bit = $typ::NAN.to_bits()
+                            & ($typ::EXP_MASK >> 1)
+                            & <$typ as FloatLayout>::MANTISSA_MASK;
+                        let is_quiet = (v.to_bits()
+                            & ($typ::EXP_MASK >> 1)
+                            & <$typ as FloatLayout>::MANTISSA_MASK)
+                            == quiet_bit;
+                        if is_quiet {
+                            allowed.contains(FloatTypes::QUIET_NAN)
+                        } else {
+                            allowed.contains(FloatTypes::SIGNALING_NAN)
+                        }
+                    }
+                    Infinite => allowed.contains(FloatTypes::INFINITE),
+                    Zero => allowed.contains(FloatTypes::ZERO),
+                    Subnormal => allowed.contains(FloatTypes::SUBNORMAL),
+                    Normal => allowed.contains(FloatTypes::NORMAL),
+                };
+                // Check the sign bit directly so that NaNs (whose signum
+                // is NaN) are sign-checked too; the generator masks NaN
+                // sign bits to match the flags, and conform_to_types must
+                // hold shrink proposals to the same standard.
+                let sign_allowed = if v.is_sign_negative() {
+                    allowed.contains(FloatTypes::NEGATIVE)
+                } else {
+                    allowed.contains(FloatTypes::POSITIVE)
+                };
+
+                class_allowed && sign_allowed
+            }
+
+            /// Map an arbitrary float (e.g. a tape shrink proposal) to a
+            /// value the class-restricted `Any` strategy could actually
+            /// generate: keep it if allowed, else try the sign flip, else
+            /// fall back to the simplest allowed value.
+            fn conform_to_types(v: $typ, allowed: FloatTypes) -> $typ {
+                if float_class_allowed(v, allowed) {
+                    return v;
+                }
+                if float_class_allowed(-v, allowed) {
+                    return -v;
+                }
+                let sign: $typ = if allowed.contains(FloatTypes::POSITIVE) {
+                    1.0
+                } else {
+                    -1.0
+                };
+                if allowed.contains(FloatTypes::ZERO) {
+                    return sign * 0.0;
+                }
+                if allowed.contains(FloatTypes::NORMAL) {
+                    return sign * 1.0;
+                }
+                if allowed.contains(FloatTypes::SUBNORMAL) {
+                    return sign * $typ::from_bits(1);
+                }
+                if allowed.contains(FloatTypes::INFINITE) {
+                    return sign * $typ::INFINITY;
+                }
+                if allowed.contains(FloatTypes::QUIET_NAN) {
+                    return if sign < 0.0 {
+                        -$typ::NAN
+                    } else {
+                        $typ::NAN
+                    };
+                }
+                // Signaling NaN only: same construction as in
+                // `Any::new_tree`.
+                let quiet_or = $typ::NAN.to_bits()
+                    & ($typ::EXP_MASK | ($typ::EXP_MASK >> 1));
+                let mut signaling =
+                    (quiet_or ^ ($typ::EXP_MASK >> 1)) | $typ::EXP_MASK | 1;
+                if sign < 0.0 {
+                    // Fully qualified: newer std adds an inherent
+                    // `f32`/`f64::SIGN_MASK`, and the resulting name
+                    // collision is a `future_incompatible` lint, which
+                    // this crate forbids. Matches lines 755/762.
+                    signaling |= <$typ as FloatLayout>::SIGN_MASK;
+                }
+                $typ::from_bits(signaling)
+            }
 
             float_any!($typ);
 
@@ -868,38 +1000,19 @@ macro_rules! float_bin_search {
                 }
 
                 fn current_allowed(&self) -> bool {
-                    use core::num::FpCategory::*;
-
-                    // Don't reposition if the new value is not allowed
-                    let class_allowed = match self.curr.classify() {
-                        Nan =>
-                        // We don't need to inspect whether the
-                        // signallingness of the NaN matches the allowed
-                        // set, as we never try to switch between them,
-                        // instead shrinking to 0.
-                        {
-                            self.allowed.contains(FloatTypes::QUIET_NAN)
-                                || self
-                                    .allowed
-                                    .contains(FloatTypes::SIGNALING_NAN)
-                        }
-                        Infinite => self.allowed.contains(FloatTypes::INFINITE),
-                        Zero => self.allowed.contains(FloatTypes::ZERO),
-                        Subnormal => {
-                            self.allowed.contains(FloatTypes::SUBNORMAL)
-                        }
-                        Normal => self.allowed.contains(FloatTypes::NORMAL),
-                    };
-                    let signum = self.curr.signum();
-                    let sign_allowed = if signum > 0.0 {
-                        self.allowed.contains(FloatTypes::POSITIVE)
-                    } else if signum < 0.0 {
-                        self.allowed.contains(FloatTypes::NEGATIVE)
+                    // The binary search moves values through float
+                    // arithmetic, which quiets signaling NaNs on most
+                    // hardware, so class membership here must treat the
+                    // two NaN classes as one. (conform_to_types uses the
+                    // strict check: tape proposals are pure bit
+                    // patterns, never results of arithmetic.)
+                    let nan = FloatTypes::QUIET_NAN | FloatTypes::SIGNALING_NAN;
+                    let allowed = if self.allowed.intersects(nan) {
+                        self.allowed | nan
                     } else {
-                        true
+                        self.allowed
                     };
-
-                    class_allowed && sign_allowed
+                    float_class_allowed(self.curr, allowed)
                 }
 
                 fn ensure_acceptable(&mut self) {
@@ -982,7 +1095,66 @@ macro_rules! float_bin_search {
                 }
             }
 
-            numeric_api!($typ, $sample_typ, 0.0);
+            /// Tape-aware uniform sample from `[lo, hi)`. The recorded
+            /// choice's constraints are inclusive, so the upper constraint
+            /// is the next value down from `hi`.
+            fn tape_sample(
+                runner: &mut TestRunner,
+                lo: $typ,
+                hi: $typ,
+            ) -> $typ {
+                let sampled = runner.draw_f64_in(
+                    lo as f64,
+                    hi.next_down() as f64,
+                    false,
+                    |r| {
+                        let s: $typ =
+                            $crate::num::sample_uniform::<$sample_typ>(
+                                r,
+                                lo.into(),
+                                hi.into(),
+                            )
+                            .into();
+                        s as f64
+                    },
+                );
+                // Narrowing from the f64 choice back to $typ can round
+                // past the range bounds; clamp in $typ space.
+                let mut out = sampled as $typ;
+                if !(out >= lo) {
+                    out = lo;
+                }
+                if !(out < hi) {
+                    out = hi.next_down();
+                }
+                out
+            }
+
+            /// Tape-aware uniform sample from `[lo, hi]`.
+            fn tape_sample_incl(
+                runner: &mut TestRunner,
+                lo: $typ,
+                hi: $typ,
+            ) -> $typ {
+                let sampled =
+                    runner.draw_f64_in(lo as f64, hi as f64, false, |r| {
+                        let s: $typ = $crate::num::sample_uniform_incl::<
+                            $sample_typ,
+                        >(r, lo.into(), hi.into())
+                        .into();
+                        s as f64
+                    });
+                let mut out = sampled as $typ;
+                if !(out >= lo) {
+                    out = lo;
+                }
+                if !(out <= hi) {
+                    out = hi;
+                }
+                out
+            }
+
+            numeric_api!($typ, 0.0);
         }
     };
 }
@@ -998,6 +1170,113 @@ mod test {
     use crate::test_runner::*;
 
     use super::*;
+
+    #[test]
+    fn any_finds_extreme_values() {
+        // The README used to cite `abs(i64::MIN)` as a bug property
+        // testing would "virtually always" miss, because uniform
+        // sampling cannot hit one value out of 2^64. The edge-case-biased
+        // generator produces boundary values deliberately.
+        let mut runner = TestRunner::new_with_rng(
+            Config {
+                failure_persistence: None,
+                ..Config::default()
+            },
+            TestRng::deterministic_rng(RngAlgorithm::default()),
+        );
+        match runner.run(&super::i64::ANY, |v| {
+            if i64::MIN == v {
+                Err(TestCaseError::fail("hit i64::MIN"))
+            } else {
+                Ok(())
+            }
+        }) {
+            Err(TestError::Fail(_, value)) => assert_eq!(i64::MIN, value),
+            other => panic!("i64::MIN was not found: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn finds_divisibility_edge_case_from_upstream_issue_500() {
+        // https://github.com/proptest-rs/proptest/issues/500: a paging
+        // computation `total_count / count + 1` is wrong exactly when
+        // `total_count % count == 0`, and uniform generation over these
+        // ranges essentially never produces a multiple (P per case is
+        // about 1e-4). Boundary injection produces `total_count == 0`
+        // (a multiple of everything) and `count == 1` (divides
+        // everything) constantly, so the bug is found reliably, and the
+        // failure shrinks to the minimal witness (0, 1).
+        //
+        // Finding the bug is engine-independent, but the exact minimal
+        // witness needs the tape engine: the ValueTree shrinker cannot
+        // renavigate the sparse set of multiples after the other tuple
+        // component has changed. Pin the engine so the assertion holds
+        // under PROPTEST_SHRINK_ENGINE=valuetree runs too.
+        let mut runner = TestRunner::new_with_rng(
+            Config {
+                failure_persistence: None,
+                shrink_engine: ShrinkEngine::Tape,
+                ..Config::default()
+            },
+            TestRng::deterministic_rng(RngAlgorithm::default()),
+        );
+        match runner.run(
+            &(0usize..1_000_000, 1usize..100_000),
+            |(total_count, count)| {
+                if 0 == total_count % count {
+                    Err(TestCaseError::fail("get_total_pages off by one"))
+                } else {
+                    Ok(())
+                }
+            },
+        ) {
+            Err(TestError::Fail(_, value)) => assert_eq!((0, 1), value),
+            other => panic!("issue 500 bug was not found: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn any_biases_toward_small_magnitudes() {
+        let mut runner = TestRunner::new_with_rng(
+            Config {
+                failure_persistence: None,
+                ..Config::default()
+            },
+            TestRng::deterministic_rng(RngAlgorithm::default()),
+        );
+        let mut small = 0;
+        for _ in 0..512 {
+            let v = super::i64::ANY.new_tree(&mut runner).unwrap().current();
+            if v.unsigned_abs() < (1 << 16) {
+                small += 1;
+            }
+        }
+        assert!(
+            small > 512 * 3 / 10,
+            "only {}/512 samples were small",
+            small
+        );
+    }
+
+    #[test]
+    fn float_ranges_inject_boundary_values() {
+        let mut runner = TestRunner::new_with_rng(
+            Config {
+                failure_persistence: None,
+                ..Config::default()
+            },
+            TestRng::deterministic_rng(RngAlgorithm::default()),
+        );
+        let mut hit_max = false;
+        for _ in 0..4000 {
+            let v = (1.5f64..=8.5).new_tree(&mut runner).unwrap().current();
+            assert!(v >= 1.5 && v <= 8.5, "out of range: {}", v);
+            if 8.5 == v {
+                hit_max = true;
+            }
+        }
+        assert!(hit_max, "inclusive maximum never generated");
+    }
 
     #[test]
     fn u8_inclusive_end_included() {
@@ -1313,6 +1592,41 @@ mod test {
         assert!(value.current().is_nan());
         assert!(!value.clone().complicate());
         assert!(!value.clone().simplify());
+    }
+
+    #[test]
+    fn signaling_nan_class_never_yields_quiet_nan() {
+        // Weird-value injection proposes plain NAN (a quiet NaN);
+        // conform_to_types must map it to a signaling NaN when the
+        // class flags exclude QUIET_NAN. Regression test: previously
+        // the class check accepted any NaN, so about 0.5% of draws
+        // from a SIGNALING_NAN-only strategy were quiet.
+        //
+        // Skip on platforms that do not honour NaN payloads in
+        // from_bits (same check as the generation tests).
+        let fidelity_1 = f32::from_bits(0x7F80_0001).to_bits();
+        let fidelity_2 = f32::from_bits(0xFF80_0001).to_bits();
+        if fidelity_1 == fidelity_2 {
+            return;
+        }
+
+        // Derive the mask exactly as the production check does
+        // (float_class_allowed), so a FloatLayout change cannot
+        // silently decouple this test from the code path it pins.
+        let quiet_mask = (f64::EXP_MASK >> 1) & <f64 as FloatLayout>::MANTISSA_MASK;
+        let quiet_pattern = ::std::f64::NAN.to_bits() & quiet_mask;
+        let mut runner = TestRunner::deterministic();
+        for _ in 0..4096 {
+            let value =
+                f64::SIGNALING_NAN.new_tree(&mut runner).unwrap().current();
+            assert!(value.is_nan());
+            assert_ne!(
+                quiet_pattern,
+                value.to_bits() & quiet_mask,
+                "SIGNALING_NAN-only strategy generated a quiet NaN: {:#x}",
+                value.to_bits()
+            );
+        }
     }
 
     #[test]

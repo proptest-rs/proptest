@@ -8,9 +8,12 @@
 // except according to those terms.
 
 use crate::std_facade::{Arc, BTreeMap, Box, String, Vec};
+use core::cmp::Ordering;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 use core::{fmt, iter};
+
+use rand::RngExt;
 #[cfg(feature = "std")]
 use std::panic::{self, AssertUnwindSafe};
 
@@ -28,12 +31,15 @@ use tempfile;
 use crate::strategy::*;
 use crate::test_runner::config::*;
 use crate::test_runner::errors::*;
-use crate::test_runner::failure_persistence::PersistedSeed;
+use crate::test_runner::failure_persistence::{
+    PersistedFailure, PersistedSeed,
+};
 use crate::test_runner::reason::*;
 #[cfg(feature = "fork")]
 use crate::test_runner::replay;
 use crate::test_runner::result_cache::*;
 use crate::test_runner::rng::TestRng;
+use crate::test_runner::tape::{self, Choice, Tape, TapeInt};
 
 #[cfg(feature = "fork")]
 const ENV_FORK_FILE: &'static str = "_PROPTEST_FORKFILE";
@@ -66,6 +72,18 @@ macro_rules! verbose_message {
 
 type RejectionDetail = BTreeMap<Reason, u32>;
 
+/// How [`TestRunner::draw_element_flag`] treats the declared minimum
+/// length: `Hard` (collection semantics: the shrinker must respect the
+/// floor) or `Soft` (state-machine semantics: elements below the
+/// minimum get shrink-editable flags, so shrinking may go below it).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ElementMinimum {
+    /// `min` is a floor the shrinker must respect.
+    Hard,
+    /// The shrinker may delete elements below `min`.
+    Soft,
+}
+
 /// State used when running a proptest test.
 #[derive(Clone)]
 pub struct TestRunner {
@@ -78,6 +96,11 @@ pub struct TestRunner {
 
     local_reject_detail: RejectionDetail,
     global_reject_detail: RejectionDetail,
+
+    /// Serialized winning tape of the most recent tape shrink, picked up
+    /// by the failure-persistence save site (which is outside the tape
+    /// code path).
+    shrunk_tape: Option<Vec<u8>>,
 }
 
 impl fmt::Debug for TestRunner {
@@ -351,6 +374,7 @@ impl TestRunner {
             flat_map_regens: Arc::new(AtomicUsize::new(0)),
             local_reject_detail: BTreeMap::new(),
             global_reject_detail: BTreeMap::new(),
+            shrunk_tape: None,
         }
     }
 
@@ -367,6 +391,7 @@ impl TestRunner {
             flat_map_regens: Arc::clone(&self.flat_map_regens),
             local_reject_detail: BTreeMap::new(),
             global_reject_detail: BTreeMap::new(),
+            shrunk_tape: None,
         }
     }
 
@@ -598,18 +623,57 @@ impl TestRunner {
 
         let mut result_cache = self.new_cache();
 
-        for PersistedSeed(persisted_seed) in
+        // Dead regression entries (corrupt lines, or tapes that no
+        // longer generate) are collected and reported AFTER every
+        // other entry and all fresh cases have run: one bit-rotted
+        // line must not reduce the property's coverage to zero, but
+        // it must not silently pass either.
+        let mut dead_entries: Vec<String> = Vec::new();
+
+        for PersistedSeed(persisted) in
             persisted_failure_seeds.into_iter().rev()
         {
-            self.rng.set_seed(persisted_seed);
-            self.gen_and_run_case(
-                strategy,
-                &test,
-                &mut replay_from_fork,
-                &mut *result_cache,
-                &mut fork_output,
-                true,
-            )?;
+            match persisted {
+                PersistedFailure::Seed(persisted_seed) => {
+                    // Replay seeds through the classic, tape-off
+                    // generation path: seed entries are only written by
+                    // tape-off runs (fork/timeout, ValueTree engine, or
+                    // persistence impls that drop tapes), and tape-mode
+                    // generation consumes the RNG differently (e.g.
+                    // collection continuation flags), so recording here
+                    // would regenerate a different value than the one
+                    // that failed.
+                    self.rng.set_seed(persisted_seed);
+                    self.run_classic_case(
+                        strategy,
+                        &test,
+                        &mut replay_from_fork,
+                        &mut *result_cache,
+                        &mut fork_output,
+                        true,
+                    )?;
+                }
+                PersistedFailure::Tape { bytes, .. } => {
+                    match tape::deserialize_tape(&bytes) {
+                        Some(input) => {
+                            if let Err(dead) = self.replay_persisted_tape(
+                                strategy,
+                                input,
+                                &test,
+                                &mut replay_from_fork,
+                                &mut *result_cache,
+                                &mut fork_output,
+                            )? {
+                                dead_entries.push(dead);
+                            }
+                        }
+                        None => dead_entries.push(format!(
+                            "a persisted choice tape (ct1 entry) is \
+                             corrupt"
+                        )),
+                    }
+                }
+            }
         }
         self.rng = old_rng;
 
@@ -635,9 +699,20 @@ impl TestRunner {
                     // process. The parent relies on it remaining consistent
                     // and will take care of updating it itself.
                     if !fork_output.is_in_fork() {
+                        // Prefer persisting the winning choice tape when
+                        // the tape engine shrank this failure: it replays
+                        // the shrunken values exactly, independent of the
+                        // RNG, and survives strategy refactors.
+                        let persisted = match self.shrunk_tape.take() {
+                            Some(bytes) => PersistedFailure::Tape {
+                                bytes,
+                                seed: Some(seed),
+                            },
+                            None => PersistedFailure::Seed(seed),
+                        };
                         failure_persistence.save_persisted_failure2(
                             *source_file,
-                            PersistedSeed(seed),
+                            PersistedSeed(persisted),
                             value,
                         );
                     }
@@ -651,6 +726,50 @@ impl TestRunner {
         }
 
         fork_output.terminate();
+
+        if !dead_entries.is_empty() {
+            return Err(TestError::Abort(
+                format!(
+                    "{} regression file entr{} stopped guarding ({}); \
+                     delete the stale line(s) or re-trigger the \
+                     failure(s) to re-record them. All other entries \
+                     and the configured fresh cases ran first.",
+                    dead_entries.len(),
+                    if dead_entries.len() == 1 { "y" } else { "ies" },
+                    dead_entries.join("; "),
+                )
+                .into(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// The classic (tape-off) generate-and-run tail shared by
+    /// `gen_and_run_case` and persisted-seed replay: one place owns the
+    /// success-accounting contract for `run_one_with_replay`.
+    fn run_classic_case<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        f: &impl Fn(S::Value) -> TestCaseResult,
+        replay_from_fork: &mut impl Iterator<Item = TestCaseResult>,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+        is_from_persisted_seed: bool,
+    ) -> TestRunResult<S> {
+        let case = unwrap_or!(strategy.new_tree(self), msg =>
+            return Err(TestError::Abort(msg)));
+        let ok_type = self.run_one_with_replay(
+            case,
+            f,
+            replay_from_fork,
+            result_cache,
+            fork_output,
+            is_from_persisted_seed,
+        )?;
+        if let TestCaseOk::ReplayFromForkSuccess = ok_type {
+            self.successes += 1;
+        }
         Ok(())
     }
 
@@ -663,11 +782,32 @@ impl TestRunner {
         fork_output: &mut ForkOutput,
         is_from_persisted_seed: bool,
     ) -> TestRunResult<S> {
+        // The tape engine needs the strategy in scope to re-run generation
+        // during shrinking, so it branches off here rather than in
+        // `run_one_with_replay`. It does not support fork mode (including
+        // the implicit fork from `timeout`).
+        if ShrinkEngine::Tape == self.config.shrink_engine
+            && !self.config.fork()
+            && !fork_output.is_in_fork()
+        {
+            return self.gen_and_run_case_tape(
+                strategy,
+                f,
+                replay_from_fork,
+                result_cache,
+                fork_output,
+                is_from_persisted_seed,
+            );
+        }
+
         let case = unwrap_or!(strategy.new_tree(self), msg =>
                 return Err(TestError::Abort(msg)));
 
         // We only count new cases to our set of successful runs against
-        // `PROPTEST_CASES` config.
+        // `PROPTEST_CASES` config. NOTE: this accounting deliberately
+        // differs from `run_classic_case` (the persisted-seed variant),
+        // which must NOT count `NewCaseSuccess`; change them together
+        // only if that distinction is meant to go away.
         let ok_type = self.run_one_with_replay(
             case,
             f,
@@ -774,7 +914,7 @@ impl TestRunner {
                 INFO_LOG,
                 "Shrinking disabled by configuration"
             );
-            return None
+            return None;
         }
 
         #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
@@ -943,6 +1083,1481 @@ impl TestRunner {
 
     fn new_cache(&self) -> Box<dyn ResultCache> {
         (self.config.result_cache)()
+    }
+
+    /// Draw an integer from `[min, max]` (both inclusive) using `sample`,
+    /// recording it as a typed choice when the choice tape is active and
+    /// replaying it from the tape during tape shrinking.
+    ///
+    /// With the tape off this calls straight into `sample`, so
+    /// distributions and RNG consumption are unchanged. (The sampling is
+    /// a caller-provided closure rather than a `SampleUniform` bound
+    /// because rand no longer implements the distribution traits for
+    /// `usize`/`isize`; callers route through the width-casting samplers
+    /// in `crate::num` instead.)
+    pub(crate) fn draw_integer_in<T>(
+        &mut self,
+        min: T,
+        max: T,
+        sample: impl FnOnce(&mut Self) -> T,
+    ) -> T
+    where
+        T: TapeInt,
+    {
+        self.draw_integer_in_with(
+            min,
+            max,
+            |_| {
+                T::decode(
+                    T::encode_zero().clamp(T::encode(min), T::encode(max)),
+                )
+            },
+            |v| v,
+            sample,
+        )
+    }
+
+    /// Like `draw_integer_in`, but sampling with the edge-case-hunting
+    /// distribution: mostly small distances from the shrink target, with
+    /// occasional boundary values and a uniform tail. Used by the numeric
+    /// range strategies (NOT by union picks, which must stay
+    /// weight-faithful).
+    pub(crate) fn draw_integer_in_biased<T>(
+        &mut self,
+        min: T,
+        max: T,
+        sample_uniform: impl Fn(&mut Self) -> T,
+    ) -> T
+    where
+        T: TapeInt,
+    {
+        self.draw_integer_in_with(
+            min,
+            max,
+            |_| {
+                T::decode(
+                    T::encode_zero().clamp(T::encode(min), T::encode(max)),
+                )
+            },
+            |v| v,
+            |runner| runner.sample_integer_biased(min, max, &sample_uniform),
+        )
+    }
+
+    /// The phase-6 integer distribution, after Hypothesis: 1/16 of draws
+    /// take a boundary-ish value (any range width; this is what finds
+    /// bugs guarded by `x % y == 0`, `== 0`, or exact bounds, cf.
+    /// upstream issue #500); the rest stay uniform for narrow ranges,
+    /// while wide ranges (> 24 bits) additionally land mostly within a
+    /// weighted random bit-size of the shrink target, so small values
+    /// dominate without making the full range unreachable.
+    fn sample_integer_biased<T>(
+        &mut self,
+        min: T,
+        max: T,
+        sample_uniform: &impl Fn(&mut Self) -> T,
+    ) -> T
+    where
+        T: TapeInt,
+    {
+        let emin = T::encode(min);
+        let emax = T::encode(max);
+        let width = emax - emin;
+        let target = T::encode_zero().clamp(emin, emax);
+
+        let roll = self.rng.random_range(0..16u32);
+        if 0 == roll {
+            // Boundary-ish values (saturate and clamp so degenerate
+            // ranges stay in bounds).
+            let candidates = [
+                emin,
+                emin.saturating_add(1).min(emax),
+                emax,
+                emax.saturating_sub(1).max(emin),
+                target,
+                target.saturating_add(1).min(emax),
+            ];
+            let pick = self.rng.random_range(0..candidates.len());
+            return T::decode(candidates[pick]);
+        }
+        if width < (1u128 << 24) || roll <= 2 {
+            return sample_uniform(self);
+        }
+        // Magnitude within a weighted random bit-size of the target; the
+        // same spirit as Hypothesis's INT_SIZES (small sizes heavily
+        // preferred, huge tail retained).
+        let bits: u32 = match self.rng.random_range(0..15u32) {
+            0..=3 => 8,
+            4..=11 => 16,
+            12 => 32,
+            13 => 64,
+            14 => 128,
+            _ => unreachable!(),
+        };
+        let mask = if bits >= 128 {
+            u128::MAX
+        } else {
+            (1u128 << bits) - 1
+        };
+        let magnitude = self.rng.random::<u128>() & mask;
+        let up_room = emax - target;
+        let down_room = target - emin;
+        let up = if 0 == down_room {
+            true
+        } else if 0 == up_room {
+            false
+        } else {
+            self.rng.random::<bool>()
+        };
+        let value = if up {
+            target + magnitude.min(up_room)
+        } else {
+            target - magnitude.min(down_room)
+        };
+        T::decode(value)
+    }
+
+    /// Like `draw_integer_in`, but with custom shrinking metadata and a
+    /// `conform` hook for strategies whose support is not one contiguous
+    /// interval (e.g. `char`, whose support is a union of ranges with
+    /// surrogate holes).
+    ///
+    /// `shrink_to_of` gives the shrink target *for a particular value*
+    /// (chars shrink to 'a' when they start at or above 'a', etc.);
+    /// `conform` maps a replayed shrink proposal to the nearest value the
+    /// strategy could actually generate. The conformed value is what gets
+    /// re-recorded, so accepted tapes stay self-consistent. Sampled
+    /// values are assumed conformant by construction.
+    pub(crate) fn draw_integer_in_with<T>(
+        &mut self,
+        min: T,
+        max: T,
+        shrink_to_of: impl Fn(T) -> T,
+        conform: impl Fn(T) -> T,
+        sample: impl FnOnce(&mut Self) -> T,
+    ) -> T
+    where
+        T: TapeInt,
+    {
+        if !self.rng.tape.is_on() {
+            return sample(self);
+        }
+        let emin = T::encode(min);
+        let emax = T::encode(max);
+        if self.rng.tape.is_replaying() {
+            if let Some(Choice::Integer { value, .. }) = self
+                .rng
+                .tape
+                .pop_replay(|c| matches!(c, Choice::Integer { .. }))
+            {
+                let value = conform(T::decode(value.clamp(emin, emax)));
+                self.rng.tape.record(Choice::Integer {
+                    value: T::encode(value),
+                    min: emin,
+                    max: emax,
+                    shrink_to: T::encode(shrink_to_of(value)),
+                });
+                return value;
+            }
+        }
+        // Recording, or drawing fresh after a replay misalignment.
+        self.rng.tape.suppress_raw();
+        let sampled = sample(self);
+        self.rng.tape.unsuppress_raw();
+        self.rng.tape.record(Choice::Integer {
+            value: T::encode(sampled),
+            min: emin,
+            max: emax,
+            shrink_to: T::encode(shrink_to_of(sampled)),
+        });
+        sampled
+    }
+
+    /// Draw a float from `[min, max]` (both inclusive) using `sample`,
+    /// recording it as a typed choice when the choice tape is active and
+    /// replaying it from the tape during tape shrinking.
+    ///
+    /// `f32` draws widen to `f64`; the caller is responsible for clamping
+    /// after narrowing back.
+    pub(crate) fn draw_f64_in(
+        &mut self,
+        min: f64,
+        max: f64,
+        allow_nan: bool,
+        sample: impl FnOnce(&mut Self) -> f64,
+    ) -> f64 {
+        self.draw_f64_in_with(min, max, allow_nan, |v| v, sample)
+    }
+
+    /// Like `draw_f64_in`, but with a `conform` hook applied to replayed
+    /// values after the min/max/NaN normalization. Strategies whose
+    /// support is not a simple interval (e.g. the class-restricted float
+    /// `Any` strategies) use it to map an arbitrary shrink proposal to
+    /// the nearest value they could actually generate; the conformed
+    /// value is what gets re-recorded, so accepted tapes stay
+    /// self-consistent. `sample`d values are assumed conformant by
+    /// construction.
+    pub(crate) fn draw_f64_in_with(
+        &mut self,
+        min: f64,
+        max: f64,
+        allow_nan: bool,
+        conform: impl Fn(f64) -> f64,
+        sample: impl FnOnce(&mut Self) -> f64,
+    ) -> f64 {
+        if !self.rng.tape.is_on() {
+            return match self.maybe_weird_float(min, max, allow_nan, &conform) {
+                Some(weird) => weird,
+                None => sample(self),
+            };
+        }
+        if self.rng.tape.is_replaying() {
+            if let Some(Choice::Float { value, .. }) = self
+                .rng
+                .tape
+                .pop_replay(|c| matches!(c, Choice::Float { .. }))
+            {
+                let value = if value.is_nan() {
+                    if allow_nan {
+                        value
+                    } else {
+                        tape::float_shrink_target(min, max)
+                    }
+                } else {
+                    value.clamp(min, max)
+                };
+                let value = conform(value);
+                self.rng.tape.record(Choice::Float {
+                    value,
+                    min,
+                    max,
+                    allow_nan,
+                });
+                return value;
+            }
+        }
+        self.rng.tape.suppress_raw();
+        let sampled =
+            match self.maybe_weird_float(min, max, allow_nan, &conform) {
+                Some(weird) => weird,
+                None => sample(self),
+            };
+        self.rng.tape.unsuppress_raw();
+        self.rng.tape.record(Choice::Float {
+            value: sampled,
+            min,
+            max,
+            allow_nan,
+        });
+        sampled
+    }
+
+    /// With probability 1/20, propose a boundary or otherwise "weird"
+    /// float for the draw instead of sampling the strategy's own
+    /// distribution — bounds, values one ulp inside the bounds, ±0, ±1,
+    /// simple fractions, and NaN where permitted. Returns `None` (draw
+    /// normally) otherwise, or when the picked candidate is out of range
+    /// after conforming.
+    fn maybe_weird_float(
+        &mut self,
+        min: f64,
+        max: f64,
+        allow_nan: bool,
+        conform: &impl Fn(f64) -> f64,
+    ) -> Option<f64> {
+        if 0 != self.rng.random_range(0..20u32) {
+            return None;
+        }
+        let candidates = [
+            0.0,
+            -0.0,
+            1.0,
+            -1.0,
+            0.5,
+            1.5,
+            min,
+            max,
+            if min.is_finite() { min.next_up() } else { min },
+            if max.is_finite() {
+                max.next_down()
+            } else {
+                max
+            },
+            if allow_nan { f64::NAN } else { 0.0 },
+        ];
+        let candidate = candidates[self.rng.random_range(0..candidates.len())];
+        let candidate = conform(candidate);
+        if candidate.is_nan() {
+            return if allow_nan { Some(candidate) } else { None };
+        }
+        if candidate >= min && candidate <= max {
+            Some(candidate)
+        } else {
+            None
+        }
+    }
+
+    /// Draw a boolean that is true with probability `probability_true`,
+    /// recording it as a typed choice when the choice tape is active.
+    /// `false` is the shrink-target value, so strategies should encode
+    /// "stop"/"simpler" as `false` (e.g. collection continuation flags
+    /// are `true = one more element`).
+    pub fn draw_bool(&mut self, probability_true: f64) -> bool {
+        if !self.rng.tape.is_on() {
+            return self.rng.random_bool(probability_true);
+        }
+        if let Some(Choice::Bool { value }) = self
+            .rng
+            .tape
+            .pop_replay(|c| matches!(c, Choice::Bool { .. }))
+        {
+            self.rng.tape.record(Choice::Bool { value });
+            return value;
+        }
+        self.rng.tape.suppress_raw();
+        let sampled = self.rng.random_bool(probability_true);
+        self.rng.tape.unsuppress_raw();
+        self.rng.tape.record(Choice::Bool { value: sampled });
+        sampled
+    }
+
+    /// Whether the choice tape is currently active (recording or
+    /// replaying). Strategies use this to select tape-friendly encodings
+    /// (e.g. continuation flags instead of an up-front collection size).
+    pub fn tape_is_on(&self) -> bool {
+        self.rng.tape.is_on()
+    }
+
+    /// Record a structurally-forced boolean on the choice tape without
+    /// drawing entropy. See `TapeState::record_forced_bool`.
+    pub fn record_forced_bool(&mut self, value: bool) {
+        self.rng.tape.record_forced_bool(value);
+    }
+
+    /// Open a span (a deletable logical unit) on the choice tape. No-op
+    /// when the tape is off. Always pair with `end_span`.
+    pub fn start_span(&mut self) {
+        self.rng.tape.start_span();
+    }
+
+    /// Close the innermost open span.
+    pub fn end_span(&mut self) {
+        self.rng.tape.end_span();
+    }
+
+    /// Record a boolean that generation forces to `forced` without
+    /// drawing entropy, but that the tape shrinker may edit (the
+    /// replayed value is honored). See `TapeState::draw_bool_forced`.
+    pub fn draw_bool_forced(&mut self, forced: bool) -> bool {
+        self.rng.tape.draw_bool_forced(forced)
+    }
+
+    /// Drive the tape encoding of a variable-length sequence of
+    /// generation units (collection elements, state-machine
+    /// transitions). Call once per candidate element with its index;
+    /// returns whether one more element should be generated. Only
+    /// meaningful while the tape is on; callers keep their classic
+    /// generation path for the tape-off case.
+    ///
+    /// Encodes one continuation flag per element (truncated-geometric
+    /// length with the same mean as uniform over `[min, max]`), plus a
+    /// forced stop marker at the maximum so all lengths share one tape
+    /// shape.
+    ///
+    /// The `minimum` mode also selects the stop-marker condition; the
+    /// two differ deliberately and getting this wrong silently
+    /// misaligns tape shapes between lengths:
+    ///
+    /// | mode   | below `min`                      | stop marker when  |
+    /// |--------|----------------------------------|-------------------|
+    /// | `Hard` | plain `true`, nothing recorded   | `max > min`       |
+    /// | `Soft` | forced but shrink-editable flag  | `max > 0`         |
+    ///
+    /// `Hard` is collection semantics (`min` is a floor the shrinker
+    /// must respect); `Soft` is state-machine semantics (the shrinker
+    /// may delete below the declared minimum, so every element below
+    /// `min` needs an editable flag and the marker exists whenever any
+    /// element could).
+    pub fn draw_element_flag(
+        &mut self,
+        index: usize,
+        min: usize,
+        max: usize,
+        minimum: ElementMinimum,
+    ) -> bool {
+        let soft_minimum = matches!(minimum, ElementMinimum::Soft);
+        if index >= max {
+            let any_flags = if soft_minimum { max > 0 } else { max > min };
+            if any_flags {
+                self.record_forced_bool(false);
+            }
+            return false;
+        }
+        if index < min {
+            return if soft_minimum {
+                self.draw_bool_forced(true)
+            } else {
+                true
+            };
+        }
+        let extra = (max - min) as f64 / 2.0;
+        let p_continue = extra / (extra + 1.0);
+        self.draw_bool(p_continue)
+    }
+
+    /// The tape-engine analogue of `gen_and_run_case`.
+    fn gen_and_run_case_tape<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        f: &impl Fn(S::Value) -> TestCaseResult,
+        replay_from_fork: &mut impl Iterator<Item = TestCaseResult>,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+        is_from_persisted_seed: bool,
+    ) -> TestRunResult<S> {
+        // Snapshot the RNG (tape off) so every shrink attempt can rewind
+        // to the exact pre-generation state; fresh draws after a replay
+        // misalignment are then at least reproducible.
+        let rng_snapshot = self.rng.clone();
+        self.rng.tape.start_recording();
+        let case = match strategy.new_tree(self) {
+            Ok(case) => case,
+            Err(msg) => {
+                self.rng.tape.take_recording();
+                return Err(TestError::Abort(msg));
+            }
+        };
+        let recorded = self.rng.tape.take_recording();
+
+        let result = call_test(
+            self,
+            case.current(),
+            f,
+            replay_from_fork,
+            result_cache,
+            fork_output,
+            is_from_persisted_seed,
+        );
+
+        let ok_type = match result {
+            Ok(success) => success,
+            Err(TestCaseError::Fail(why)) => {
+                let (why, value) = self.tape_shrink(
+                    strategy,
+                    f,
+                    rng_snapshot,
+                    recorded,
+                    case,
+                    why,
+                    result_cache,
+                    fork_output,
+                );
+                return Err(TestError::Fail(why, value));
+            }
+            Err(TestCaseError::Reject(whence)) => {
+                self.reject_global(whence)?;
+                TestCaseOk::Reject
+            }
+        };
+        match ok_type {
+            TestCaseOk::NewCaseSuccess | TestCaseOk::ReplayFromForkSuccess => {
+                self.successes += 1
+            }
+            TestCaseOk::PersistedCaseSuccess
+            | TestCaseOk::CacheHitSuccess
+            | TestCaseOk::Reject => (),
+        }
+        Ok(())
+    }
+
+    /// Shrink a failing case by editing its recorded choice tape and
+    /// re-running generation, keeping any edit that still fails the test
+    /// and re-records to a shortlex-smaller tape.
+    fn tape_shrink<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: TestRng,
+        initial_tape: Tape,
+        initial_tree: S::Tree,
+        initial_why: Reason,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> (Reason, S::Value) {
+        let mut best = TapeBest {
+            tape: initial_tape,
+            tree: initial_tree,
+            why: initial_why,
+        };
+        let mut budget = TapeShrinkBudget {
+            iterations: 0,
+            max_iters: self.config.max_shrink_iters(),
+            #[cfg(feature = "std")]
+            start_time: std::time::Instant::now(),
+            #[cfg(feature = "std")]
+            max_time_ms: self.config.max_shrink_time,
+        };
+
+        let mut exhausted = false;
+
+        // Pass 1: one attempt with every choice at its shrink target.
+        let trivial = best.tape.trivial();
+        if trivial != best.tape {
+            exhausted = TapeAttemptResult::Exhausted
+                == self.tape_attempt(
+                    strategy,
+                    test,
+                    &rng_snapshot,
+                    trivial,
+                    &mut best,
+                    &mut budget,
+                    result_cache,
+                    fork_output,
+                );
+        }
+
+        // Pass 2 (each round): delete spans (collection elements etc.),
+        // then minimize each choice individually; repeat until a full
+        // round makes no progress.
+        while !exhausted {
+            let mut improved = false;
+
+            let (imp, ex) = self.tape_delete_spans(
+                strategy,
+                test,
+                &rng_snapshot,
+                &mut best,
+                &mut budget,
+                result_cache,
+                fork_output,
+            );
+            improved |= imp;
+            if ex {
+                break;
+            }
+
+            let (imp, ex) = self.tape_lower_and_delete(
+                strategy,
+                test,
+                &rng_snapshot,
+                &mut best,
+                &mut budget,
+                result_cache,
+                fork_output,
+            );
+            improved |= imp;
+            if ex {
+                break;
+            }
+
+            let (imp, ex) = self.tape_redistribute_pairs(
+                strategy,
+                test,
+                &rng_snapshot,
+                &mut best,
+                &mut budget,
+                result_cache,
+                fork_output,
+            );
+            improved |= imp;
+            if ex {
+                break;
+            }
+
+            let (imp, ex) = self.tape_minimize_duplicates(
+                strategy,
+                test,
+                &rng_snapshot,
+                &mut best,
+                &mut budget,
+                result_cache,
+                fork_output,
+            );
+            improved |= imp;
+            if ex {
+                break;
+            }
+
+            let mut idx = 0;
+            while idx < best.tape.choices.len() {
+                let (imp, ex) = self.tape_minimize_choice(
+                    idx,
+                    strategy,
+                    test,
+                    &rng_snapshot,
+                    &mut best,
+                    &mut budget,
+                    result_cache,
+                    fork_output,
+                );
+                improved |= imp;
+                if ex {
+                    exhausted = true;
+                    break;
+                }
+                idx += 1;
+            }
+            if !improved {
+                break;
+            }
+        }
+
+        verbose_message!(
+            self,
+            TRACE,
+            "Tape shrinking finished after {} attempts",
+            budget.iterations
+        );
+
+        if self.config.failure_persistence.is_some() {
+            self.shrunk_tape = Some(tape::serialize_tape(&best.tape));
+        }
+
+        self.rng = rng_snapshot;
+        (best.why, best.tree.current())
+    }
+
+    /// Replay a persisted choice tape: regenerate a value from it, run
+    /// the test, and re-shrink on failure. Stale tapes (the strategy has
+    /// changed since they were saved) replay best-effort: misaligned
+    /// draws sample fresh. Returns `Ok(Err(reason))` for a dead tape
+    /// (one that no longer generates a value): the caller collects
+    /// those and reports them after every other entry and all fresh
+    /// cases have run, so one bit-rotted line neither hides a later
+    /// failure nor silently passes.
+    fn replay_persisted_tape<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        input: Tape,
+        f: &impl Fn(S::Value) -> TestCaseResult,
+        replay_from_fork: &mut impl Iterator<Item = TestCaseResult>,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> Result<Result<(), String>, TestError<S::Value>> {
+        let rng_snapshot = self.rng.clone();
+        self.rng.tape.start_replay(input);
+        let case = match strategy.new_tree(self) {
+            Ok(case) => case,
+            Err(reason) => {
+                self.rng.tape.finish_replay();
+                self.rng = rng_snapshot;
+                return Ok(Err(format!(
+                    "a persisted choice tape (ct1 entry) no longer \
+                     generates a value ({})",
+                    reason
+                )));
+            }
+        };
+        let (output, _overrun) = self.rng.tape.finish_replay();
+
+        if ShrinkEngine::Tape == self.config.shrink_engine
+            && !self.config.fork()
+            && !fork_output.is_in_fork()
+        {
+            let result = call_test(
+                self,
+                case.current(),
+                f,
+                replay_from_fork,
+                result_cache,
+                fork_output,
+                true,
+            );
+            match result {
+                Ok(_) => {
+                    self.rng = rng_snapshot;
+                    Ok(Ok(()))
+                }
+                Err(TestCaseError::Fail(why)) => {
+                    let (why, value) = self.tape_shrink(
+                        strategy,
+                        f,
+                        rng_snapshot,
+                        output,
+                        case,
+                        why,
+                        result_cache,
+                        fork_output,
+                    );
+                    Err(TestError::Fail(why, value))
+                }
+                Err(TestCaseError::Reject(whence)) => {
+                    self.rng = rng_snapshot;
+                    self.reject_global(whence)?;
+                    Ok(Ok(()))
+                }
+            }
+        } else {
+            // ValueTree engine (or fork mode): hand the generated case to
+            // the classic path, which shrinks with the ValueTree walker.
+            self.rng = rng_snapshot;
+            self.run_one_with_replay(
+                case,
+                f,
+                replay_from_fork,
+                result_cache,
+                fork_output,
+                true,
+            )
+            .map(|_| Ok(()))
+        }
+    }
+
+    /// Run one shrink attempt: replay `proposal` through generation, run
+    /// the test, and accept iff the test still fails and the re-recorded
+    /// output tape is shortlex-smaller than the incumbent.
+    fn tape_attempt<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: &TestRng,
+        proposal: Tape,
+        best: &mut TapeBest<S::Tree>,
+        budget: &mut TapeShrinkBudget,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> TapeAttemptResult {
+        if !budget.spend() {
+            return TapeAttemptResult::Exhausted;
+        }
+
+        self.rng = rng_snapshot.clone();
+        self.rng.tape.start_replay(proposal);
+        // Local rejects incurred while re-vetting a shrink proposal (e.g.
+        // a filter refusing edited values) must not drain the run-wide
+        // budget: the classic shrinker never consumes it while shrinking,
+        // and a filter-heavy strategy could otherwise exhaust it mid-way
+        // and silently doom every remaining attempt. Each attempt still
+        // has the remaining budget as its own retry bound.
+        let local_rejects_before = self.local_rejects;
+        let tree = strategy.new_tree(self);
+        self.local_rejects = local_rejects_before;
+        let (output, overrun) = self.rng.tape.finish_replay();
+        let tree = match tree {
+            Ok(tree) => tree,
+            // Generation rejected the replayed values (e.g. a filter's
+            // retry budget ran out); discard the attempt.
+            Err(_) => return TapeAttemptResult::Rejected,
+        };
+        if overrun {
+            return TapeAttemptResult::Rejected;
+        }
+        if Ordering::Less != output.cmp_key(&best.tape) {
+            return TapeAttemptResult::Rejected;
+        }
+
+        let result = call_test(
+            self,
+            tree.current(),
+            test,
+            &mut iter::empty::<TestCaseResult>().fuse(),
+            result_cache,
+            fork_output,
+            false,
+        );
+        match result {
+            Err(TestCaseError::Fail(why)) => {
+                best.tape = output;
+                best.tree = tree;
+                best.why = why;
+                TapeAttemptResult::Accepted
+            }
+            // Passes and rejections both mean the edit lost the failure.
+            Ok(_) | Err(TestCaseError::Reject(..)) => {
+                TapeAttemptResult::Rejected
+            }
+        }
+    }
+
+    /// Try deleting recorded spans (one logical unit each, e.g. one
+    /// collection element with its continuation flag), last-to-first.
+    /// Returns `(improved_anything, budget_exhausted)`.
+    fn tape_delete_spans<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: &TestRng,
+        best: &mut TapeBest<S::Tree>,
+        budget: &mut TapeShrinkBudget,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> (bool, bool) {
+        let mut improved = false;
+        // Position from the end of the span list: on acceptance the whole
+        // span list is refreshed from the replay's output, so counting
+        // from the end keeps us moving through not-yet-tried spans.
+        let mut pos = 0;
+        loop {
+            let nspans = best.tape.spans.len();
+            if pos >= nspans {
+                break;
+            }
+            let span = best.tape.spans[nspans - 1 - pos];
+            if span.end > best.tape.choices.len() || span.start >= span.end {
+                pos += 1;
+                continue;
+            }
+            match self.tape_attempt(
+                strategy,
+                test,
+                rng_snapshot,
+                best.tape.with_span_deleted(span),
+                best,
+                budget,
+                result_cache,
+                fork_output,
+            ) {
+                TapeAttemptResult::Accepted => {
+                    improved = true;
+                    // Adaptive batching: a successful deletion often means
+                    // many neighbors are deletable too (think "shrink a
+                    // 100-element vec to 3"). Try deleting geometrically
+                    // growing blocks of spans at this position while that
+                    // keeps working, covering long runs in O(log n)
+                    // attempts instead of one by one.
+                    let mut block_len = 2usize;
+                    loop {
+                        let nspans = best.tape.spans.len();
+                        if pos >= nspans {
+                            break;
+                        }
+                        let hi_idx = nspans - 1 - pos;
+                        if hi_idx + 1 < block_len {
+                            break;
+                        }
+                        let lo_idx = hi_idx + 1 - block_len;
+                        let block = &best.tape.spans[lo_idx..=hi_idx];
+                        let start =
+                            block.iter().map(|s| s.start).min().unwrap();
+                        let end = block.iter().map(|s| s.end).max().unwrap();
+                        if end > best.tape.choices.len() || start >= end {
+                            break;
+                        }
+                        match self.tape_attempt(
+                            strategy,
+                            test,
+                            rng_snapshot,
+                            best.tape
+                                .with_span_deleted(tape::Span { start, end }),
+                            best,
+                            budget,
+                            result_cache,
+                            fork_output,
+                        ) {
+                            TapeAttemptResult::Accepted => {
+                                block_len *= 2;
+                            }
+                            TapeAttemptResult::Rejected => break,
+                            TapeAttemptResult::Exhausted => {
+                                return (improved, true)
+                            }
+                        }
+                    }
+                }
+                TapeAttemptResult::Rejected => {
+                    pos += 1;
+                }
+                TapeAttemptResult::Exhausted => return (improved, true),
+            }
+        }
+        (improved, false)
+    }
+
+    /// Cross-value pass: lower an integer choice by one while deleting a
+    /// span after it. This is what shrinks length-prefixed data behind a
+    /// `prop_flat_map`: the length is an explicit earlier choice there,
+    /// so deleting an element span alone desynchronizes replay (the
+    /// length still demands the old count) and lowering the length alone
+    /// regenerates different elements. A port of the corresponding
+    /// special case in Hypothesis's `minimize_individual_nodes`. Returns
+    /// `(improved_anything, budget_exhausted)`.
+    fn tape_lower_and_delete<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: &TestRng,
+        best: &mut TapeBest<S::Tree>,
+        budget: &mut TapeShrinkBudget,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> (bool, bool) {
+        let mut improved = false;
+        let mut i = 0;
+        while i < best.tape.choices.len() {
+            // Re-read on every iteration: accepted attempts rewrite the
+            // tape. Only above-target integers participate; a length-like
+            // choice shrinks downward.
+            let (value, min, max, shrink_to) = match best.tape.choices[i] {
+                Choice::Integer {
+                    value,
+                    min,
+                    max,
+                    shrink_to,
+                } if value > shrink_to => (value, min, max, shrink_to),
+                _ => {
+                    i += 1;
+                    continue;
+                }
+            };
+            // Pair the lowered integer with each span after it, walking
+            // spans in ASCENDING order and, on an accepted deletion,
+            // greedily repeating at the same span position: deletable
+            // spans cluster (the redistribute pass piles zeros early),
+            // and the sibling OCaml engine measured a 26x attempt
+            // reduction from staying in place instead of restarting the
+            // whole scan (its review round then flagged the restart as
+            // the O(n^3) hot spot here).
+            let mut pos = 0;
+            let mut value = value;
+            loop {
+                if pos >= best.tape.spans.len() {
+                    break;
+                }
+                let span = best.tape.spans[pos];
+                if span.start <= i
+                    || span.end > best.tape.choices.len()
+                    || span.start >= span.end
+                {
+                    pos += 1;
+                    continue;
+                }
+                let mut proposal = best.tape.with_span_deleted(span);
+                proposal.choices[i] = Choice::Integer {
+                    value: value - 1,
+                    min,
+                    max,
+                    shrink_to,
+                };
+                match self.tape_attempt(
+                    strategy,
+                    test,
+                    rng_snapshot,
+                    proposal,
+                    best,
+                    budget,
+                    result_cache,
+                    fork_output,
+                ) {
+                    TapeAttemptResult::Accepted => {
+                        improved = true;
+                        // Stay at this span position with the choice's
+                        // refreshed value; the next deletable span
+                        // usually sits exactly here.
+                        match best.tape.choices.get(i) {
+                            Some(Choice::Integer {
+                                value: new_value, ..
+                            }) if *new_value > shrink_to => {
+                                value = *new_value;
+                            }
+                            _ => break,
+                        }
+                    }
+                    TapeAttemptResult::Rejected => pos += 1,
+                    TapeAttemptResult::Exhausted => return (improved, true),
+                }
+            }
+            i += 1;
+        }
+        (improved, false)
+    }
+
+    /// Cross-value pass: move weight from an earlier integer choice to
+    /// the next integer choice after it, preserving their sum. Shortlex
+    /// prefers earlier choices being smaller, so `[27, 23]` becomes
+    /// `[0, 50]` when the failure depends only on the sum — after which
+    /// the deletion pass can remove the zero. Returns
+    /// `(improved_anything, budget_exhausted)`.
+    fn tape_redistribute_pairs<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: &TestRng,
+        best: &mut TapeBest<S::Tree>,
+        budget: &mut TapeShrinkBudget,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> (bool, bool) {
+        let mut improved = false;
+        let mut i = 0;
+        'outer: while i < best.tape.choices.len() {
+            // Repeatedly re-read: accepted attempts rewrite the tape.
+            let (value_i, min_i, max_i, shrink_to_i) =
+                match best.tape.choices[i] {
+                    Choice::Integer {
+                        value,
+                        min,
+                        max,
+                        shrink_to,
+                    } if value != shrink_to => (value, min, max, shrink_to),
+                    _ => {
+                        i += 1;
+                        continue;
+                    }
+                };
+            let j = match (i + 1..best.tape.choices.len()).find(|&j| {
+                matches!(best.tape.choices[j], Choice::Integer { .. })
+            }) {
+                Some(j) => j,
+                None => break,
+            };
+            let (value_j, min_j, max_j, shrink_to_j) =
+                match best.tape.choices[j] {
+                    Choice::Integer {
+                        value,
+                        min,
+                        max,
+                        shrink_to,
+                    } => (value, min, max, shrink_to),
+                    _ => unreachable!(),
+                };
+
+            // Transfer moves choice i toward its target and choice j the
+            // opposite way, within j's constraints. All values are in
+            // offset space, where differences equal value-space
+            // differences regardless of signedness.
+            let above = value_i > shrink_to_i;
+            let d_max = if above {
+                (value_i - shrink_to_i).min(max_j - value_j)
+            } else {
+                (shrink_to_i - value_i).min(value_j - min_j)
+            };
+
+            let mut d = d_max;
+            while d > 0 {
+                let (new_i, new_j) = if above {
+                    (value_i - d, value_j + d)
+                } else {
+                    (value_i + d, value_j - d)
+                };
+                // One clone for the two-index edit (chaining with_choice
+                // would clone the whole tape twice).
+                let mut proposal = best.tape.with_choice(
+                    i,
+                    Choice::Integer {
+                        value: new_i,
+                        min: min_i,
+                        max: max_i,
+                        shrink_to: shrink_to_i,
+                    },
+                );
+                proposal.choices[j] = Choice::Integer {
+                    value: new_j,
+                    min: min_j,
+                    max: max_j,
+                    shrink_to: shrink_to_j,
+                };
+                match self.tape_attempt(
+                    strategy,
+                    test,
+                    rng_snapshot,
+                    proposal,
+                    best,
+                    budget,
+                    result_cache,
+                    fork_output,
+                ) {
+                    TapeAttemptResult::Accepted => {
+                        improved = true;
+                        // Values changed (and the tape may have been
+                        // restructured); restart this position.
+                        continue 'outer;
+                    }
+                    TapeAttemptResult::Rejected => d /= 2,
+                    TapeAttemptResult::Exhausted => return (improved, true),
+                }
+            }
+            i += 1;
+        }
+        (improved, false)
+    }
+
+    /// Cross-value pass: lower groups of identical integer choices
+    /// together. Catches failures conditioned on equality (`a == b`)
+    /// that no single-choice edit can preserve. Returns
+    /// `(improved_anything, budget_exhausted)`.
+    fn tape_minimize_duplicates<S: Strategy>(
+        &mut self,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: &TestRng,
+        best: &mut TapeBest<S::Tree>,
+        budget: &mut TapeShrinkBudget,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> (bool, bool) {
+        let mut improved = false;
+        // Distinct (value, shrink_to) pairs occurring in 2+ integer
+        // choices of the incumbent tape.
+        let mut groups: Vec<(u128, u128)> = Vec::new();
+        for choice in &best.tape.choices {
+            if let Choice::Integer {
+                value, shrink_to, ..
+            } = *choice
+            {
+                if value != shrink_to
+                    && best
+                        .tape
+                        .choices
+                        .iter()
+                        .filter(|c| {
+                            matches!(
+                                c,
+                                Choice::Integer { value: v, shrink_to: t, .. }
+                                    if *v == value && *t == shrink_to
+                            )
+                        })
+                        .count()
+                        >= 2
+                    && !groups.contains(&(value, shrink_to))
+                {
+                    groups.push((value, shrink_to));
+                }
+            }
+        }
+
+        for (value, shrink_to) in groups {
+            // Propose moving every member of the group to the same new
+            // value, bisecting the distance toward the shared target.
+            let above = value > shrink_to;
+            let dist = if above {
+                value - shrink_to
+            } else {
+                shrink_to - value
+            };
+            let mut d = dist;
+            while d > 0 {
+                let new_value = if above { value - d } else { value + d };
+                let mut proposal = best.tape.clone();
+                let mut members = 0;
+                for choice in &mut proposal.choices {
+                    if let Choice::Integer {
+                        value: v,
+                        shrink_to: t,
+                        ..
+                    } = choice
+                    {
+                        if *v == value && *t == shrink_to {
+                            *v = new_value;
+                            members += 1;
+                        }
+                    }
+                }
+                if members < 2 {
+                    // The group dissolved under earlier edits.
+                    break;
+                }
+                match self.tape_attempt(
+                    strategy,
+                    test,
+                    rng_snapshot,
+                    proposal,
+                    best,
+                    budget,
+                    result_cache,
+                    fork_output,
+                ) {
+                    TapeAttemptResult::Accepted => {
+                        improved = true;
+                        // The group's shared value changed; move on and
+                        // let the next round regroup.
+                        break;
+                    }
+                    TapeAttemptResult::Rejected => d /= 2,
+                    TapeAttemptResult::Exhausted => return (improved, true),
+                }
+            }
+        }
+        (improved, false)
+    }
+
+    /// Minimize the single choice at `idx` of the incumbent tape. Returns
+    /// `(improved_anything, budget_exhausted)`.
+    fn tape_minimize_choice<S: Strategy>(
+        &mut self,
+        idx: usize,
+        strategy: &S,
+        test: &impl Fn(S::Value) -> TestCaseResult,
+        rng_snapshot: &TestRng,
+        best: &mut TapeBest<S::Tree>,
+        budget: &mut TapeShrinkBudget,
+        result_cache: &mut dyn ResultCache,
+        fork_output: &mut ForkOutput,
+    ) -> (bool, bool) {
+        let mut improved = false;
+
+        // Try one proposal; evaluates to whether it was accepted, or
+        // returns from the function when the budget runs out or an
+        // accepted attempt restructured the tape under our feet.
+        macro_rules! attempt {
+            ($choice:expr) => {{
+                if idx >= best.tape.choices.len() {
+                    return (improved, false);
+                }
+                match self.tape_attempt(
+                    strategy,
+                    test,
+                    rng_snapshot,
+                    best.tape.with_choice(idx, $choice),
+                    best,
+                    budget,
+                    result_cache,
+                    fork_output,
+                ) {
+                    TapeAttemptResult::Accepted => {
+                        improved = true;
+                        true
+                    }
+                    TapeAttemptResult::Rejected => false,
+                    TapeAttemptResult::Exhausted => return (improved, true),
+                }
+            }};
+        }
+
+        // Minimize distance-from-target for a known-failing value: probe
+        // exponentially outward from the target (1, 2, 4, ...) until a
+        // failing distance is found, then bisect the last gap. This costs
+        // O(log(final distance)) attempts rather than O(log(range)) —
+        // crucial when the starting value is ~1e300 but the failure
+        // boundary is near the target, which is the common case. The
+        // target itself must already have been tried and rejected.
+        macro_rules! bisect_u128 {
+            ($cur:expr, $target:expr, $mk:expr) => {{
+                let cur: u128 = $cur;
+                let target: u128 = $target;
+                let above = cur >= target;
+                let dist = if above { cur - target } else { target - cur };
+                let cand_at = |d: u128| {
+                    if above {
+                        target + d
+                    } else {
+                        target - d
+                    }
+                };
+                let mut d_ok = 0u128;
+                let mut d_fail = dist;
+                let mut probe = 1u128;
+                while probe < dist {
+                    if attempt!($mk(cand_at(probe))) {
+                        d_fail = probe;
+                        break;
+                    }
+                    d_ok = probe;
+                    probe = probe.saturating_mul(2);
+                }
+                loop {
+                    let d_mid = d_ok + (d_fail - d_ok) / 2;
+                    if d_mid == d_ok || d_mid == d_fail {
+                        break;
+                    }
+                    if attempt!($mk(cand_at(d_mid))) {
+                        d_fail = d_mid;
+                    } else {
+                        d_ok = d_mid;
+                    }
+                }
+            }};
+        }
+
+        match best.tape.choices[idx].clone() {
+            Choice::Integer {
+                value,
+                min,
+                max,
+                shrink_to,
+            } => {
+                let mk = |value: u128| Choice::Integer {
+                    value,
+                    min,
+                    max,
+                    shrink_to,
+                };
+                if value == shrink_to {
+                    return (improved, false);
+                }
+                if !attempt!(mk(shrink_to)) {
+                    bisect_u128!(value, shrink_to, mk);
+                }
+            }
+
+            Choice::Float {
+                value,
+                min,
+                max,
+                allow_nan,
+            } => {
+                let mk = |value: f64| Choice::Float {
+                    value,
+                    min,
+                    max,
+                    allow_nan,
+                };
+                let target = tape::float_shrink_target(min, max);
+                let read_current =
+                    |best: &TapeBest<S::Tree>| match best.tape.choices.get(idx)
+                    {
+                        Some(Choice::Float { value, .. }) => Some(*value),
+                        _ => None,
+                    };
+
+                if value == target {
+                    return (improved, false);
+                }
+                attempt!(mk(target));
+                let mut cur = match read_current(best) {
+                    Some(cur) => cur,
+                    None => return (improved, false),
+                };
+                if cur == target || !cur.is_finite() {
+                    // NaN and infinity either shrink to the target in one
+                    // step or not at all.
+                    return (improved, false);
+                }
+
+                // Integerize: the truncation first (smaller magnitude),
+                // then one step away from zero (the smallest integer that
+                // can still fail for "value > threshold"-shaped tests).
+                if cur != tape::float_trunc(cur) {
+                    attempt!(mk(tape::float_trunc(cur)));
+                    cur = match read_current(best) {
+                        Some(cur) => cur,
+                        None => return (improved, false),
+                    };
+                    if cur != tape::float_trunc(cur) {
+                        attempt!(mk(tape::float_trunc(cur) + cur.signum()));
+                        cur = match read_current(best) {
+                            Some(cur) => cur,
+                            None => return (improved, false),
+                        };
+                    }
+                }
+
+                if cur == tape::float_trunc(cur)
+                    && target == tape::float_trunc(target)
+                {
+                    // Minimize over integer-valued floats: exponential
+                    // probe outward from the target, then bisect the
+                    // last gap (see bisect_u128 for why).
+                    let dir = if cur >= target { 1.0 } else { -1.0 };
+                    let mut ok = target;
+                    let mut fail = cur;
+                    let mut probe = 1.0f64;
+                    while probe < (cur - target).abs() {
+                        let cand = tape::float_trunc(target + dir * probe);
+                        if attempt!(mk(cand)) {
+                            fail = cand;
+                            break;
+                        }
+                        ok = cand;
+                        probe *= 2.0;
+                    }
+                    loop {
+                        let mid = tape::float_trunc(ok + (fail - ok) / 2.0);
+                        if mid == ok || mid == fail {
+                            break;
+                        }
+                        if attempt!(mk(mid)) {
+                            fail = mid;
+                        } else {
+                            ok = mid;
+                        }
+                    }
+                } else {
+                    // Still fractional: drop precision bit by bit.
+                    for k in 1..=10 {
+                        let cand = tape::float_round_to_precision(cur, k);
+                        if cand != cur {
+                            attempt!(mk(cand));
+                            cur = match read_current(best) {
+                                Some(cur) => cur,
+                                None => return (improved, false),
+                            };
+                        }
+                    }
+                }
+            }
+
+            Choice::Bool { value } => {
+                if value {
+                    attempt!(Choice::Bool { value: false });
+                }
+            }
+
+            Choice::RawU32 { value } => {
+                if 0 != value && !attempt!(Choice::RawU32 { value: 0 }) {
+                    bisect_u128!(value as u128, 0, |v: u128| {
+                        Choice::RawU32 { value: v as u32 }
+                    });
+                }
+            }
+
+            Choice::RawU64 { value } => {
+                if 0 != value && !attempt!(Choice::RawU64 { value: 0 }) {
+                    bisect_u128!(value as u128, 0, |v: u128| {
+                        Choice::RawU64 { value: v as u64 }
+                    });
+                }
+            }
+
+            Choice::RawBytes { value } => {
+                if value.iter().any(|&b| 0 != b) {
+                    attempt!(Choice::RawBytes {
+                        value: vec![0; value.len()],
+                    });
+                }
+            }
+        }
+
+        (improved, false)
+    }
+}
+
+/// The incumbent shrink result: the simplest tape whose replay is known to
+/// fail the test, with its generated tree and failure reason.
+struct TapeBest<T> {
+    tape: Tape,
+    tree: T,
+    why: Reason,
+}
+
+#[derive(PartialEq)]
+enum TapeAttemptResult {
+    Accepted,
+    Rejected,
+    Exhausted,
+}
+
+/// Iteration/time budget for tape shrinking, mirroring the limits the
+/// ValueTree shrinker enforces.
+struct TapeShrinkBudget {
+    iterations: u32,
+    max_iters: u32,
+    #[cfg(feature = "std")]
+    start_time: std::time::Instant,
+    #[cfg(feature = "std")]
+    max_time_ms: u32,
+}
+
+impl TapeShrinkBudget {
+    /// Returns false when the budget is exhausted.
+    fn spend(&mut self) -> bool {
+        if self.iterations >= self.max_iters {
+            return false;
+        }
+        #[cfg(feature = "std")]
+        {
+            if self.max_time_ms > 0 {
+                let elapsed = self.start_time.elapsed();
+                let elapsed_ms = elapsed
+                    .as_secs()
+                    .saturating_mul(1000)
+                    .saturating_add(elapsed.subsec_millis().into());
+                if elapsed_ms > self.max_time_ms as u64 {
+                    return false;
+                }
+            }
+        }
+        self.iterations += 1;
+        true
     }
 }
 
@@ -1255,7 +2870,8 @@ mod test {
 
         // create value with recorder rng
         let default_config = Config::default();
-        let recorder_rng = TestRng::default_rng(RngSeed::Random, RngAlgorithm::Recorder);
+        let recorder_rng =
+            TestRng::default_rng(RngSeed::Random, RngAlgorithm::Recorder);
         let mut runner =
             TestRunner::new_with_rng(default_config.clone(), recorder_rng);
         let random_byte_array1 = runner.rng().random::<[u8; 16]>();
@@ -1541,7 +3157,12 @@ mod timeout_tests {
 
     fn test_shrink_bail(config: Config) {
         let mut runner = TestRunner::new(config);
-        let result = runner.run(&crate::num::u64::ANY, |v| {
+        // Every value of this range fails the assertion below, so the
+        // failing case is found on the first generation regardless of
+        // the generator's distribution; the test is about the shrink
+        // budget, and each test call costs 250ms against the fork
+        // harness's timeout.
+        let result = runner.run(&((u32::MAX as u64 + 1)..), |v| {
             thread::sleep(Duration::from_millis(250));
             prop_assert!(v <= u32::MAX as u64);
             Ok(())

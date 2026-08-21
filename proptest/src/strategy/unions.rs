@@ -106,8 +106,16 @@ fn pick_weighted<I: Iterator<Item = u32>>(
     weights1: I,
     weights2: I,
 ) -> usize {
-    let sum = weights1.map(u64::from).sum();
-    let weighted_pick = sample_uniform(runner, 0, sum);
+    let sum: u64 = weights1.map(u64::from).sum();
+    // Equivalent panic to the `Uniform::new(0, 0)` in the code this
+    // replaced.
+    assert!(sum > 0, "picking from union with no weight");
+    // A typed draw so that, under the tape shrink engine, branch
+    // selection is pinned during replay and shrinks toward the first
+    // (lowest cumulative weight) alternative. With the tape off this is
+    // the same uniform sample as before.
+    let weighted_pick =
+        runner.draw_integer_in(0u64, sum - 1, |r| sample_uniform(r, 0, sum));
     weights2
         .scan(0u64, |state, w| {
             *state += u64::from(w);
