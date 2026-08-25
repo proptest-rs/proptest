@@ -10,6 +10,10 @@
 - [Soundness] Asserts that rdrand feature is supported by the CPU before invoking rdrand functions ([\#648](https://github.com/proptest-rs/proptest/issues/648))
 - [Soundness] Fixes data race on static mut between assigning thread and accessing thread ([\#648](https://github.com/proptest-rs/proptest/issues/648))
 
+### New Additions
+
+- Added the `max_run_time` config option (and the `PROPTEST_MAX_RUN_TIME` environment variable) to bound a run by wall-clock time in milliseconds instead of a fixed case count. ([\#655](https://github.com/proptest-rs/proptest/issues/655))
+
 ### Other Notes
 
 - Updated the rand dependency family to 0.10 and migrated `TestRng` and internal RNG integration to rand 0.10's trait and seeding APIs, preserving seeded behavior.

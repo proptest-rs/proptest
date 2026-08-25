@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018, 2019, 2024 The proptest developers
+// Copyright 2017, 2018, 2019, 2024, 2026 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -613,7 +613,24 @@ impl TestRunner {
         }
         self.rng = old_rng;
 
+        #[cfg(feature = "std")]
+        let run_start = std::time::Instant::now();
+
         while self.successes < self.config.cases {
+            // Stop early if we've used up the configured run-time budget. The
+            // check is between cases, so an already-running case is never
+            // interrupted.
+            #[cfg(feature = "std")]
+            if self.config.max_run_time > 0 {
+                let elapsed = run_start.elapsed();
+                let elapsed_ms = (elapsed.as_secs() as u64)
+                    .saturating_mul(1000)
+                    .saturating_add(elapsed.subsec_millis().into());
+                if elapsed_ms > self.config.max_run_time as u64 {
+                    break;
+                }
+            }
+
             // Generate a new seed and make an RNG from that so that we know
             // what seed to persist if this case fails.
             let seed = self.rng.gen_get_seed();
@@ -1099,6 +1116,55 @@ mod test {
             Ok(())
         });
         assert_eq!(Ok(()), result);
+    }
+
+    #[test]
+    fn max_run_time_stops_early() {
+        use std::time::Duration;
+
+        let config = Config {
+            failure_persistence: None,
+            // A count far larger than we could ever reach inside the budget.
+            cases: 1_000_000,
+            max_run_time: 50,
+            ..Config::default()
+        };
+        let mut runner = TestRunner::new(config);
+        let runs = Cell::new(0u32);
+        let result = runner.run(&(0u32..), |_| {
+            runs.set(runs.get() + 1);
+            std::thread::sleep(Duration::from_millis(2));
+            Ok(())
+        });
+
+        assert_eq!(Ok(()), result);
+        // We should have run at least one case but bailed out long before
+        // exhausting the case count once the budget elapsed.
+        assert!(runs.get() >= 1);
+        assert!(
+            runs.get() < 1000,
+            "expected to stop early, but ran {} cases",
+            runs.get()
+        );
+    }
+
+    #[test]
+    fn max_run_time_zero_runs_all_cases() {
+        let config = Config {
+            failure_persistence: None,
+            cases: 32,
+            max_run_time: 0,
+            ..Config::default()
+        };
+        let mut runner = TestRunner::new(config);
+        let runs = Cell::new(0u32);
+        let result = runner.run(&(0u32..), |_| {
+            runs.set(runs.get() + 1);
+            Ok(())
+        });
+
+        assert_eq!(Ok(()), result);
+        assert_eq!(32, runs.get());
     }
 
     #[test]
