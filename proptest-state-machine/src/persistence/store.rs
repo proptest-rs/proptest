@@ -21,7 +21,7 @@
 //! Used like:
 //!
 //! ```rust,ignore
-//! let path = store::default_path(&store::slug(std::any::type_name::<MyTest>()));
+//! let path = store::path_for(env!("CARGO_MANIFEST_DIR"), file!(), "my_test");
 //! store::reset_run_marker(&path);                 // once per run, before generation
 //! for case in store::load::<MyCase>(&path)? { /* replay */ }
 //! let guard = store::CaptureGuard::arm(path, &my_case);
@@ -47,26 +47,32 @@ use serde_json::Value;
 /// written. Defaults to `proptest-regressions/state-machine`.
 pub const PERSIST_DIR_ENV: &str = "PROPTEST_STATE_MACHINE_PERSIST_DIR";
 
-/// Turn a Rust type path into a filesystem-safe slug
-/// (`foo::Bar<baz::Qux>` -> `foo__Bar_baz__Qux_`).
-pub fn slug(type_name: &str) -> String {
-    type_name
-        .chars()
-        .map(|c| match c {
-            ':' => '_',
-            c if c.is_alphanumeric() || c == '_' || c == '-' => c,
-            _ => '_',
-        })
-        .collect()
-}
-
-/// Resolve the regression file for `slug`. Uses [`PERSIST_DIR_ENV`] if set, else
-/// `proptest-regressions/state-machine`, with a `.jsonl` extension.
-pub fn default_path(slug: &str) -> PathBuf {
-    let dir = env::var_os(PERSIST_DIR_ENV)
+/// Resolve the regression file for the test named `test_name` in `source_file`,
+/// under `manifest_dir` (or [`PERSIST_DIR_ENV`] when it is set).
+///
+/// The source path and the test name are the key, so the file keeps its
+/// identity across compilers and stays distinct between test binaries.
+/// Anchoring on the manifest directory keeps the location independent of the
+/// working directory the test binary happens to be started in.
+pub fn path_for(
+    manifest_dir: &str,
+    source_file: &str,
+    test_name: &str,
+) -> PathBuf {
+    let mut path = env::var_os(PERSIST_DIR_ENV)
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("proptest-regressions").join("state-machine"));
-    dir.join(format!("{slug}.jsonl"))
+        .unwrap_or_else(|| {
+            Path::new(manifest_dir)
+                .join("proptest-regressions")
+                .join("state-machine")
+        });
+    let source = Path::new(source_file).with_extension("");
+    path.extend(
+        source
+            .components()
+            .filter(|c| matches!(c, std::path::Component::Normal(_))),
+    );
+    path.join(format!("{test_name}.jsonl"))
 }
 
 /// Header written at the top of a regression file (comment lines, ignored on
@@ -293,6 +299,18 @@ impl Drop for CaptureGuard {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn path_keeps_the_source_layout_and_test_name() {
+        let path = path_for("/crate", "tests/persistence.rs", "my_test");
+        let tail: Vec<_> = path
+            .components()
+            .rev()
+            .take(3)
+            .map(|c| c.as_os_str().to_owned())
+            .collect();
+        assert_eq!(tail, ["my_test.jsonl", "persistence", "tests"]);
+    }
 
     /// Simulate a run's shrink chain: successive writes (prev -> new) collapse to
     /// the run's single minimal, while a distinct second run accumulates and an

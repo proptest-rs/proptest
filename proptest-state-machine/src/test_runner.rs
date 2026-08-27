@@ -156,6 +156,7 @@ pub trait StateMachineTest {
     #[cfg(feature = "persistence")]
     fn test_sequential_persisted(
         config: Config,
+        path: std::path::PathBuf,
         ref_state: <Self::Reference as ReferenceStateMachine>::State,
         transitions: Vec<
             <Self::Reference as ReferenceStateMachine>::Transition,
@@ -179,10 +180,8 @@ pub trait StateMachineTest {
             initial_state: ref_state.clone(),
             transitions: transitions.clone(),
         };
-        let guard = crate::persistence::store::CaptureGuard::arm(
-            crate::persistence::default_persist_path::<Self>(),
-            &case,
-        );
+        let guard =
+            crate::persistence::store::CaptureGuard::arm(path, &case);
         Self::test_sequential(config, ref_state, transitions, seen_counter);
         // Passing case: do not persist.
         guard.disarm();
@@ -203,7 +202,10 @@ pub trait StateMachineTest {
     /// Requires the reference `State` and `Transition` to implement
     /// [`serde::Serialize`] + [`serde::de::DeserializeOwned`].
     #[cfg(feature = "persistence")]
-    fn replay_persisted_regressions(config: Config) -> usize
+    fn replay_persisted_regressions(
+        config: Config,
+        path: &std::path::Path,
+    ) -> usize
     where
         <Self::Reference as ReferenceStateMachine>::State:
             serde::Serialize + serde::de::DeserializeOwned,
@@ -214,14 +216,13 @@ pub trait StateMachineTest {
             return 0;
         }
         crate::persistence::assert_same_process(&config);
-        let path = crate::persistence::default_persist_path::<Self>();
-        crate::persistence::reset_run_marker(&path);
+        crate::persistence::reset_run_marker(path);
         let set: Vec<
             crate::persistence::PersistedCase<
                 <Self::Reference as ReferenceStateMachine>::State,
                 <Self::Reference as ReferenceStateMachine>::Transition,
             >,
-        > = crate::persistence::load_set(&path).unwrap_or_else(|e| {
+        > = crate::persistence::load_set(path).unwrap_or_else(|e| {
             panic!(
                 "failed to load persisted state-machine regressions from {}: {e}",
                 path.display()
@@ -239,7 +240,7 @@ pub trait StateMachineTest {
             crate::persistence::assert_still_valid::<Self::Reference>(
                 &case.initial_state,
                 &case.transitions,
-                &path,
+                path,
             );
             Self::test_sequential(
                 config.clone(),
@@ -390,15 +391,16 @@ macro_rules! __run_persisted {
         let mut config = $config.__sugar_to_owned();
         config.test_name = ::core::option::Option::Some(::core::concat!(
             ::core::module_path!(), "::", ::core::stringify!($test_name)));
+        let path = $crate::persist_path!(::core::stringify!($test_name));
         <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::replay_persisted_regressions(
-            config.clone());
+            config.clone(), &path);
         ::proptest::proptest!(config.clone(), |(
             (initial_state, transitions, seen_counter) in
                 <<$test $(< $( $ty_param ),+ >)? as $crate::StateMachineTest>::Reference
                     as $crate::ReferenceStateMachine>::sequential_strategy($size)
         )| {
             <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::test_sequential_persisted(
-                config.clone(), initial_state, transitions, seen_counter)
+                config.clone(), path.clone(), initial_state, transitions, seen_counter)
         });
     }};
 }

@@ -26,8 +26,9 @@ use proptest::prelude::*;
 use proptest::strategy::{Just, ValueTree};
 use proptest::test_runner::{Config, TestError, TestRunner};
 use proptest_state_machine::persistence::{
-    default_persist_path, load_set, PersistedCase, PERSIST_DIR_ENV,
+    load_set, PersistedCase, PERSIST_DIR_ENV,
 };
+use proptest_state_machine::persist_path;
 use proptest_state_machine::{ReferenceStateMachine, StateMachineTest};
 
 use serde::{Deserialize, Serialize};
@@ -123,7 +124,7 @@ fn persists_shrunk_case_and_replays_it() {
         cases: 256,
         ..Config::default()
     };
-    let path: PathBuf = default_persist_path::<BuggyCounter>();
+    let path: PathBuf = persist_path!("persists_shrunk_case_and_replays_it");
 
     // --- Phase 1: capture ---------------------------------------------------
     let result = quiet_panic(|| {
@@ -133,6 +134,7 @@ fn persists_shrunk_case_and_replays_it() {
             |(init, transitions, counter)| {
                 BuggyCounter::test_sequential_persisted(
                     config.clone(),
+                    path.clone(),
                     init,
                     transitions,
                     counter,
@@ -173,7 +175,7 @@ fn persists_shrunk_case_and_replays_it() {
     // the call `prop_state_machine_persisted!` makes once per run.
     let replayed = quiet_panic(|| {
         panic::catch_unwind(panic::AssertUnwindSafe(|| {
-            BuggyCounter::replay_persisted_regressions(config.clone())
+            BuggyCounter::replay_persisted_regressions(config.clone(), &path)
         }))
     });
     std::env::remove_var(PERSIST_DIR_ENV);
@@ -213,7 +215,7 @@ fn passing_case_writes_nothing() {
             .as_nanos()
     ));
     std::env::set_var(PERSIST_DIR_ENV, &tmp);
-    let path = default_persist_path::<GoodCounter>();
+    let path = persist_path!("passing_case_writes_nothing");
 
     // Drive a single case directly through the value tree (no proptest! macro).
     let mut runner = TestRunner::new(Config {
@@ -226,6 +228,7 @@ fn passing_case_writes_nothing() {
     let (init, transitions, counter) = tree.current();
     GoodCounter::test_sequential_persisted(
         Config::default(),
+        path.clone(),
         init,
         transitions,
         counter,
@@ -331,7 +334,7 @@ fn accumulates_distinct_regressions() {
             .as_nanos()
     ));
     std::env::set_var(PERSIST_DIR_ENV, &tmp);
-    let path = default_persist_path::<TwoBugs>();
+    let path = persist_path!("accumulates_distinct_regressions");
     let runner_config = Config {
         failure_persistence: None,
         cases: 512,
@@ -354,6 +357,7 @@ fn accumulates_distinct_regressions() {
                 |(init, transitions, counter)| {
                     TwoBugs::test_sequential_persisted(
                         config.clone(),
+                        path.clone(),
                         init,
                         transitions,
                         counter,
@@ -397,7 +401,7 @@ fn corrupt_regression_line_names_itself() {
             .as_nanos()
     ));
     std::env::set_var(PERSIST_DIR_ENV, &tmp);
-    let path = default_persist_path::<BuggyCounter>();
+    let path = persist_path!("corrupt_regression_line_names_itself");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(
         &path,
@@ -428,7 +432,7 @@ fn disabled_failure_persistence_writes_nothing() {
             .as_nanos()
     ));
     std::env::set_var(PERSIST_DIR_ENV, &tmp);
-    let path = default_persist_path::<BuggyCounter>();
+    let path = persist_path!("disabled_failure_persistence_writes_nothing");
 
     let config = Config {
         failure_persistence: None,
@@ -442,6 +446,7 @@ fn disabled_failure_persistence_writes_nothing() {
             |(init, transitions, counter)| {
                 BuggyCounter::test_sequential_persisted(
                     config.clone(),
+                    path.clone(),
                     init,
                     transitions,
                     counter,
@@ -450,7 +455,7 @@ fn disabled_failure_persistence_writes_nothing() {
             },
         )
     });
-    let replayed = BuggyCounter::replay_persisted_regressions(config.clone());
+    let replayed = BuggyCounter::replay_persisted_regressions(config.clone(), &path);
     std::env::remove_var(PERSIST_DIR_ENV);
     let exists = path.exists();
     let _ = std::fs::remove_dir_all(&tmp);
@@ -467,7 +472,10 @@ fn fork_is_rejected() {
         fork: true,
         ..Config::default()
     };
-    BuggyCounter::replay_persisted_regressions(config);
+    BuggyCounter::replay_persisted_regressions(
+        config,
+        &persist_path!("fork_is_rejected"),
+    );
 }
 
 /// A stored case that still deserializes but breaks a precondition the model
@@ -535,7 +543,7 @@ fn stale_regression_is_reported_not_applied() {
             .as_nanos()
     ));
     std::env::set_var(PERSIST_DIR_ENV, &tmp);
-    let path = default_persist_path::<stale::GateTest>();
+    let path = persist_path!("stale_regression_is_reported_not_applied");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     // Entering before opening: legal when recorded, rejected by the gate now.
     std::fs::write(
@@ -545,7 +553,7 @@ fn stale_regression_is_reported_not_applied() {
     .unwrap();
 
     let result = panic::catch_unwind(|| {
-        stale::GateTest::replay_persisted_regressions(Config::default())
+        stale::GateTest::replay_persisted_regressions(Config::default(), &path)
     });
     std::env::remove_var(PERSIST_DIR_ENV);
     let _ = std::fs::remove_dir_all(&tmp);

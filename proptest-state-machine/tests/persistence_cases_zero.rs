@@ -17,7 +17,8 @@
 use proptest::prelude::*;
 use proptest::strategy::Just;
 use proptest::test_runner::Config;
-use proptest_state_machine::persistence::{default_persist_path, PERSIST_DIR_ENV};
+use proptest_state_machine::persist_path;
+use proptest_state_machine::persistence::PERSIST_DIR_ENV;
 use proptest_state_machine::{ReferenceStateMachine, StateMachineTest};
 use serde::{Deserialize, Serialize};
 
@@ -73,7 +74,7 @@ impl StateMachineTest for BuggyCounter {
 fn seeded_config() -> Config {
     let dir = std::env::temp_dir().join(format!("psm-cases-zero-{}", std::process::id()));
     std::env::set_var(PERSIST_DIR_ENV, &dir);
-    let path = default_persist_path::<BuggyCounter>();
+    let path = persist_path!("cases_zero_replays_the_regression");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(
         &path,

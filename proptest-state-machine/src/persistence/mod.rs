@@ -119,11 +119,15 @@ pub struct PersistedCase<S, T> {
     pub transitions: Vec<T>,
 }
 
-/// Resolve the default persistence file for a test type `T` (typically the
-/// `StateMachineTest` impl), with a filename derived from its fully-qualified
-/// name. See [`store::default_path`] / [`store::PERSIST_DIR_ENV`].
-pub fn default_persist_path<T: ?Sized>() -> PathBuf {
-    store::default_path(&store::slug(std::any::type_name::<T>()))
+/// Resolve the regression file for a test, from the crate's manifest directory,
+/// the source file it is written in, and its name. Use
+/// [`persist_path!`](crate::persist_path) rather than calling this directly.
+pub fn persist_path(
+    manifest_dir: &str,
+    source_file: &str,
+    test_name: &str,
+) -> PathBuf {
+    store::path_for(manifest_dir, source_file, test_name)
 }
 
 /// Load the persisted regression set at `path` as typed cases. Returns an empty
