@@ -44,7 +44,10 @@ impl ReferenceStateMachine for RefCounter {
         Just(Op::Inc).boxed()
     }
 
-    fn apply(mut state: Self::State, _transition: &Self::Transition) -> Self::State {
+    fn apply(
+        mut state: Self::State,
+        _transition: &Self::Transition,
+    ) -> Self::State {
         state.value += 1;
         state
     }
@@ -65,14 +68,18 @@ impl StateMachineTest for BuggyCounter {
     }
 
     fn check_invariants(state: &u32, ref_state: &RefCounter) {
-        assert_eq!(*state, ref_state.value, "SUT counter diverged from reference");
+        assert_eq!(
+            *state, ref_state.value,
+            "SUT counter diverged from reference"
+        );
     }
 }
 
 /// Evaluated before the macro replays anything, so the regression it writes is
 /// on disk by the time replay reads it.
 fn seeded_config() -> Config {
-    let dir = std::env::temp_dir().join(format!("psm-cases-zero-{}", std::process::id()));
+    let dir = std::env::temp_dir()
+        .join(format!("psm-cases-zero-{}", std::process::id()));
     std::env::set_var(PERSIST_DIR_ENV, &dir);
     let path = persist_path!("cases_zero_replays_the_regression");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();

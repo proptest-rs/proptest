@@ -2,18 +2,21 @@
 
 ### New Features
 
-- Added an optional `persistence` feature that persists the *shrunk transition
-  sequence* of a failing state-machine test to disk (as serialized
-  `(initial_state, transitions)`) instead of only the RNG seed. Mirroring how
-  proptest replays seed regressions, the persisted cases are replayed on every
-  run — before generating new cases — with no regeneration and no re-shrinking,
-  and they survive strategy changes. Distinct failures accumulate into a
-  regression file stored as JSON Lines (one case per line, for clean source-
-  control diffs and merges); shrunk versions of the same failure collapse to one
-  minimal case. Drive tests with `prop_state_machine_persisted!`;
-  the persistence directory is overridable via the
-  `PROPTEST_EXT_STATE_MACHINE_PERSIST_DIR` environment variable, and `PROPTEST_CASES=0`
-  replays the regression without generating new cases. Addresses
+- Added an optional `persistence` feature that stores the shrunk transition
+  sequence of a failing state-machine test — serialized
+  `(initial_state, transitions)` — instead of only the RNG seed, so replaying it
+  needs no regeneration and no re-shrinking. Drive tests with
+  `prop_state_machine_persisted!`: it replays every stored case before
+  generating new ones, so `PROPTEST_CASES=0` replays the regressions and
+  generates nothing. Distinct failures accumulate as JSON Lines, one case per
+  line, and shrunk versions of one failure collapse to its minimal case. A
+  stored case that no longer deserializes, or that breaks a precondition the
+  reference model has since gained, is reported with the line to delete rather
+  than replayed. `PROPTEST_EXT_STATE_MACHINE_PERSIST_DIR` overrides the
+  directory (default `proptest-regressions/state-machine` under the crate
+  root); `PROPTEST_DISABLE_FAILURE_PERSISTENCE` switches it off along with
+  proptest's own regression file. `fork` and `timeout` are rejected, because a
+  case running in its own process cannot collapse its shrink chain. Addresses
   [\#564](https://github.com/proptest-rs/proptest/issues/564).
 
 ### Breaking Changes

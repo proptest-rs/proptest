@@ -7,10 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! End-to-end test for the `persistence` feature: a deliberately buggy state
-//! machine must (1) persist its shrunk failing transition sequence on failure,
-//! and (2) reproduce the failure when that file is replayed — without
-//! regeneration or re-shrinking.
+//! End-to-end tests for the `persistence` feature.
 
 #![cfg(feature = "persistence")]
 
@@ -25,21 +22,19 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 use proptest::prelude::*;
 use proptest::strategy::{Just, ValueTree};
 use proptest::test_runner::{Config, TestError, TestRunner};
+use proptest_state_machine::persist_path;
 use proptest_state_machine::persistence::{
     load_set, PersistedCase, PERSIST_DIR_ENV,
 };
-use proptest_state_machine::persist_path;
 use proptest_state_machine::{ReferenceStateMachine, StateMachineTest};
 
 use serde::{Deserialize, Serialize};
 
-/// The only transition: increment the counter.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum Op {
     Inc,
 }
 
-/// Reference model: an honest counter.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct RefCounter {
     value: u32,
@@ -57,15 +52,17 @@ impl ReferenceStateMachine for RefCounter {
         Just(Op::Inc).boxed()
     }
 
-    fn apply(mut state: Self::State, _transition: &Self::Transition) -> Self::State {
+    fn apply(
+        mut state: Self::State,
+        _transition: &Self::Transition,
+    ) -> Self::State {
         state.value += 1;
         state
     }
 }
 
-/// SUT with a bug: the concrete counter saturates at 3, so once the reference
-/// reaches 4 the post-condition `sut == ref` fails. The minimal failing case is
-/// therefore exactly four `Inc`s.
+/// The concrete counter saturates at 3, so the minimal failing case is four
+/// `Inc`s.
 struct BuggyCounter;
 
 impl StateMachineTest for BuggyCounter {
@@ -77,7 +74,6 @@ impl StateMachineTest for BuggyCounter {
     }
 
     fn apply(state: u32, _ref_state: &RefCounter, _transition: Op) -> u32 {
-        // BUG: caps at 3 instead of counting forever.
         (state + 1).min(3)
     }
 
@@ -100,8 +96,6 @@ fn quiet_panic<R>(f: impl FnOnce() -> R) -> R {
 #[test]
 fn persists_shrunk_case_and_replays_it() {
     let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    // Isolate persistence to a unique temp dir and keep proptest's own seed
-    // regression file out of the picture.
     let tmp = std::env::temp_dir().join(format!(
         "psm-persistence-{}-{}",
         std::process::id(),
@@ -110,7 +104,6 @@ fn persists_shrunk_case_and_replays_it() {
             .unwrap()
             .as_nanos()
     ));
-    // SAFETY: single test, no other test touches these vars; std edition 2021.
     std::env::set_var(PERSIST_DIR_ENV, &tmp);
 
     // The runner config keeps proptest's own seed file out of the way; the
@@ -126,7 +119,6 @@ fn persists_shrunk_case_and_replays_it() {
     };
     let path: PathBuf = persist_path!("persists_shrunk_case_and_replays_it");
 
-    // --- Phase 1: capture ---------------------------------------------------
     let result = quiet_panic(|| {
         let mut runner = TestRunner::new(runner_config.clone());
         runner.run(
@@ -158,9 +150,11 @@ fn persists_shrunk_case_and_replays_it() {
     );
     assert_eq!(set[0].initial_state.value, 0);
 
-    // On-disk format is JSON Lines: a `#` header plus exactly one case line.
     let raw = std::fs::read_to_string(&path).unwrap();
-    assert!(raw.starts_with('#'), "file should begin with a comment header");
+    assert!(
+        raw.starts_with('#'),
+        "file should begin with a comment header"
+    );
     let case_lines: Vec<&str> = raw
         .lines()
         .filter(|l| !l.trim().is_empty() && !l.trim_start().starts_with('#'))
@@ -169,10 +163,6 @@ fn persists_shrunk_case_and_replays_it() {
     serde_json::from_str::<serde_json::Value>(case_lines[0])
         .expect("each case line is standalone JSON");
 
-    // --- Phase 2: replay ----------------------------------------------------
-    // `replay_persisted_regressions` loads the file written above and re-runs
-    // it; since the bug is still present it must reproduce the failure. This is
-    // the call `prop_state_machine_persisted!` makes once per run.
     let replayed = quiet_panic(|| {
         panic::catch_unwind(panic::AssertUnwindSafe(|| {
             BuggyCounter::replay_persisted_regressions(config.clone(), &path)
@@ -187,7 +177,6 @@ fn persists_shrunk_case_and_replays_it() {
     );
 }
 
-/// A passing machine must not write a persistence file.
 #[test]
 fn passing_case_writes_nothing() {
     let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -217,7 +206,6 @@ fn passing_case_writes_nothing() {
     std::env::set_var(PERSIST_DIR_ENV, &tmp);
     let path = persist_path!("passing_case_writes_nothing");
 
-    // Drive a single case directly through the value tree (no proptest! macro).
     let mut runner = TestRunner::new(Config {
         failure_persistence: None,
         ..Config::default()
@@ -239,9 +227,6 @@ fn passing_case_writes_nothing() {
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
-/// A correct machine driven through the `prop_state_machine_persisted!` macro:
-/// it expands, the once-per-run regression replay no-ops (no persisted file),
-/// generation runs, and the test passes. Exercises the macro end to end.
 struct GoodMachine;
 impl StateMachineTest for GoodMachine {
     type SystemUnderTest = u32;
@@ -262,13 +247,11 @@ proptest_state_machine::prop_state_machine_persisted! {
     fn macro_drives_good_machine(sequential 1..10 => GoodMachine);
 }
 
-// --- Accumulation of distinct regressions -----------------------------------
-
 use std::cell::Cell;
 
 thread_local! {
-    /// Selects which invariant `TwoBugs` violates, so a single test type can
-    /// exhibit two *distinct* minimal failures across runs.
+    /// Selects which invariant `TwoBugs` violates, so one test type can
+    /// exhibit two distinct minimal failures.
     static BUG_MODE: Cell<u8> = const { Cell::new(0) };
 }
 
@@ -293,7 +276,10 @@ impl ReferenceStateMachine for AbRef {
     fn transitions(_s: &Self::State) -> BoxedStrategy<Self::Transition> {
         prop_oneof![Just(Ab::A), Just(Ab::B)].boxed()
     }
-    fn apply(mut state: Self::State, transition: &Self::Transition) -> Self::State {
+    fn apply(
+        mut state: Self::State,
+        transition: &Self::Transition,
+    ) -> Self::State {
         match transition {
             Ab::A => state.a += 1,
             Ab::B => state.b += 1,
@@ -319,9 +305,6 @@ impl StateMachineTest for TwoBugs {
     }
 }
 
-/// Distinct failures (not shrunk versions of each other) accumulate into the
-/// regression set across runs, while re-discovering one already stored does not
-/// duplicate it.
 #[test]
 fn accumulates_distinct_regressions() {
     let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -345,8 +328,8 @@ fn accumulates_distinct_regressions() {
         ..Config::default()
     };
 
-    // Each `run_once` is a fresh logical run: reset the accumulation marker,
-    // then let proptest find and shrink one failure.
+    // A fresh logical run: reset the accumulation marker, then let proptest
+    // find and shrink one failure.
     let run_once = |mode: u8| {
         proptest_state_machine::persistence::reset_run_marker(&path);
         BUG_MODE.with(|m| m.set(mode));
@@ -414,12 +397,18 @@ fn corrupt_regression_line_names_itself() {
     std::env::remove_var(PERSIST_DIR_ENV);
     let _ = std::fs::remove_dir_all(&tmp);
 
-    assert!(err.contains(":3:"), "error must name the offending line: {err}");
-    assert!(err.contains("Delete line 3"), "error must say how to clear it: {err}");
+    assert!(
+        err.contains(":3:"),
+        "error must name the offending line: {err}"
+    );
+    assert!(
+        err.contains("Delete line 3"),
+        "error must say how to clear it: {err}"
+    );
 }
 
-/// `failure_persistence: None` — what `PROPTEST_DISABLE_FAILURE_PERSISTENCE`
-/// sets — suppresses the state-machine regression file too.
+/// `failure_persistence: None` is what `PROPTEST_DISABLE_FAILURE_PERSISTENCE`
+/// sets.
 #[test]
 fn disabled_failure_persistence_writes_nothing() {
     let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -455,14 +444,24 @@ fn disabled_failure_persistence_writes_nothing() {
             },
         )
     });
-    let replayed = BuggyCounter::replay_persisted_regressions(config.clone(), &path);
+    let replayed =
+        BuggyCounter::replay_persisted_regressions(config.clone(), &path);
     std::env::remove_var(PERSIST_DIR_ENV);
     let exists = path.exists();
     let _ = std::fs::remove_dir_all(&tmp);
 
-    assert!(matches!(result, Err(TestError::Fail(..))), "the machine still fails");
-    assert!(!exists, "no regression file when failure persistence is off");
-    assert_eq!(replayed, 0, "nothing is replayed when failure persistence is off");
+    assert!(
+        matches!(result, Err(TestError::Fail(..))),
+        "the machine still fails"
+    );
+    assert!(
+        !exists,
+        "no regression file when failure persistence is off"
+    );
+    assert_eq!(
+        replayed, 0,
+        "nothing is replayed when failure persistence is off"
+    );
 }
 
 #[test]
@@ -506,14 +505,20 @@ mod stale {
             Just(Gated::Open).boxed()
         }
 
-        fn preconditions(state: &Self::State, transition: &Self::Transition) -> bool {
+        fn preconditions(
+            state: &Self::State,
+            transition: &Self::Transition,
+        ) -> bool {
             match transition {
                 Gated::Open => true,
                 Gated::Enter => state.open,
             }
         }
 
-        fn apply(mut state: Self::State, transition: &Self::Transition) -> Self::State {
+        fn apply(
+            mut state: Self::State,
+            transition: &Self::Transition,
+        ) -> Self::State {
             if let Gated::Open = transition {
                 state.open = true;
             }

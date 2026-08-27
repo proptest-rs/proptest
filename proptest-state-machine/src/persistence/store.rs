@@ -7,18 +7,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! A reusable, `StateMachineTest`-agnostic store for proptest regression cases.
+//! Regression-case store, generic over any `C: Serialize + DeserializeOwned`.
 //!
-//! This is the persistence machinery behind
-//! [`prop_state_machine_persisted`](crate::prop_state_machine_persisted),
-//! factored out so it can be driven on its own — e.g. by a project with a
-//! richer case type than [`PersistedCase`](super::PersistedCase). It
-//! accumulates distinct serde-serializable cases as JSON Lines, collapses the
-//! within-run shrink chain to a single minimal case, and captures on panic.
-//! Nothing here refers to `StateMachineTest` or `ReferenceStateMachine`; the
-//! case type is any `C: Serialize + DeserializeOwned`.
-//!
-//! Used like:
+//! Nothing here refers to `StateMachineTest` or `ReferenceStateMachine`, so a
+//! harness with its own case type can drive it directly:
 //!
 //! ```rust,ignore
 //! let path = store::path_for(env!("CARGO_MANIFEST_DIR"), file!(), "my_test");
@@ -28,9 +20,6 @@
 //! // … run the case; on panic the guard merges `my_case` into the set …
 //! guard.disarm();                                 // call on success
 //! ```
-//!
-//! This layer is `pub` so it can be reused; upstream may choose to narrow its
-//! visibility — it is not part of the `prop_state_machine_persisted!` contract.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -91,7 +80,9 @@ const FILE_HEADER: &str = "\
 fn read_case_lines(path: &Path) -> std::io::Result<Vec<(usize, Value)>> {
     let text = match fs::read_to_string(path) {
         Ok(text) => text,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(Vec::new())
+        }
         Err(e) => return Err(e),
     };
     text.lines()
@@ -139,10 +130,9 @@ fn write_case_values(path: &Path, set: &[Value]) -> std::io::Result<()> {
     }
     let mut out = String::from(FILE_HEADER);
     for case in set {
-        out.push_str(
-            &serde_json::to_string(case)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?,
-        );
+        out.push_str(&serde_json::to_string(case).map_err(|e| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, e)
+        })?);
         out.push('\n');
     }
     let mut tmp = path.as_os_str().to_owned();
@@ -246,15 +236,14 @@ fn record_minimal(path: &Path, case: Value) {
 }
 
 /// RAII guard that, if the current test panics while it is alive, merges the
-/// case it holds into the regression set at `path`. Because proptest re-runs the
-/// test body for every candidate during shrinking — ending with the minimal
-/// failing case — successive writes within a run collapse to that minimal,
-/// while distinct failures from earlier runs are preserved.
+/// case it holds into the regression set at `path`. Proptest re-runs the test
+/// body for every shrink candidate, so successive writes within a run collapse
+/// to the minimal failing case, while distinct failures from earlier runs are
+/// preserved.
 ///
-/// The case is serialized eagerly when the guard is armed (cheap relative to
-/// running a transition sequence), so the unwind path carries no `Serialize`
-/// bound. On a passing case [`CaptureGuard::disarm`] is called and nothing is
-/// written.
+/// The case is serialized when the guard is armed rather than on drop, so an
+/// unserializable case is a panic on the ordinary path instead of a second
+/// panic during unwind.
 pub struct CaptureGuard {
     path: PathBuf,
     case: Option<Value>,

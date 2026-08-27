@@ -135,24 +135,14 @@ pub trait StateMachineTest {
         Self::teardown(concrete_state, ref_state)
     }
 
-    /// Like [`test_sequential`](Self::test_sequential), but on failure persists
-    /// the (shrunk) `(initial_state, transitions)` to disk so it can be
-    /// replayed later without regenerating from a seed or re-running the
-    /// shrinking process. See the [`persistence`](crate::persistence) module.
-    ///
-    /// If the case fails, the *last* failing case seen during shrinking — i.e.
-    /// the minimal one — is written to [`persistence::default_persist_path`]
-    /// (the directory is overridable via [`persistence::PERSIST_DIR_ENV`]). A
-    /// passing case writes nothing. The persisted case is replayed by
-    /// [`replay_persisted_regressions`](Self::replay_persisted_regressions);
-    /// [`prop_state_machine_persisted`](crate::prop_state_machine_persisted)
-    /// wires both together.
+    /// Like [`test_sequential`](Self::test_sequential), but a failing case is
+    /// merged into the regression set at `path` — build it with
+    /// [`persist_path!`](crate::persist_path). The minimal shrunk case is the
+    /// one that survives; a passing case writes nothing.
     ///
     /// Requires the reference `State` and `Transition` to implement
-    /// [`serde::Serialize`] + [`serde::de::DeserializeOwned`].
-    ///
-    /// [`persistence::PERSIST_DIR_ENV`]: crate::persistence::PERSIST_DIR_ENV
-    /// [`persistence::default_persist_path`]: crate::persistence::default_persist_path
+    /// [`serde::Serialize`] + [`serde::de::DeserializeOwned`]. Does nothing
+    /// beyond `test_sequential` when failure persistence is disabled.
     #[cfg(feature = "persistence")]
     fn test_sequential_persisted(
         config: Config,
@@ -173,31 +163,22 @@ pub trait StateMachineTest {
             return;
         }
         crate::persistence::assert_same_process(&config);
-        // Arm a guard that merges the case on unwind. proptest re-runs this body
-        // for every shrink candidate, so the final (minimal) failing case is
-        // the last write within the run and wins.
         let case = crate::persistence::PersistedCase {
             initial_state: ref_state.clone(),
             transitions: transitions.clone(),
         };
-        let guard =
-            crate::persistence::store::CaptureGuard::arm(path, &case);
+        let guard = crate::persistence::store::CaptureGuard::arm(path, &case);
         Self::test_sequential(config, ref_state, transitions, seen_counter);
-        // Passing case: do not persist.
         guard.disarm();
     }
 
-    /// Replay every persisted regression for this test, in order, by running
-    /// each through [`test_sequential`](Self::test_sequential). Returns the
-    /// number of cases replayed.
+    /// Replay every regression stored at `path`, in order, through
+    /// [`test_sequential`](Self::test_sequential). Returns how many ran.
     ///
-    /// This is meant to run on *every* test invocation — before generating new
-    /// cases — mirroring how proptest replays its seed regressions. A persisted
-    /// case that still fails panics here, with the failure attributed to the
-    /// stored regression rather than to a freshly generated case.
-    /// [`prop_state_machine_persisted`](crate::prop_state_machine_persisted)
-    /// calls this for you. It also resets the per-run accumulation marker, so a
-    /// failure generated afterwards starts a fresh entry in the regression set.
+    /// Call this before generating new cases; a stored case that still fails
+    /// panics here, so the failure is reported as the regression it is. Also
+    /// resets the per-run accumulation marker, so a failure generated
+    /// afterwards starts a fresh entry in the set.
     ///
     /// Requires the reference `State` and `Transition` to implement
     /// [`serde::Serialize`] + [`serde::de::DeserializeOwned`].
