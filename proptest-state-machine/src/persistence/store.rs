@@ -37,6 +37,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -101,7 +102,8 @@ fn read_case_values(path: &Path) -> std::io::Result<Vec<Value>> {
 }
 
 /// Write a regression set to `path` as JSON Lines (header + one compact case per
-/// line), creating parent directories as needed.
+/// line), creating parent directories as needed. The file is replaced by a
+/// rename, so a concurrent reader never observes a half-written set.
 fn write_case_values(path: &Path, set: &[Value]) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -114,7 +116,11 @@ fn write_case_values(path: &Path, set: &[Value]) -> std::io::Result<()> {
         );
         out.push('\n');
     }
-    fs::write(path, out)
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(format!(".tmp.{}", std::process::id()));
+    let tmp = PathBuf::from(tmp);
+    fs::write(&tmp, out)?;
+    fs::rename(&tmp, path)
 }
 
 /// Load the regression set at `path` as typed cases `C`. Empty if the file is
@@ -168,10 +174,16 @@ fn merge_minimal(
     set
 }
 
+/// Serializes the read-merge-write cycle of [`record_minimal`]. Several test
+/// functions can share one regression file, and libtest runs them on parallel
+/// threads.
+static WRITE_LOCK: Mutex<()> = Mutex::new(());
+
 /// Load the set at `path`, merge `case` (this run's current minimal) into it,
 /// and write it back. Tracks this run's previous contribution in [`RUN_MARKER`]
 /// so repeated shrink writes collapse to one entry.
 fn record_minimal(path: &Path, case: Value) {
+    let _guard = WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let set = match read_case_values(path) {
         Ok(set) => set,
         Err(e) => {
