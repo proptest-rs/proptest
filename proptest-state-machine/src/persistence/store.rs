@@ -78,27 +78,50 @@ const FILE_HEADER: &str = "\
 # commit this file so everyone running the test benefits from the saved cases.
 ";
 
-/// Read the case lines of a regression file as JSON values, skipping blank and
-/// `#`-comment lines. Missing file → empty. A malformed case line is a hard
-/// error (a corrupt regression file should be surfaced, not silently dropped).
-fn read_case_values(path: &Path) -> std::io::Result<Vec<Value>> {
+/// Read the case lines of a regression file as JSON values paired with their
+/// 1-based line number, skipping blank and `#`-comment lines. Missing file →
+/// empty. A malformed case line is a hard error (a corrupt regression file
+/// should be surfaced, not silently dropped).
+fn read_case_lines(path: &Path) -> std::io::Result<Vec<(usize, Value)>> {
     let text = match fs::read_to_string(path) {
         Ok(text) => text,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(e) => return Err(e),
     };
     text.lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .map(|line| {
-            serde_json::from_str(line).map_err(|e| {
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("malformed regression line in {}: {e}", path.display()),
-                )
-            })
+        .enumerate()
+        .map(|(ix, line)| (ix + 1, line.trim()))
+        .filter(|(_, line)| !line.is_empty() && !line.starts_with('#'))
+        .map(|(no, line)| {
+            serde_json::from_str(line)
+                .map(|value| (no, value))
+                .map_err(|e| corrupt(path, no, &e.to_string()))
         })
         .collect()
+}
+
+/// Error for a regression line that cannot be turned back into a case. Names
+/// the line and how to get rid of it, because the file is committed and every
+/// run of the test hits this until someone acts on it.
+fn corrupt(path: &Path, line_no: usize, cause: &str) -> std::io::Error {
+    std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        format!(
+            "{}:{line_no}: {cause}\n\
+             This regression no longer matches the current model. Delete line \
+             {line_no} to stop replaying it.\n\
+             (A state holding a non-finite float is stored as `null` and reads \
+             back as a type error.)",
+            path.display()
+        ),
+    )
+}
+
+fn read_case_values(path: &Path) -> std::io::Result<Vec<Value>> {
+    Ok(read_case_lines(path)?
+        .into_iter()
+        .map(|(_, value)| value)
+        .collect())
 }
 
 /// Write a regression set to `path` as JSON Lines (header + one compact case per
@@ -126,11 +149,11 @@ fn write_case_values(path: &Path, set: &[Value]) -> std::io::Result<()> {
 /// Load the regression set at `path` as typed cases `C`. Empty if the file is
 /// missing; a malformed line is a hard error.
 pub fn load<C: DeserializeOwned>(path: &Path) -> std::io::Result<Vec<C>> {
-    read_case_values(path)?
+    read_case_lines(path)?
         .into_iter()
-        .map(|value| {
+        .map(|(no, value)| {
             serde_json::from_value(value)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                .map_err(|e| corrupt(path, no, &e.to_string()))
         })
         .collect()
 }

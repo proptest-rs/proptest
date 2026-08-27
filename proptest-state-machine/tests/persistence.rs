@@ -374,3 +374,32 @@ fn accumulates_distinct_regressions() {
     std::env::remove_var(PERSIST_DIR_ENV);
     let _ = std::fs::remove_dir_all(&tmp);
 }
+
+#[test]
+fn corrupt_regression_line_names_itself() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let tmp = std::env::temp_dir().join(format!(
+        "psm-persistence-corrupt-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::env::set_var(PERSIST_DIR_ENV, &tmp);
+    let path = default_persist_path::<BuggyCounter>();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &path,
+        "# header\n{\"initial_state\":{\"value\":0},\"transitions\":[\"Inc\"]}\n\
+         {\"initial_state\":{\"value\":0},\"transitions\":[\"Nope\"]}\n",
+    )
+    .unwrap();
+
+    let err = load_set::<RefCounter, Op>(&path).unwrap_err().to_string();
+    std::env::remove_var(PERSIST_DIR_ENV);
+    let _ = std::fs::remove_dir_all(&tmp);
+
+    assert!(err.contains(":3:"), "error must name the offending line: {err}");
+    assert!(err.contains("Delete line 3"), "error must say how to clear it: {err}");
+}
