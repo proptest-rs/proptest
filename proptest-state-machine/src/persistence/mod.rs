@@ -96,6 +96,7 @@ pub mod store;
 
 use std::path::{Path, PathBuf};
 
+use proptest::test_runner::Config;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -133,4 +134,16 @@ where
     T: Serialize + DeserializeOwned,
 {
     store::load(path)
+}
+
+/// A run's shrink chain collapses to one entry through a process-local marker,
+/// so every case of a run must execute in the same process.
+pub fn assert_same_process(config: &Config) {
+    assert!(
+        !config.fork(),
+        "state-machine persistence supports neither `fork` nor `timeout`: each \
+         case would run in its own process, so every failing shrink candidate \
+         would be stored as a separate regression instead of collapsing to the \
+         minimal one"
+    );
 }

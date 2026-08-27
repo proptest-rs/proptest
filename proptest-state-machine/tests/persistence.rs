@@ -459,3 +459,13 @@ fn disabled_failure_persistence_writes_nothing() {
     assert!(!exists, "no regression file when failure persistence is off");
     assert_eq!(replayed, 0, "nothing is replayed when failure persistence is off");
 }
+
+#[test]
+#[should_panic(expected = "neither `fork` nor `timeout`")]
+fn fork_is_rejected() {
+    let config = Config {
+        fork: true,
+        ..Config::default()
+    };
+    BuggyCounter::replay_persisted_regressions(config);
+}
