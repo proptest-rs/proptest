@@ -41,6 +41,8 @@ pub fn contextualize_config(mut result: Config) -> Config {
     const DISABLE_FAILURE_PERSISTENCE: &str =
         "PROPTEST_DISABLE_FAILURE_PERSISTENCE";
 
+    use super::EXTENSION_PREFIX;
+
     fn parse_or_warn<T: FromStr + fmt::Display>(
         src: &OsString,
         dst: &mut T,
@@ -140,9 +142,7 @@ pub fn contextualize_config(mut result: Config) -> Config {
             parse_or_warn(&value, &mut result.rng_seed, "u64", RNG_SEED);
         } else if var == DISABLE_FAILURE_PERSISTENCE {
             result.failure_persistence = None;
-        } else if var.starts_with("PROPTEST_STATE_MACHINE_") {
-            // Reserved namespace for the `proptest-state-machine` crate (e.g.
-            // its `persistence` feature). Not consumed here; don't warn.
+        } else if var.starts_with(EXTENSION_PREFIX) {
         } else if var.starts_with("PROPTEST_") {
             eprintln!("proptest: Ignoring unknown env-var {}.", var);
         }
@@ -219,6 +219,10 @@ impl fmt::Display for RngSeed {
         }
     }
 }
+
+/// Prefix reserved for crates built on proptest, which read these variables
+/// themselves. Proptest passes over them rather than reporting them as unknown.
+pub const EXTENSION_PREFIX: &str = "PROPTEST_EXT_";
 
 /// Configuration for how a proptest test should be run.
 #[derive(Clone, Debug, PartialEq)]

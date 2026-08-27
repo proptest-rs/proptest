@@ -45,7 +45,7 @@ use serde_json::Value;
 
 /// Environment variable naming the directory under which regression files are
 /// written. Defaults to `proptest-regressions/state-machine`.
-pub const PERSIST_DIR_ENV: &str = "PROPTEST_STATE_MACHINE_PERSIST_DIR";
+pub const PERSIST_DIR_ENV: &str = "PROPTEST_EXT_STATE_MACHINE_PERSIST_DIR";
 
 /// Resolve the regression file for the test named `test_name` in `source_file`,
 /// under `manifest_dir` (or [`PERSIST_DIR_ENV`] when it is set).

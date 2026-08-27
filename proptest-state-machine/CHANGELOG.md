@@ -12,7 +12,7 @@
   control diffs and merges); shrunk versions of the same failure collapse to one
   minimal case. Drive tests with `prop_state_machine_persisted!`;
   the persistence directory is overridable via the
-  `PROPTEST_STATE_MACHINE_PERSIST_DIR` environment variable, and `PROPTEST_CASES=0`
+  `PROPTEST_EXT_STATE_MACHINE_PERSIST_DIR` environment variable, and `PROPTEST_CASES=0`
   replays the regression without generating new cases. Addresses
   [\#564](https://github.com/proptest-rs/proptest/issues/564).
 
