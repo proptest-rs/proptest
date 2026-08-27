@@ -223,17 +223,17 @@ impl CaptureGuard {
     /// Arm a guard that merges `case` into the regression set at `path` if the
     /// test unwinds before [`disarm`](Self::disarm) is called.
     pub fn arm<C: Serialize>(path: PathBuf, case: &C) -> Self {
-        let value = match serde_json::to_value(case) {
-            Ok(value) => Some(value),
-            Err(e) => {
-                eprintln!(
-                    "[state-machine persistence] case is not serializable, \
-                     will not be persisted on failure: {e}"
-                );
-                None
-            }
-        };
-        Self { path, case: value }
+        let value = serde_json::to_value(case).unwrap_or_else(|e| {
+            panic!(
+                "state-machine case cannot be serialized, so it could never \
+                 be persisted to {}: {e}",
+                path.display()
+            )
+        });
+        Self {
+            path,
+            case: Some(value),
+        }
     }
 
     /// Mark the case as passing: the guard will not write on drop.
