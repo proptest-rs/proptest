@@ -1,5 +1,24 @@
 ## Unreleased
 
+### New Features
+
+- Added an optional `persistence` feature that stores the shrunk transition
+  sequence of a failing state-machine test — serialized
+  `(initial_state, transitions)` — instead of only the RNG seed, so replaying it
+  needs no regeneration and no re-shrinking. Drive tests with
+  `prop_state_machine_persisted!`: it replays every stored case before
+  generating new ones, so `PROPTEST_CASES=0` replays the regressions and
+  generates nothing. Distinct failures accumulate as JSON Lines, one case per
+  line, and shrunk versions of one failure collapse to its minimal case. A
+  stored case that no longer deserializes, or that breaks a precondition the
+  reference model has since gained, is reported with the line to delete rather
+  than replayed. `PROPTEST_EXT_STATE_MACHINE_PERSIST_DIR` overrides the
+  directory (default `proptest-regressions/state-machine` under the crate
+  root); `PROPTEST_DISABLE_FAILURE_PERSISTENCE` switches it off along with
+  proptest's own regression file. `fork` and `timeout` are rejected, because a
+  case running in its own process cannot collapse its shrink chain. Addresses
+  [\#564](https://github.com/proptest-rs/proptest/issues/564).
+
 ### Breaking Changes
 
 - The minimum supported Rust version has been increased to 1.86.0.
