@@ -338,10 +338,10 @@ macro_rules! prop_state_machine {
 /// `State` / `Transition` implement [`serde::Serialize`] +
 /// [`serde::de::DeserializeOwned`].
 ///
-/// Each generated test additionally replays the persisted regression (if any)
-/// once per run, before generating new cases — see
-/// [`StateMachineTest::replay_persisted_regressions`]. Run with
-/// `PROPTEST_CASES=0` to replay the regression without generating anything new.
+/// Each generated test replays the stored regressions once, before proptest
+/// generates anything — see
+/// [`StateMachineTest::replay_persisted_regressions`]. `PROPTEST_CASES=0`
+/// therefore replays the regressions and generates nothing new.
 #[cfg(feature = "persistence")]
 #[macro_export]
 macro_rules! prop_state_machine_persisted {
@@ -352,16 +352,10 @@ macro_rules! prop_state_machine_persisted {
         fn $test_name:ident(sequential $size:expr => $test:ident $(< $( $ty_param:tt ),+ >)?);
     )*) => {
         $(
-            ::proptest::proptest! {
-                #![proptest_config($config)]
-                $(#[$meta])*
-                fn $test_name(
-                    (initial_state, transitions, seen_counter) in <<$test $(< $( $ty_param ),+ >)? as $crate::StateMachineTest>::Reference as $crate::ReferenceStateMachine>::sequential_strategy($size)
-                ) {
-                    let config = $config.__sugar_to_owned();
-                    $crate::__replay_persisted_once!($test $(< $( $ty_param ),+ >)?, config);
-                    <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::test_sequential_persisted(config, initial_state, transitions, seen_counter)
-                }
+            $(#[$meta])*
+            fn $test_name() {
+                $crate::__run_persisted!(
+                    $config, $test $(< $( $ty_param ),+ >)?, $size, $test_name);
             }
         )*
     };
@@ -372,37 +366,40 @@ macro_rules! prop_state_machine_persisted {
         fn $test_name:ident(sequential $size:expr => $test:ident $(< $( $ty_param:tt ),+ >)?);
     )*) => {
         $(
-            ::proptest::proptest! {
-                $(#[$meta])*
-                fn $test_name(
-                    (initial_state, transitions, seen_counter) in <<$test $(< $( $ty_param ),+ >)? as $crate::StateMachineTest>::Reference as $crate::ReferenceStateMachine>::sequential_strategy($size)
-                ) {
-                    let config = ::proptest::test_runner::Config::default();
-                    $crate::__replay_persisted_once!($test $(< $( $ty_param ),+ >)?, config);
-                    <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::test_sequential_persisted(
-                        config, initial_state, transitions, seen_counter)
-                }
+            $(#[$meta])*
+            fn $test_name() {
+                $crate::__run_persisted!(
+                    ::proptest::test_runner::Config::default(),
+                    $test $(< $( $ty_param ),+ >)?, $size, $test_name);
             }
         )*
     };
 }
 
-/// Replay the persisted regression for a test exactly once per process run.
+/// Replay the stored regressions, then run the generation loop.
 ///
-/// The flag is set *before* the replay runs, so a regression that still fails
-/// (and panics) never poisons the flag and never re-runs while proptest shrinks
-/// the surrounding generated case. Internal helper for
+/// Replay sits outside the generated-case closure: a regression that still
+/// fails is reported as itself, and proptest never sees a case that fails once
+/// and then passes every time it is shrunk. Internal helper for
 /// [`prop_state_machine_persisted`]; not part of the public API.
 #[cfg(feature = "persistence")]
 #[macro_export]
 #[doc(hidden)]
-macro_rules! __replay_persisted_once {
-    ($test:ident $(< $( $ty_param:tt ),+ >)?, $config:ident) => {{
-        static REPLAYED: ::std::sync::atomic::AtomicBool =
-            ::std::sync::atomic::AtomicBool::new(false);
-        if !REPLAYED.swap(true, ::std::sync::atomic::Ordering::SeqCst) {
-            <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::replay_persisted_regressions($config.clone());
-        }
+macro_rules! __run_persisted {
+    ($config:expr, $test:ident $(< $( $ty_param:tt ),+ >)?, $size:expr, $test_name:ident) => {{
+        let mut config = $config.__sugar_to_owned();
+        config.test_name = ::core::option::Option::Some(::core::concat!(
+            ::core::module_path!(), "::", ::core::stringify!($test_name)));
+        <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::replay_persisted_regressions(
+            config.clone());
+        ::proptest::proptest!(config.clone(), |(
+            (initial_state, transitions, seen_counter) in
+                <<$test $(< $( $ty_param ),+ >)? as $crate::StateMachineTest>::Reference
+                    as $crate::ReferenceStateMachine>::sequential_strategy($size)
+        )| {
+            <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::test_sequential_persisted(
+                config.clone(), initial_state, transitions, seen_counter)
+        });
     }};
 }
 
