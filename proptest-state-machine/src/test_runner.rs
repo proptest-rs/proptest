@@ -236,6 +236,11 @@ pub trait StateMachineTest {
                 case.transitions.len(),
                 path.display()
             );
+            crate::persistence::assert_still_valid::<Self::Reference>(
+                &case.initial_state,
+                &case.transitions,
+                &path,
+            );
             Self::test_sequential(
                 config.clone(),
                 case.initial_state.clone(),

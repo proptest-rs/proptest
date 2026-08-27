@@ -469,3 +469,85 @@ fn fork_is_rejected() {
     };
     BuggyCounter::replay_persisted_regressions(config);
 }
+
+/// A stored case that still deserializes but breaks a precondition the model
+/// has since gained must be reported as stale, not applied anyway.
+mod stale {
+    use super::*;
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub enum Gated {
+        Open,
+        Enter,
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub struct Gate {
+        pub open: bool,
+    }
+
+    impl ReferenceStateMachine for Gate {
+        type State = Gate;
+        type Transition = Gated;
+
+        fn init_state() -> BoxedStrategy<Self::State> {
+            Just(Gate { open: false }).boxed()
+        }
+
+        fn transitions(_s: &Self::State) -> BoxedStrategy<Self::Transition> {
+            Just(Gated::Open).boxed()
+        }
+
+        fn preconditions(state: &Self::State, transition: &Self::Transition) -> bool {
+            match transition {
+                Gated::Open => true,
+                Gated::Enter => state.open,
+            }
+        }
+
+        fn apply(mut state: Self::State, transition: &Self::Transition) -> Self::State {
+            if let Gated::Open = transition {
+                state.open = true;
+            }
+            state
+        }
+    }
+
+    pub struct GateTest;
+    impl StateMachineTest for GateTest {
+        type SystemUnderTest = ();
+        type Reference = Gate;
+        fn init_test(_r: &Gate) {}
+        fn apply(_s: (), _r: &Gate, _t: Gated) {}
+    }
+}
+
+#[test]
+#[should_panic(expected = "no longer valid under the current reference model")]
+fn stale_regression_is_reported_not_applied() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let tmp = std::env::temp_dir().join(format!(
+        "psm-persistence-stale-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::env::set_var(PERSIST_DIR_ENV, &tmp);
+    let path = default_persist_path::<stale::GateTest>();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    // Entering before opening: legal when recorded, rejected by the gate now.
+    std::fs::write(
+        &path,
+        "{\"initial_state\":{\"open\":false},\"transitions\":[\"Enter\"]}\n",
+    )
+    .unwrap();
+
+    let result = panic::catch_unwind(|| {
+        stale::GateTest::replay_persisted_regressions(Config::default())
+    });
+    std::env::remove_var(PERSIST_DIR_ENV);
+    let _ = std::fs::remove_dir_all(&tmp);
+    panic::resume_unwind(result.unwrap_err());
+}

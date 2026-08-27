@@ -147,3 +147,30 @@ pub fn assert_same_process(config: &Config) {
          minimal one"
     );
 }
+
+/// Check that `transitions` are still legal under the current reference model,
+/// walking them from `initial_state` exactly as the test will.
+///
+/// A persisted case outlives the model it was recorded against. One that still
+/// deserializes but violates a precondition would otherwise be applied anyway
+/// and report a failure the system under test never had.
+pub fn assert_still_valid<R: crate::strategy::ReferenceStateMachine>(
+    initial_state: &R::State,
+    transitions: &[R::Transition],
+    path: &Path,
+) {
+    let mut state = initial_state.clone();
+    for (ix, transition) in transitions.iter().enumerate() {
+        assert!(
+            R::preconditions(&state, transition),
+            "persisted regression in {} is no longer valid under the current \
+             reference model: transition {} of {} ({:?}) fails its \
+             precondition. Delete it to stop replaying it.",
+            path.display(),
+            ix + 1,
+            transitions.len(),
+            transition
+        );
+        state = R::apply(state, transition);
+    }
+}
