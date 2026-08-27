@@ -219,7 +219,6 @@ pub trait StateMachineTest {
             )
         });
         for (ix, case) in set.iter().enumerate() {
-            #[cfg(feature = "std")]
             eprintln!(
                 "[state-machine persistence] replaying persisted regression \
                  {}/{} ({} transitions) from {}",
