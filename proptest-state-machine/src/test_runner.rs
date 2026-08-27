@@ -167,6 +167,10 @@ pub trait StateMachineTest {
         <Self::Reference as ReferenceStateMachine>::Transition:
             serde::Serialize + serde::de::DeserializeOwned,
     {
+        if config.failure_persistence.is_none() {
+            Self::test_sequential(config, ref_state, transitions, seen_counter);
+            return;
+        }
         // Arm a guard that merges the case on unwind. proptest re-runs this body
         // for every shrink candidate, so the final (minimal) failing case is
         // the last write within the run and wins.
@@ -205,6 +209,9 @@ pub trait StateMachineTest {
         <Self::Reference as ReferenceStateMachine>::Transition:
             serde::Serialize + serde::de::DeserializeOwned,
     {
+        if config.failure_persistence.is_none() {
+            return 0;
+        }
         let path = crate::persistence::default_persist_path::<Self>();
         crate::persistence::reset_run_marker(&path);
         let set: Vec<

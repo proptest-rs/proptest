@@ -112,8 +112,14 @@ fn persists_shrunk_case_and_replays_it() {
     // SAFETY: single test, no other test touches these vars; std edition 2021.
     std::env::set_var(PERSIST_DIR_ENV, &tmp);
 
-    let config = Config {
+    // The runner config keeps proptest's own seed file out of the way; the
+    // config handed to the persisted runs governs state-machine persistence.
+    let runner_config = Config {
         failure_persistence: None,
+        cases: 256,
+        ..Config::default()
+    };
+    let config = Config {
         cases: 256,
         ..Config::default()
     };
@@ -121,7 +127,7 @@ fn persists_shrunk_case_and_replays_it() {
 
     // --- Phase 1: capture ---------------------------------------------------
     let result = quiet_panic(|| {
-        let mut runner = TestRunner::new(config.clone());
+        let mut runner = TestRunner::new(runner_config.clone());
         runner.run(
             &RefCounter::sequential_strategy(1..20usize),
             |(init, transitions, counter)| {
@@ -326,8 +332,12 @@ fn accumulates_distinct_regressions() {
     ));
     std::env::set_var(PERSIST_DIR_ENV, &tmp);
     let path = default_persist_path::<TwoBugs>();
-    let config = Config {
+    let runner_config = Config {
         failure_persistence: None,
+        cases: 512,
+        ..Config::default()
+    };
+    let config = Config {
         cases: 512,
         ..Config::default()
     };
@@ -338,7 +348,7 @@ fn accumulates_distinct_regressions() {
         proptest_state_machine::persistence::reset_run_marker(&path);
         BUG_MODE.with(|m| m.set(mode));
         let _ = quiet_panic(|| {
-            let mut runner = TestRunner::new(config.clone());
+            let mut runner = TestRunner::new(runner_config.clone());
             runner.run(
                 &AbRef::sequential_strategy(1..20usize),
                 |(init, transitions, counter)| {
@@ -402,4 +412,50 @@ fn corrupt_regression_line_names_itself() {
 
     assert!(err.contains(":3:"), "error must name the offending line: {err}");
     assert!(err.contains("Delete line 3"), "error must say how to clear it: {err}");
+}
+
+/// `failure_persistence: None` — what `PROPTEST_DISABLE_FAILURE_PERSISTENCE`
+/// sets — suppresses the state-machine regression file too.
+#[test]
+fn disabled_failure_persistence_writes_nothing() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let tmp = std::env::temp_dir().join(format!(
+        "psm-persistence-off-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::env::set_var(PERSIST_DIR_ENV, &tmp);
+    let path = default_persist_path::<BuggyCounter>();
+
+    let config = Config {
+        failure_persistence: None,
+        cases: 256,
+        ..Config::default()
+    };
+    let result = quiet_panic(|| {
+        let mut runner = TestRunner::new(config.clone());
+        runner.run(
+            &RefCounter::sequential_strategy(1..20usize),
+            |(init, transitions, counter)| {
+                BuggyCounter::test_sequential_persisted(
+                    config.clone(),
+                    init,
+                    transitions,
+                    counter,
+                );
+                Ok(())
+            },
+        )
+    });
+    let replayed = BuggyCounter::replay_persisted_regressions(config.clone());
+    std::env::remove_var(PERSIST_DIR_ENV);
+    let exists = path.exists();
+    let _ = std::fs::remove_dir_all(&tmp);
+
+    assert!(matches!(result, Err(TestError::Fail(..))), "the machine still fails");
+    assert!(!exists, "no regression file when failure persistence is off");
+    assert_eq!(replayed, 0, "nothing is replayed when failure persistence is off");
 }
