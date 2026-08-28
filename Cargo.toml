@@ -29,7 +29,7 @@ proc-macro2 = "1.0"
 proptest-macro = { version = "0.5.0", path = "proptest-macro" }
 quote = "1.0"
 rand = { version = "0.10", default-features = false }
-rand_chacha = { version = "0.10", default-features = false }
+chacha20 = { version = "0.10", default-features = false, features = ["rng"] }
 rand_xorshift = "0.5"
 regex = "1.0"
 regex-syntax = "0.8"
