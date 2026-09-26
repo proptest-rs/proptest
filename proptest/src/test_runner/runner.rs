@@ -1486,6 +1486,9 @@ mod timeout_tests {
     use std::time::Duration;
 
     use super::*;
+    use crate::test_runner::failure_persistence::FailurePersistence;
+    use crate::test_runner::rng::Seed;
+    use crate::test_runner::{MapFailurePersistence, RngAlgorithm};
 
     rusty_fork_test! {
         #![rusty_fork(timeout_ms = 4_000)]
@@ -1519,6 +1522,32 @@ mod timeout_tests {
         }
 
         #[test]
+        fn persisted_failure_in_fork_is_reported() {
+            let value = run_persisted_failure(Config {
+                fork: true,
+                test_name: Some(
+                    concat!(module_path!(),
+                            "::persisted_failure_in_fork_is_reported")),
+                .. persisted_failure_config()
+            }, 0);
+            assert_eq!(0, value);
+        }
+
+        #[test]
+        fn persisted_timeout_in_fork_is_reported() {
+            // Every candidate times out, so any value the shrink stops at is
+            // a failing case.
+            run_persisted_failure(Config {
+                timeout: 100,
+                max_shrink_iters: 3,
+                test_name: Some(
+                    concat!(module_path!(),
+                            "::persisted_timeout_in_fork_is_reported")),
+                .. persisted_failure_config()
+            }, 10_000);
+        }
+
+        #[test]
         fn detects_child_failure_to_start() {
             let mut runner = TestRunner::new(Config {
                 timeout: 100,
@@ -1536,6 +1565,41 @@ mod timeout_tests {
             } else {
                 panic!("Unexpected result: {:?}", result);
             }
+        }
+    }
+
+    /// A configuration whose persistence already holds one failing seed, as
+    /// though an earlier run had recorded it.
+    fn persisted_failure_config() -> Config {
+        const SOURCE_FILE: &str = "persisted_failure";
+        let mut persistence = MapFailurePersistence::default();
+        persistence.save_persisted_failure2(
+            Some(SOURCE_FILE),
+            PersistedSeed(Seed::from_bytes(RngAlgorithm::ChaCha, &[7; 32])),
+            &(),
+        );
+        Config {
+            failure_persistence: Some(Box::new(persistence)),
+            source_file: Some(SOURCE_FILE),
+            rng_algorithm: RngAlgorithm::ChaCha,
+            ..Config::default()
+        }
+    }
+
+    /// Run a test that fails every case, after sleeping for `sleep_ms` so
+    /// that a timeout can be what fails it, and return the shrunken value.
+    /// The persisted seed is replayed first, so this checks that its failure
+    /// is reported, rather than aborted or replayed in child after child.
+    fn run_persisted_failure(config: Config, sleep_ms: u64) -> u32 {
+        let mut runner = TestRunner::new(config);
+        let result = runner.run(&(0u32..1000), |_| {
+            thread::sleep(Duration::from_millis(sleep_ms));
+            Err(TestCaseError::fail("every case fails"))
+        });
+
+        match result {
+            Err(TestError::Fail(_, value)) => value,
+            result => panic!("Unexpected result: {:?}", result),
         }
     }
 
