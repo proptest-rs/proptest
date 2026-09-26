@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018, 2019, 2024 The proptest developers
+// Copyright 2017, 2018, 2019, 2024, 2026 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -602,14 +602,22 @@ impl TestRunner {
             persisted_failure_seeds.into_iter().rev()
         {
             self.rng.set_seed(persisted_seed);
-            self.gen_and_run_case(
+            let result = self.gen_and_run_case(
                 strategy,
                 &test,
                 &mut replay_from_fork,
                 &mut *result_cache,
                 &mut fork_output,
                 true,
-            )?;
+            );
+
+            // Terminate the replay, as a new case's failure does below. A child
+            // that exits without doing so looks to the parent like a crash,
+            // and the parent forks another to replay it instead of reporting.
+            if let Err(e) = result {
+                fork_output.terminate();
+                return Err(e);
+            }
         }
         self.rng = old_rng;
 
