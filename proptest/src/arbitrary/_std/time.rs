@@ -17,7 +17,15 @@ use crate::num;
 use crate::strategy::statics::{self, static_map};
 
 arbitrary!(Duration, SMapped<(u64, u32), Self>;
-    static_map(any::<(u64, u32)>(), |(a, b)| Duration::new(a, b))
+    static_map(any::<(u64, u32)>(), |(a, b)| {
+        let carry = u64::from(b / 1_000_000_000);
+        let b = if a.checked_add(carry).is_none() {
+            b % 1_000_000_000
+        } else {
+            b
+        };
+        Duration::new(a, b)
+    })
 );
 
 // Instant::now() "never" returns the same Instant, so no shrinking may occur!
@@ -47,4 +55,21 @@ mod test {
         instant  => Instant,
         system_time => SystemTime
     );
+
+    #[test]
+    fn duration_tolerates_nanosecond_carry_at_max_seconds() {
+        use crate::strategy::{Strategy, ValueTree};
+        use crate::test_runner::{Config, RngAlgorithm, TestRng, TestRunner};
+        use std::time::Duration;
+
+        let mut runner = TestRunner::new_with_rng(
+            Config::default(),
+            TestRng::from_seed(RngAlgorithm::PassThrough, &[0xFF; 12]),
+        );
+        let value = crate::arbitrary::any::<Duration>()
+            .new_tree(&mut runner)
+            .unwrap()
+            .current();
+        assert_eq!(Duration::new(u64::MAX, u32::MAX % 1_000_000_000), value);
+    }
 }
