@@ -27,20 +27,7 @@ arbitrary!([A: Arbitrary] Result<string::ParseError, A>,
     SMapped<A, Self>, A::Parameters;
     args => static_map(any_with::<A>(args), Result::Err)
 );
-#[cfg(feature = "unstable")]
-arbitrary!([A: Arbitrary] Result<A, !>,
-    SMapped<A, Self>, A::Parameters;
-    args => static_map(any_with::<A>(args), Result::Ok)
-);
-#[cfg(feature = "unstable")]
-arbitrary!([A: Arbitrary] Result<!, A>,
-    SMapped<A, Self>, A::Parameters;
-    args => static_map(any_with::<A>(args), Result::Err)
-);
-
 lift1!([] Result<A, string::ParseError>; Result::Ok);
-#[cfg(feature = "unstable")]
-lift1!([] Result<A, !>; Result::Ok);
 
 // We assume that `MaybeOk` is canonical as it's the most likely Strategy
 // a user wants.

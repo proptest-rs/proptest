@@ -16,6 +16,9 @@ fn main() {}
 struct T0;
 
 #[derive(Debug, Arbitrary)] //~ the trait bound `T0: Arbitrary` is not satisfied [E0277]
+                            //~| `<T1 as Arbitrary>::Parameters == _` [E0271]
+                            //~| `<T1 as Arbitrary>::Strategy == _` [E0271]
+                            //~| is not well-formed
 struct T1 {
     f0: T0, //~ the trait bound `T0: Arbitrary` is not satisfied [E0277]
             //~^ the trait bound `T0: Arbitrary` is not satisfied [E0277]
