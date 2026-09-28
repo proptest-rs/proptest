@@ -134,6 +134,104 @@ pub trait StateMachineTest {
 
         Self::teardown(concrete_state, ref_state)
     }
+
+    /// Like [`test_sequential`](Self::test_sequential), but a failing case is
+    /// merged into the regression set at `path` — build it with
+    /// [`persist_path!`](crate::persist_path). The minimal shrunk case is the
+    /// one that survives; a passing case writes nothing.
+    ///
+    /// Requires the reference `State` and `Transition` to implement
+    /// [`serde::Serialize`] + [`serde::de::DeserializeOwned`]. Does nothing
+    /// beyond `test_sequential` when failure persistence is disabled.
+    #[cfg(feature = "persistence")]
+    fn test_sequential_persisted(
+        config: Config,
+        path: std::path::PathBuf,
+        ref_state: <Self::Reference as ReferenceStateMachine>::State,
+        transitions: Vec<
+            <Self::Reference as ReferenceStateMachine>::Transition,
+        >,
+        seen_counter: Option<Arc<AtomicUsize>>,
+    ) where
+        <Self::Reference as ReferenceStateMachine>::State:
+            serde::Serialize + serde::de::DeserializeOwned,
+        <Self::Reference as ReferenceStateMachine>::Transition:
+            serde::Serialize + serde::de::DeserializeOwned,
+    {
+        if config.failure_persistence.is_none() {
+            Self::test_sequential(config, ref_state, transitions, seen_counter);
+            return;
+        }
+        crate::persistence::assert_same_process(&config);
+        let case = crate::persistence::PersistedCase {
+            initial_state: ref_state.clone(),
+            transitions: transitions.clone(),
+        };
+        let guard = crate::persistence::store::CaptureGuard::arm(path, &case);
+        Self::test_sequential(config, ref_state, transitions, seen_counter);
+        guard.disarm();
+    }
+
+    /// Replay every regression stored at `path`, in order, through
+    /// [`test_sequential`](Self::test_sequential). Returns how many ran.
+    ///
+    /// Call this before generating new cases; a stored case that still fails
+    /// panics here, so the failure is reported as the regression it is. Also
+    /// resets the per-run accumulation marker, so a failure generated
+    /// afterwards starts a fresh entry in the set.
+    ///
+    /// Requires the reference `State` and `Transition` to implement
+    /// [`serde::Serialize`] + [`serde::de::DeserializeOwned`].
+    #[cfg(feature = "persistence")]
+    fn replay_persisted_regressions(
+        config: Config,
+        path: &std::path::Path,
+    ) -> usize
+    where
+        <Self::Reference as ReferenceStateMachine>::State:
+            serde::Serialize + serde::de::DeserializeOwned,
+        <Self::Reference as ReferenceStateMachine>::Transition:
+            serde::Serialize + serde::de::DeserializeOwned,
+    {
+        if config.failure_persistence.is_none() {
+            return 0;
+        }
+        crate::persistence::assert_same_process(&config);
+        crate::persistence::reset_run_marker(path);
+        let set: Vec<
+            crate::persistence::PersistedCase<
+                <Self::Reference as ReferenceStateMachine>::State,
+                <Self::Reference as ReferenceStateMachine>::Transition,
+            >,
+        > = crate::persistence::load_set(path).unwrap_or_else(|e| {
+            panic!(
+                "failed to load persisted state-machine regressions from {}: {e}",
+                path.display()
+            )
+        });
+        for (ix, case) in set.iter().enumerate() {
+            eprintln!(
+                "[state-machine persistence] replaying persisted regression \
+                 {}/{} ({} transitions) from {}",
+                ix + 1,
+                set.len(),
+                case.transitions.len(),
+                path.display()
+            );
+            crate::persistence::assert_still_valid::<Self::Reference>(
+                &case.initial_state,
+                &case.transitions,
+                path,
+            );
+            Self::test_sequential(
+                config.clone(),
+                case.initial_state.clone(),
+                case.transitions.clone(),
+                None,
+            );
+        }
+        set.len()
+    }
 }
 
 /// This macro helps to turn a state machine test implementation into a runnable
@@ -213,6 +311,79 @@ macro_rules! prop_state_machine {
             }
         )*
     };
+}
+
+/// Like [`prop_state_machine`], but drives each test through
+/// [`StateMachineTest::test_sequential_persisted`], so a failing case is
+/// persisted to disk and accumulated into a regression set instead of only its
+/// seed. Requires the `persistence` feature and that the reference
+/// `State` / `Transition` implement [`serde::Serialize`] +
+/// [`serde::de::DeserializeOwned`].
+///
+/// Each generated test replays the stored regressions once, before proptest
+/// generates anything — see
+/// [`StateMachineTest::replay_persisted_regressions`]. `PROPTEST_CASES=0`
+/// therefore replays the regressions and generates nothing new.
+#[cfg(feature = "persistence")]
+#[macro_export]
+macro_rules! prop_state_machine_persisted {
+    // With proptest config annotation
+    (#![proptest_config($config:expr)]
+    $(
+        $(#[$meta:meta])*
+        fn $test_name:ident(sequential $size:expr => $test:ident $(< $( $ty_param:tt ),+ >)?);
+    )*) => {
+        $(
+            $(#[$meta])*
+            fn $test_name() {
+                $crate::__run_persisted!(
+                    $config, $test $(< $( $ty_param ),+ >)?, $size, $test_name);
+            }
+        )*
+    };
+
+    // Without proptest config annotation
+    ($(
+        $(#[$meta:meta])*
+        fn $test_name:ident(sequential $size:expr => $test:ident $(< $( $ty_param:tt ),+ >)?);
+    )*) => {
+        $(
+            $(#[$meta])*
+            fn $test_name() {
+                $crate::__run_persisted!(
+                    ::proptest::test_runner::Config::default(),
+                    $test $(< $( $ty_param ),+ >)?, $size, $test_name);
+            }
+        )*
+    };
+}
+
+/// Replay the stored regressions, then run the generation loop.
+///
+/// Replay sits outside the generated-case closure: a regression that still
+/// fails is reported as itself, and proptest never sees a case that fails once
+/// and then passes every time it is shrunk. Internal helper for
+/// [`prop_state_machine_persisted`]; not part of the public API.
+#[cfg(feature = "persistence")]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __run_persisted {
+    ($config:expr, $test:ident $(< $( $ty_param:tt ),+ >)?, $size:expr, $test_name:ident) => {{
+        let mut config = $config.__sugar_to_owned();
+        config.test_name = ::core::option::Option::Some(::core::concat!(
+            ::core::module_path!(), "::", ::core::stringify!($test_name)));
+        let path = $crate::persist_path!(::core::stringify!($test_name));
+        <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::replay_persisted_regressions(
+            config.clone(), &path);
+        ::proptest::proptest!(config.clone(), |(
+            (initial_state, transitions, seen_counter) in
+                <<$test $(< $( $ty_param ),+ >)? as $crate::StateMachineTest>::Reference
+                    as $crate::ReferenceStateMachine>::sequential_strategy($size)
+        )| {
+            <$test $(::< $( $ty_param ),+ >)? as $crate::StateMachineTest>::test_sequential_persisted(
+                config.clone(), path.clone(), initial_state, transitions, seen_counter)
+        });
+    }};
 }
 
 #[cfg(test)]
