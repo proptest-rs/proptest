@@ -7,6 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use chacha20::ChaCha20Rng;
 use crate::std_facade::{Arc, String, ToOwned, Vec};
 use core::convert::{Infallible, TryInto};
 use core::result::Result;
@@ -17,7 +18,6 @@ use rand::{Rng, RngExt, SeedableRng, TryRng};
 use rand::rand_core::UnwrapErr;
 #[cfg(feature = "std")]
 use rand::rngs::SysRng;
-use rand_chacha::ChaChaRng;
 use rand_xorshift::XorShiftRng;
 
 /// Identifies a particular RNG algorithm supported by proptest.
@@ -36,7 +36,7 @@ pub enum RngAlgorithm {
     ///
     /// The seed must be exactly 16 bytes.
     XorShift,
-    /// The [ChaCha](https://rust-random.github.io/rand/rand_chacha/struct.ChaChaRng.html)
+    /// The [ChaCha](https://docs.rs/chacha20/latest/chacha20/struct.ChaCha20Rng.html)
     /// algorithm. This became the default with Proptest 0.9.1.
     ///
     /// The seed must be exactly 32 bytes.
@@ -116,19 +116,43 @@ pub struct TestRng {
     rng: TestRngImpl,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 enum TestRngImpl {
     XorShift(XorShiftRng),
-    ChaCha(ChaChaRng),
+    ChaCha(ChaCha20Rng),
     PassThrough {
         off: usize,
         end: usize,
         data: Arc<[u8]>,
     },
     Recorder {
-        rng: ChaChaRng,
+        rng: ChaCha20Rng,
         record: Vec<u8>,
     },
+}
+
+// ChaCha20Rng does not implement Clone, so we have to implement it manually
+impl Clone for TestRngImpl {
+    fn clone(&self) -> Self {
+        match self {
+            Self::XorShift(rng) => Self::XorShift(rng.clone()),
+            Self::ChaCha(rng) => Self::ChaCha(clone_chacha20_rng(rng)),
+            Self::PassThrough { off, end, data } => Self::PassThrough { off: off.clone(), end: end.clone(), data: data.clone() },
+            Self::Recorder { rng, record } => Self::Recorder { rng: clone_chacha20_rng(rng), record: record.clone() },
+        }
+    }
+}
+
+fn clone_chacha20_rng(rng: &ChaCha20Rng) -> ChaCha20Rng {
+    let seed = rng.get_seed();
+    let stream = rng.get_stream();
+    let word_offset = rng.get_word_pos();
+
+    let mut rng_clone = ChaCha20Rng::from_seed(seed);
+    rng_clone.set_stream(stream);
+    rng_clone.set_word_pos(word_offset);
+
+    rng_clone
 }
 
 #[cfg(feature = "std")]
@@ -422,8 +446,8 @@ impl TestRng {
                     }
                     RngAlgorithm::ChaCha => {
                         let rng = match seed {
-                            config::RngSeed::Random => from_sys_rng::<ChaChaRng>(),
-                            config::RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
+                            config::RngSeed::Random => from_sys_rng::<ChaCha20Rng>(),
+                            config::RngSeed::Fixed(seed) => ChaCha20Rng::seed_from_u64(seed),
                         };
                         TestRngImpl::ChaCha(rng)
                     }
@@ -432,8 +456,8 @@ impl TestRng {
                     }
                     RngAlgorithm::Recorder => {
                         let rng =  match seed {
-                            config::RngSeed::Random => from_sys_rng::<ChaChaRng>(),
-                            config::RngSeed::Fixed(seed) => ChaChaRng::seed_from_u64(seed),
+                            config::RngSeed::Random => from_sys_rng::<ChaCha20Rng>(),
+                            config::RngSeed::Fixed(seed) => ChaCha20Rng::seed_from_u64(seed),
                         };
                         TestRngImpl::Recorder {rng, record: Vec::new()}
                     },
@@ -617,7 +641,7 @@ impl TestRng {
                 }
 
                 Seed::ChaCha(seed) => {
-                    TestRngImpl::ChaCha(ChaChaRng::from_seed(seed))
+                    TestRngImpl::ChaCha(ChaCha20Rng::from_seed(seed))
                 }
 
                 Seed::PassThrough(bounds, data) => {
@@ -630,7 +654,7 @@ impl TestRng {
                 }
 
                 Seed::Recorder(seed) => TestRngImpl::Recorder {
-                    rng: ChaChaRng::from_seed(seed),
+                    rng: ChaCha20Rng::from_seed(seed),
                     record: Vec::new(),
                 },
             },
@@ -698,6 +722,46 @@ mod test {
                 assert_ne!(b, c);
                 assert_ne!(b, d);
                 assert_ne!(c, d);
+            }
+        }
+
+        #[test]
+        fn rngs_clone(
+            seed in prop_oneof![
+                any::<[u8;16]>().prop_map(Seed::XorShift),
+                any::<[u8;32]>().prop_map(Seed::ChaCha),
+                Just(()).prop_perturb(|_, mut rng| {
+                    let mut buf = vec![0u8; 2048];
+                    rng.fill_bytes(&mut buf);
+                    Seed::PassThrough(None, buf.into())
+                }),
+                any::<[u8;32]>().prop_map(Seed::Recorder),
+            ])
+        {
+            type Value = [u8;32];
+            let orig = TestRng::from_seed_internal(seed);
+
+            {
+                let mut rng1 = orig.clone();
+                rng1.random::<Value>();
+                let mut rng2 = rng1.clone();
+                assert_eq!(rng1.random::<Value>(), rng2.random::<Value>());
+            }
+
+            {
+                let mut rng1 = orig.clone();
+                rng1.random::<Value>();
+                rng1.random::<Value>();
+                let mut rng2 = rng1.clone();
+                let mut rng3 = rng1.clone();
+                let mut rng4 = rng2.clone();
+                let a = rng1.random::<Value>();
+                let b = rng2.random::<Value>();
+                let c = rng3.random::<Value>();
+                let d = rng4.random::<Value>();
+                assert_eq!(a, b);
+                assert_eq!(a, c);
+                assert_eq!(a, d);
             }
         }
     }
