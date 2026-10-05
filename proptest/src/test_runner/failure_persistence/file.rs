@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018, 2019 The proptest developers
+// Copyright 2017, 2018, 2019, 2026 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -41,6 +41,8 @@ pub enum FileFailurePersistence {
     Off,
     /// The path of the source file under test is traversed up the directory tree
     /// until a directory containing a file named `lib.rs` or `main.rs` is found.
+    /// The search stops at the package root (the first directory containing
+    /// `Cargo.toml`).
     /// A sibling to that directory with the name given by the string in this
     /// configuration is created, and a file with the same name and path relative
     /// to the source directory, but with the extension changed to `.txt`, is used.
@@ -51,8 +53,10 @@ pub enum FileFailurePersistence {
     /// `src` directory has a `lib.rs` or `main.rs`, the resulting file would
     /// be `/home/jsmith/code/project/proptest-regressions/foo/bar.txt`.
     ///
-    /// If no `lib.rs` or `main.rs` can be found, a warning is printed and this
-    /// behaves like `WithSource`.
+    /// If no `lib.rs` or `main.rs` is found, this behaves like `WithSource`. This
+    /// is the case for integration tests in `tests/`, whose failures are
+    /// persisted next to the test file. A warning is printed only if the search
+    /// also did not reach a package root.
     ///
     /// If no source file has been configured, a warning is printed and this
     /// behaves like `Off`.
@@ -337,6 +341,7 @@ impl FileFailurePersistence {
                 Some(source_path) => {
                     let mut dir = Cow::into_owned(source_path.clone());
                     let mut found = false;
+                    let mut at_package_root = false;
                     while dir.pop() {
                         if dir.join("lib.rs").is_file()
                             || dir.join("main.rs").is_file()
@@ -344,13 +349,21 @@ impl FileFailurePersistence {
                             found = true;
                             break;
                         }
+                        if dir.join("Cargo.toml").is_file() {
+                            at_package_root = true;
+                            break;
+                        }
                     }
 
                     if !found {
-                        eprintln!(
-                            "proptest: FileFailurePersistence::SourceParallel set, \
-                             but failed to find lib.rs or main.rs"
-                        );
+                        // Integration tests, examples and benches are outside
+                        // the source root, so this fallback is expected.
+                        if !at_package_root {
+                            eprintln!(
+                                "proptest: FileFailurePersistence::SourceParallel \
+                                 set, but failed to find lib.rs or main.rs"
+                            );
+                        }
                         WithSource(sibling).resolve(Some(&*source_path))
                     } else {
                         let suffix = source_path
@@ -493,6 +506,33 @@ mod tests {
         );
         // ... and if no source is configured, we do nothing
         assert_eq!(None, SourceParallel("ext").resolve(None));
+    }
+
+    #[test]
+    fn source_parallel_search_stops_at_package_root() {
+        let outer = env::temp_dir().join(format!(
+            "proptest-source-parallel-{}",
+            std::process::id()
+        ));
+        let package = outer.join("package");
+        fs::create_dir_all(package.join("tests")).unwrap();
+        fs::create_dir_all(package.join("src")).unwrap();
+        fs::write(outer.join("lib.rs"), "").unwrap();
+        fs::write(package.join("Cargo.toml"), "").unwrap();
+        fs::write(package.join("src").join("lib.rs"), "").unwrap();
+        let test_file = package.join("tests").join("it.rs");
+        fs::write(&test_file, "").unwrap();
+        let src_file = package.join("src").join("foo.rs");
+        fs::write(&src_file, "").unwrap();
+
+        let integration = SourceParallel("sib").resolve(Some(&test_file));
+        let unit = SourceParallel("sib").resolve(Some(&src_file));
+        fs::remove_dir_all(&outer).unwrap();
+
+        // An integration test must not escape its package because an ancestor
+        // directory happens to contain a lib.rs.
+        assert_eq!(Some(package.join("tests").join("it.sib")), integration);
+        assert_eq!(Some(package.join("sib").join("foo.txt")), unit);
     }
 
     #[test]

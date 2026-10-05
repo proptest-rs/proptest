@@ -6,6 +6,7 @@
 
 ### Bug Fixes
 
+- `FileFailurePersistence::SourceParallel` now stops searching for `lib.rs` or `main.rs` at the package root. Integration tests no longer print a warning, and no longer persist failures outside the package when a parent directory contains a `lib.rs` or `main.rs`. ([\#233](https://github.com/proptest-rs/proptest/issues/233))
 - Fixed a panic when generating arbitrary `Duration` values near the maximum. ([\#657](https://github.com/proptest-rs/proptest/pull/657))
 - Fixed a panic when sampling from a single-point inclusive float range like `0.0..=0.0`. ([\#479](https://github.com/proptest-rs/proptest/issues/479))
 - [Soundness] Asserts that rdrand feature is supported by the CPU before invoking rdrand functions ([\#648](https://github.com/proptest-rs/proptest/issues/648))
