@@ -12,6 +12,21 @@
 //! Please refer to the Proptest Book chapter "State Machine testing" to learn
 //! when and how to use this and how it's made.
 
+#[cfg(feature = "persistence")]
+pub mod persistence;
+
+/// The regression file for the named test in the calling crate and source file.
+#[cfg(feature = "persistence")]
+#[macro_export]
+macro_rules! persist_path {
+    ($test_name:expr) => {
+        $crate::persistence::persist_path(
+            ::core::env!("CARGO_MANIFEST_DIR"),
+            ::core::file!(),
+            $test_name,
+        )
+    };
+}
 pub mod strategy;
 pub mod test_runner;
 

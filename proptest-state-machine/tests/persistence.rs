@@ -1,0 +1,566 @@
+//-
+// Copyright 2026 The proptest developers
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+//! End-to-end tests for the `persistence` feature.
+
+#![cfg(feature = "persistence")]
+
+use std::panic;
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+/// The persistence env vars are process-global; serialize the tests that set
+/// them so they don't race each other.
+static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+use proptest::prelude::*;
+use proptest::strategy::{Just, ValueTree};
+use proptest::test_runner::{Config, TestError, TestRunner};
+use proptest_state_machine::persist_path;
+use proptest_state_machine::persistence::{
+    load_set, PersistedCase, PERSIST_DIR_ENV,
+};
+use proptest_state_machine::{ReferenceStateMachine, StateMachineTest};
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+enum Op {
+    Inc,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct RefCounter {
+    value: u32,
+}
+
+impl ReferenceStateMachine for RefCounter {
+    type State = RefCounter;
+    type Transition = Op;
+
+    fn init_state() -> BoxedStrategy<Self::State> {
+        Just(RefCounter { value: 0 }).boxed()
+    }
+
+    fn transitions(_state: &Self::State) -> BoxedStrategy<Self::Transition> {
+        Just(Op::Inc).boxed()
+    }
+
+    fn apply(
+        mut state: Self::State,
+        _transition: &Self::Transition,
+    ) -> Self::State {
+        state.value += 1;
+        state
+    }
+}
+
+/// The concrete counter saturates at 3, so the minimal failing case is four
+/// `Inc`s.
+struct BuggyCounter;
+
+impl StateMachineTest for BuggyCounter {
+    type SystemUnderTest = u32;
+    type Reference = RefCounter;
+
+    fn init_test(_ref_state: &RefCounter) -> u32 {
+        0
+    }
+
+    fn apply(state: u32, _ref_state: &RefCounter, _transition: Op) -> u32 {
+        (state + 1).min(3)
+    }
+
+    fn check_invariants(state: &u32, ref_state: &RefCounter) {
+        assert_eq!(
+            *state, ref_state.value,
+            "SUT counter diverged from reference"
+        );
+    }
+}
+
+fn quiet_panic<R>(f: impl FnOnce() -> R) -> R {
+    let prev = panic::take_hook();
+    panic::set_hook(Box::new(|_| {}));
+    let r = f();
+    panic::set_hook(prev);
+    r
+}
+
+#[test]
+fn persists_shrunk_case_and_replays_it() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let tmp = std::env::temp_dir().join(format!(
+        "psm-persistence-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::env::set_var(PERSIST_DIR_ENV, &tmp);
+
+    // The runner config keeps proptest's own seed file out of the way; the
+    // config handed to the persisted runs governs state-machine persistence.
+    let runner_config = Config {
+        failure_persistence: None,
+        cases: 256,
+        ..Config::default()
+    };
+    let config = Config {
+        cases: 256,
+        ..Config::default()
+    };
+    let path: PathBuf = persist_path!("persists_shrunk_case_and_replays_it");
+
+    let result = quiet_panic(|| {
+        let mut runner = TestRunner::new(runner_config.clone());
+        runner.run(
+            &RefCounter::sequential_strategy(1..20usize),
+            |(init, transitions, counter)| {
+                BuggyCounter::test_sequential_persisted(
+                    config.clone(),
+                    path.clone(),
+                    init,
+                    transitions,
+                    counter,
+                );
+                Ok(())
+            },
+        )
+    });
+    assert!(
+        matches!(result, Err(TestError::Fail(..))),
+        "the buggy machine must fail, got {result:?}"
+    );
+
+    let set: Vec<PersistedCase<RefCounter, Op>> = load_set(&path)
+        .unwrap_or_else(|e| panic!("expected persisted set at {path:?}: {e}"));
+    assert_eq!(set.len(), 1, "one distinct failure → one persisted case");
+    assert_eq!(
+        set[0].transitions,
+        vec![Op::Inc, Op::Inc, Op::Inc, Op::Inc],
+        "shrunk case must be the minimal four increments"
+    );
+    assert_eq!(set[0].initial_state.value, 0);
+
+    let raw = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        raw.starts_with('#'),
+        "file should begin with a comment header"
+    );
+    let case_lines: Vec<&str> = raw
+        .lines()
+        .filter(|l| !l.trim().is_empty() && !l.trim_start().starts_with('#'))
+        .collect();
+    assert_eq!(case_lines.len(), 1, "exactly one case line");
+    serde_json::from_str::<serde_json::Value>(case_lines[0])
+        .expect("each case line is standalone JSON");
+
+    let replayed = quiet_panic(|| {
+        panic::catch_unwind(panic::AssertUnwindSafe(|| {
+            BuggyCounter::replay_persisted_regressions(config.clone(), &path)
+        }))
+    });
+    std::env::remove_var(PERSIST_DIR_ENV);
+    let _ = std::fs::remove_dir_all(&tmp);
+
+    assert!(
+        replayed.is_err(),
+        "replaying the stored failing case must reproduce the failure"
+    );
+}
+
+#[test]
+fn passing_case_writes_nothing() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    struct GoodCounter;
+    impl StateMachineTest for GoodCounter {
+        type SystemUnderTest = u32;
+        type Reference = RefCounter;
+        fn init_test(_r: &RefCounter) -> u32 {
+            0
+        }
+        fn apply(state: u32, _r: &RefCounter, _t: Op) -> u32 {
+            state + 1
+        }
+        fn check_invariants(state: &u32, r: &RefCounter) {
+            assert_eq!(*state, r.value);
+        }
+    }
+
+    let tmp = std::env::temp_dir().join(format!(
+        "psm-persistence-good-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::env::set_var(PERSIST_DIR_ENV, &tmp);
+    let path = persist_path!("passing_case_writes_nothing");
+
+    let mut runner = TestRunner::new(Config {
+        failure_persistence: None,
+        ..Config::default()
+    });
+    let tree = RefCounter::sequential_strategy(1..10usize)
+        .new_tree(&mut runner)
+        .unwrap();
+    let (init, transitions, counter) = tree.current();
+    GoodCounter::test_sequential_persisted(
+        Config::default(),
+        path.clone(),
+        init,
+        transitions,
+        counter,
+    );
+
+    assert!(!path.exists(), "passing case must not persist a file");
+    std::env::remove_var(PERSIST_DIR_ENV);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+struct GoodMachine;
+impl StateMachineTest for GoodMachine {
+    type SystemUnderTest = u32;
+    type Reference = RefCounter;
+    fn init_test(_r: &RefCounter) -> u32 {
+        0
+    }
+    fn apply(state: u32, _r: &RefCounter, _t: Op) -> u32 {
+        state + 1
+    }
+    fn check_invariants(state: &u32, r: &RefCounter) {
+        assert_eq!(*state, r.value);
+    }
+}
+
+proptest_state_machine::prop_state_machine_persisted! {
+    #[test]
+    fn macro_drives_good_machine(sequential 1..10 => GoodMachine);
+}
+
+use std::cell::Cell;
+
+thread_local! {
+    /// Selects which invariant `TwoBugs` violates, so one test type can
+    /// exhibit two distinct minimal failures.
+    static BUG_MODE: Cell<u8> = const { Cell::new(0) };
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+enum Ab {
+    A,
+    B,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+struct AbRef {
+    a: u32,
+    b: u32,
+}
+
+impl ReferenceStateMachine for AbRef {
+    type State = AbRef;
+    type Transition = Ab;
+    fn init_state() -> BoxedStrategy<Self::State> {
+        Just(AbRef { a: 0, b: 0 }).boxed()
+    }
+    fn transitions(_s: &Self::State) -> BoxedStrategy<Self::Transition> {
+        prop_oneof![Just(Ab::A), Just(Ab::B)].boxed()
+    }
+    fn apply(
+        mut state: Self::State,
+        transition: &Self::Transition,
+    ) -> Self::State {
+        match transition {
+            Ab::A => state.a += 1,
+            Ab::B => state.b += 1,
+        }
+        state
+    }
+}
+
+/// Bug 1 (mode 1): breaks after two `A`s → minimal `[A, A]`.
+/// Bug 2 (mode 2): breaks after one `B` → minimal `[B]`.
+struct TwoBugs;
+impl StateMachineTest for TwoBugs {
+    type SystemUnderTest = ();
+    type Reference = AbRef;
+    fn init_test(_r: &AbRef) {}
+    fn apply(_s: (), _r: &AbRef, _t: Ab) {}
+    fn check_invariants(_s: &(), r: &AbRef) {
+        match BUG_MODE.with(Cell::get) {
+            1 => assert!(r.a < 2, "mode 1: two A transitions"),
+            2 => assert!(r.b < 1, "mode 2: a B transition"),
+            _ => {}
+        }
+    }
+}
+
+#[test]
+fn accumulates_distinct_regressions() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let tmp = std::env::temp_dir().join(format!(
+        "psm-persistence-accum-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::env::set_var(PERSIST_DIR_ENV, &tmp);
+    let path = persist_path!("accumulates_distinct_regressions");
+    let runner_config = Config {
+        failure_persistence: None,
+        cases: 512,
+        ..Config::default()
+    };
+    let config = Config {
+        cases: 512,
+        ..Config::default()
+    };
+
+    // A fresh logical run: reset the accumulation marker, then let proptest
+    // find and shrink one failure.
+    let run_once = |mode: u8| {
+        proptest_state_machine::persistence::reset_run_marker(&path);
+        BUG_MODE.with(|m| m.set(mode));
+        let _ = quiet_panic(|| {
+            let mut runner = TestRunner::new(runner_config.clone());
+            runner.run(
+                &AbRef::sequential_strategy(1..20usize),
+                |(init, transitions, counter)| {
+                    TwoBugs::test_sequential_persisted(
+                        config.clone(),
+                        path.clone(),
+                        init,
+                        transitions,
+                        counter,
+                    );
+                    Ok(())
+                },
+            )
+        });
+    };
+
+    run_once(1);
+    let set1: Vec<PersistedCase<AbRef, Ab>> = load_set(&path).unwrap();
+    assert_eq!(set1.len(), 1, "first failure stored");
+    assert_eq!(set1[0].transitions, vec![Ab::A, Ab::A]);
+
+    run_once(2);
+    let set2: Vec<PersistedCase<AbRef, Ab>> = load_set(&path).unwrap();
+    let seqs: Vec<_> = set2.iter().map(|c| c.transitions.clone()).collect();
+    assert_eq!(set2.len(), 2, "distinct second failure accumulated");
+    assert!(seqs.contains(&vec![Ab::A, Ab::A]));
+    assert!(seqs.contains(&vec![Ab::B]));
+
+    // Re-discover bug 1: must not duplicate the existing [A, A] entry.
+    run_once(1);
+    let set3: Vec<PersistedCase<AbRef, Ab>> = load_set(&path).unwrap();
+    assert_eq!(set3.len(), 2, "re-discovered failure must not duplicate");
+
+    std::env::remove_var(PERSIST_DIR_ENV);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn corrupt_regression_line_names_itself() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let tmp = std::env::temp_dir().join(format!(
+        "psm-persistence-corrupt-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::env::set_var(PERSIST_DIR_ENV, &tmp);
+    let path = persist_path!("corrupt_regression_line_names_itself");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &path,
+        "# header\n{\"initial_state\":{\"value\":0},\"transitions\":[\"Inc\"]}\n\
+         {\"initial_state\":{\"value\":0},\"transitions\":[\"Nope\"]}\n",
+    )
+    .unwrap();
+
+    let err = load_set::<RefCounter, Op>(&path).unwrap_err().to_string();
+    std::env::remove_var(PERSIST_DIR_ENV);
+    let _ = std::fs::remove_dir_all(&tmp);
+
+    assert!(
+        err.contains(":3:"),
+        "error must name the offending line: {err}"
+    );
+    assert!(
+        err.contains("Delete line 3"),
+        "error must say how to clear it: {err}"
+    );
+}
+
+/// `failure_persistence: None` is what `PROPTEST_DISABLE_FAILURE_PERSISTENCE`
+/// sets.
+#[test]
+fn disabled_failure_persistence_writes_nothing() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let tmp = std::env::temp_dir().join(format!(
+        "psm-persistence-off-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::env::set_var(PERSIST_DIR_ENV, &tmp);
+    let path = persist_path!("disabled_failure_persistence_writes_nothing");
+
+    let config = Config {
+        failure_persistence: None,
+        cases: 256,
+        ..Config::default()
+    };
+    let result = quiet_panic(|| {
+        let mut runner = TestRunner::new(config.clone());
+        runner.run(
+            &RefCounter::sequential_strategy(1..20usize),
+            |(init, transitions, counter)| {
+                BuggyCounter::test_sequential_persisted(
+                    config.clone(),
+                    path.clone(),
+                    init,
+                    transitions,
+                    counter,
+                );
+                Ok(())
+            },
+        )
+    });
+    let replayed =
+        BuggyCounter::replay_persisted_regressions(config.clone(), &path);
+    std::env::remove_var(PERSIST_DIR_ENV);
+    let exists = path.exists();
+    let _ = std::fs::remove_dir_all(&tmp);
+
+    assert!(
+        matches!(result, Err(TestError::Fail(..))),
+        "the machine still fails"
+    );
+    assert!(
+        !exists,
+        "no regression file when failure persistence is off"
+    );
+    assert_eq!(
+        replayed, 0,
+        "nothing is replayed when failure persistence is off"
+    );
+}
+
+#[test]
+#[should_panic(expected = "neither `fork` nor `timeout`")]
+fn fork_is_rejected() {
+    let config = Config {
+        fork: true,
+        ..Config::default()
+    };
+    BuggyCounter::replay_persisted_regressions(
+        config,
+        &persist_path!("fork_is_rejected"),
+    );
+}
+
+/// A stored case that still deserializes but breaks a precondition the model
+/// has since gained must be reported as stale, not applied anyway.
+mod stale {
+    use super::*;
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub enum Gated {
+        Open,
+        Enter,
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub struct Gate {
+        pub open: bool,
+    }
+
+    impl ReferenceStateMachine for Gate {
+        type State = Gate;
+        type Transition = Gated;
+
+        fn init_state() -> BoxedStrategy<Self::State> {
+            Just(Gate { open: false }).boxed()
+        }
+
+        fn transitions(_s: &Self::State) -> BoxedStrategy<Self::Transition> {
+            Just(Gated::Open).boxed()
+        }
+
+        fn preconditions(
+            state: &Self::State,
+            transition: &Self::Transition,
+        ) -> bool {
+            match transition {
+                Gated::Open => true,
+                Gated::Enter => state.open,
+            }
+        }
+
+        fn apply(
+            mut state: Self::State,
+            transition: &Self::Transition,
+        ) -> Self::State {
+            if let Gated::Open = transition {
+                state.open = true;
+            }
+            state
+        }
+    }
+
+    pub struct GateTest;
+    impl StateMachineTest for GateTest {
+        type SystemUnderTest = ();
+        type Reference = Gate;
+        fn init_test(_r: &Gate) {}
+        fn apply(_s: (), _r: &Gate, _t: Gated) {}
+    }
+}
+
+#[test]
+#[should_panic(expected = "no longer valid under the current reference model")]
+fn stale_regression_is_reported_not_applied() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let tmp = std::env::temp_dir().join(format!(
+        "psm-persistence-stale-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::env::set_var(PERSIST_DIR_ENV, &tmp);
+    let path = persist_path!("stale_regression_is_reported_not_applied");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    // Entering before opening: legal when recorded, rejected by the gate now.
+    std::fs::write(
+        &path,
+        "{\"initial_state\":{\"open\":false},\"transitions\":[\"Enter\"]}\n",
+    )
+    .unwrap();
+
+    let result = panic::catch_unwind(|| {
+        stale::GateTest::replay_persisted_regressions(Config::default(), &path)
+    });
+    std::env::remove_var(PERSIST_DIR_ENV);
+    let _ = std::fs::remove_dir_all(&tmp);
+    panic::resume_unwind(result.unwrap_err());
+}
