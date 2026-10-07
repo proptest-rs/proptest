@@ -229,8 +229,9 @@ impl<
             }
         }
 
-        // The maximum index into the vectors and bit sets
-        let max_ix = max_size - 1;
+        // The maximum index into the vectors and bit sets. The sampled size
+        // may be 0 when the size range allows it, so this must not underflow.
+        let max_ix = max_size.saturating_sub(1);
 
         Ok(SequentialValueTree {
             initial_state,
@@ -244,8 +245,13 @@ impl<
             shrinkable_transitions,
             max_ix,
             // On a failure, we start by shrinking transitions from the back
-            // which is less likely to invalidate pre-conditions
-            shrink: Shrink::DeleteTransition(max_ix),
+            // which is less likely to invalidate pre-conditions. With no
+            // transitions, only the initial state can be shrunk.
+            shrink: if max_size == 0 {
+                Shrink::InitialState
+            } else {
+                Shrink::DeleteTransition(max_ix)
+            },
             last_shrink: None,
             seen_transitions_counter: Some(Default::default()),
         })
@@ -1098,5 +1104,59 @@ mod test {
         let (_, transitions, _) = value_tree.current();
         assert!(transitions.is_empty(),
             "No transitions should remain when none were seen");
+    }
+
+    fn empty_sequential_value_tree() -> TestValueTree {
+        let sequential =
+            <HeapStateMachine as ReferenceStateMachine>::sequential_strategy(
+                0..1,
+            );
+        let mut runner = TestRunner::deterministic();
+        sequential.new_tree(&mut runner).unwrap()
+    }
+
+    #[test]
+    fn test_empty_sequential_value_tree() {
+        let value_tree = empty_sequential_value_tree();
+
+        let (_, transitions, _) = value_tree.current();
+        assert!(transitions.is_empty());
+        assert!(matches!(value_tree.shrink, InitialState));
+    }
+
+    #[test]
+    fn test_empty_sequential_value_tree_shrinking() {
+        let mut value_tree = empty_sequential_value_tree();
+
+        // Bounded so that a shrinking loop would fail rather than hang
+        for _ in 0..10 {
+            value_tree.simplify();
+            value_tree.complicate();
+        }
+        assert!(!value_tree.simplify());
+        assert!(!value_tree.complicate());
+
+        let (_, transitions, _) = value_tree.current();
+        assert!(transitions.is_empty());
+    }
+
+    #[test]
+    fn test_empty_sequential_failing_run() {
+        // A failing test with an empty sequence of transitions must shrink
+        // without panicking
+        let mut runner = TestRunner::deterministic();
+        let result = runner
+            .run(&HeapStateMachine::sequential_strategy(0..1), |_| {
+                Err(TestCaseError::fail("always fails"))
+            });
+        match result {
+            Err(proptest::test_runner::TestError::Fail(
+                _,
+                (_, transitions, _),
+            )) => {
+                assert!(transitions.is_empty())
+            }
+            _ => panic!("expected a test failure, got {result:?}"),
+        }
     }
 }
