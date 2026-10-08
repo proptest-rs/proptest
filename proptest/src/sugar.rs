@@ -791,8 +791,8 @@ macro_rules! prop_assert {
 #[macro_export]
 macro_rules! prop_assert_eq {
     ($left:expr, $right:expr $(,) ?) => {{
-        let left = $left;
-        let right = $right;
+        let left = &$left;
+        let right = &$right;
         $crate::prop_assert!(
             left == right,
             "assertion failed: `(left == right)` \
@@ -801,8 +801,8 @@ macro_rules! prop_assert_eq {
     }};
 
     ($left:expr, $right:expr, $fmt:tt $($args:tt)*) => {{
-        let left = $left;
-        let right = $right;
+        let left = &$left;
+        let right = &$right;
         $crate::prop_assert!(
             left == right,
             concat!(
@@ -839,8 +839,8 @@ macro_rules! prop_assert_eq {
 #[macro_export]
 macro_rules! prop_assert_ne {
     ($left:expr, $right:expr $(,) ?) => {{
-        let left = $left;
-        let right = $right;
+        let left = &$left;
+        let right = &$right;
         $crate::prop_assert!(
             left != right,
             "assertion failed: `(left != right)`\
@@ -849,8 +849,8 @@ macro_rules! prop_assert_ne {
     }};
 
     ($left:expr, $right:expr, $fmt:tt $($args:tt)*) => {{
-        let left = $left;
-        let right = $right;
+        let left = &$left;
+        let right = &$right;
         $crate::prop_assert!(left != right, concat!(
                 "assertion failed: `(left != right)`\
                  \n  left: `{:?}`,\n right: `{:?}`: ", $fmt),
@@ -1499,6 +1499,8 @@ mod another_test {
 
 #[cfg(test)]
 mod ownership_tests {
+    use std::borrow::ToOwned;
+
     #[cfg(feature = "std")]
     proptest! {
         #[test]
@@ -1530,6 +1532,19 @@ mod ownership_tests {
         fn accept_noclone_ref_arg(ref nc in MK) {
             let _nc2: &NotClone = nc;
         }
+    }
+
+    #[test]
+    fn test_prop_asserts_do_not_consume_arguments() {
+        let not_copyable = "hello".to_owned();
+        let closure = move || {
+            prop_assert_eq!(not_copyable, not_copyable);
+            prop_assert_eq!(not_copyable, not_copyable, "error message");
+            prop_assert_ne!(not_copyable, not_copyable);
+            prop_assert_ne!(not_copyable, not_copyable, "error message");
+            Ok(())
+        };
+        let _ = closure();
     }
 }
 
