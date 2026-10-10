@@ -76,7 +76,7 @@ bit-set = { workspace = true, optional = true }
 bit-vec = { workspace = true, optional = true }
 rand = { workspace = true, features = ["alloc"] }
 rand_xorshift = { workspace = true }
-rand_chacha = { workspace = true }
+chacha20 = { workspace = true }
 rusty-fork = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 x86 = { workspace = true, optional = true }
