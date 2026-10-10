@@ -1,20 +1,55 @@
 ## Unreleased
 
+## 1.12.0
+
 ### Breaking Changes
 
 - The minimum supported Rust version has been increased to 1.88.0.
+- Updated `rand` to 0.10 and `rand_xorshift` to 0.5. Code using `TestRng`
+  with rand traits or distributions must use rand 0.10. RNG extension methods
+  now require `RngExt`, which is included in the proptest prelude.
+  ([\#643](https://github.com/proptest-rs/proptest/pull/643))
+- Updated `bit-set` from 0.8 to 0.11 and `bit-vec` from 0.8 to 0.10.
+  Code exchanging `BitSet` values with proptest must also use `bit-set` 0.11.
+  ([\#662](https://github.com/proptest-rs/proptest/pull/662))
 
 ### Bug Fixes
 
-- Fixed a panic when generating arbitrary `Duration` values near the maximum. ([\#657](https://github.com/proptest-rs/proptest/pull/657))
-- Fixed a panic when sampling from a single-point inclusive float range like `0.0..=0.0`. ([\#479](https://github.com/proptest-rs/proptest/issues/479))
-- [Soundness] Asserts that rdrand feature is supported by the CPU before invoking rdrand functions ([\#648](https://github.com/proptest-rs/proptest/issues/648))
-- [Soundness] Fixes data race on static mut between assigning thread and accessing thread ([\#648](https://github.com/proptest-rs/proptest/issues/648))
-- Fixed a forked or timed-out test not reporting a persisted failure seed that still fails, aborting spuriously or forking child processes indefinitely instead. ([\#667](https://github.com/proptest-rs/proptest/issues/667))
+- Fixed a panic when generating arbitrary `Duration` values near the maximum.
+  ([\#657](https://github.com/proptest-rs/proptest/pull/657))
+- Fixed a panic when sampling from a single-point inclusive float range like
+  `0.0..=0.0`. ([\#647](https://github.com/proptest-rs/proptest/pull/647))
+- [Soundness] With `hardware-rng` in x86/x86_64 `no_std` builds, check CPU
+  support before invoking RDRAND. Missing support or unsuccessful seed
+  generation now panics in release builds as well as debug builds.
+  ([\#652](https://github.com/proptest-rs/proptest/pull/652))
+- [Soundness] Fixed a race when initializing the global panic hook with
+  `handle-panics`, using synchronized storage before installing the dispatcher.
+  ([\#649](https://github.com/proptest-rs/proptest/pull/649))
+- Fixed forked tests (including tests using timeouts) failing to report persisted
+  failures that still reproduce, instead aborting spuriously or repeatedly
+  forking child processes.
+  ([\#668](https://github.com/proptest-rs/proptest/pull/668))
+
+### New Additions
+
+- With `attr-macro`, `#[property_test]` now accepts
+  `proptest_path = ::path::to::proptest` for re-exported crates.
+  ([\#635](https://github.com/proptest-rs/proptest/pull/635))
+
+### Nightly-only Breakage
+
+- Removed specialized `Arbitrary` implementations for `Option<!>`,
+  `Result<T, !>`, and `Result<!, T>`, and `ArbitraryF1` for `Result<T, !>`
+  under `unstable`, which conflict with generic implementations on newer Rust.
+- Fixed float strategy compilation on newer nightly Rust.
+  ([\#645](https://github.com/proptest-rs/proptest/pull/645))
 
 ### Other Notes
 
-- Updated the rand dependency family to 0.10 and migrated `TestRng` and internal RNG integration to rand 0.10's trait and seeding APIs, preserving seeded behavior.
+- Replaced `rand_chacha` with `chacha20::ChaCha20Rng`, preserving seed formats
+  and seeded RNG output.
+  ([\#664](https://github.com/proptest-rs/proptest/pull/664))
 
 ## 1.11.0
 

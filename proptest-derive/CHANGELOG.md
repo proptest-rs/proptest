@@ -1,8 +1,18 @@
 ## Unreleased
 
+## 0.9.0
+
 ### Breaking Changes
 
 - The minimum supported Rust version has been increased to 1.88.0.
+
+### Other Notes
+
+- Updated `syn` from 2 to 3.
+  ([\#661](https://github.com/proptest-rs/proptest/pull/661))
+- Fixed compile-fail tests after clean builds and updated expected diagnostics
+  for current nightly Rust.
+  ([\#665](https://github.com/proptest-rs/proptest/pull/665))
 
 ## 0.8.0
 
