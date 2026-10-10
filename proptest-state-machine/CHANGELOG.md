@@ -1,8 +1,16 @@
 ## Unreleased
 
+## 0.9.0
+
 ### Breaking Changes
 
 - The minimum supported Rust version has been increased to 1.88.0.
+
+### Other Notes
+
+- Updated the `proptest` dependency to 1.12.0, including fixes for replaying
+  persisted failures in forked tests. See the
+  [proptest changelog](../proptest/CHANGELOG.md) for details.
 
 ## 0.8.0
 

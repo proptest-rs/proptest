@@ -1,5 +1,5 @@
 //-
-// Copyright 2024 The proptest developers
+// Copyright 2024, 2026 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -38,7 +38,7 @@ mod internal {
     static INIT_ONCE: Once = Once::new();
 
     /// Default panic hook, the one which was present before installing scoped one.
-    static DEFAULT_HOOK: OnceLock<Option<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>>> =
+    static DEFAULT_HOOK: OnceLock<Box<dyn Fn(&PanicInfo<'_>) + Send + Sync>> =
         OnceLock::new();
 
     /// Replaces currently installed panic hook with `scoped_hook_dispatcher` once,
@@ -51,8 +51,10 @@ mod internal {
             // DEFAULT_HOOK is set after the call to set_hook, a race condition
             // between the thread assigning DEFAULT_HOOK and the thread panicking,
             // reading DEFAULT_HOOK, exists.
-            DEFAULT_HOOK.try_insert(Some(old_handler))
-                .expect("DEFAULT_HOOK is only ever assigned within a Once");
+            assert!(
+                DEFAULT_HOOK.set(old_handler).is_ok(),
+                "DEFAULT_HOOK is only ever assigned within a Once"
+            );
             set_hook(Box::new(scoped_hook_dispatcher));
         });
     }
@@ -117,6 +119,34 @@ mod internal {
             SCOPED_HOOK_PTR.set(old_tuple);
         });
         body()
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::with_hook;
+        use std::cell::Cell;
+        use std::panic::{catch_unwind, AssertUnwindSafe};
+
+        #[test]
+        fn restores_scoped_hook_after_unwind() {
+            let outer_panics = Cell::new(0);
+            let inner_panics = Cell::new(0);
+            with_hook(
+                |_| outer_panics.set(outer_panics.get() + 1),
+                || {
+                    assert!(catch_unwind(AssertUnwindSafe(|| {
+                        with_hook(
+                            |_| inner_panics.set(inner_panics.get() + 1),
+                            || panic!("inner panic"),
+                        );
+                    }))
+                    .is_err());
+                    assert!(catch_unwind(|| panic!("outer panic")).is_err());
+                },
+            );
+            assert_eq!(inner_panics.get(), 1);
+            assert_eq!(outer_panics.get(), 1);
+        }
     }
 }
 
