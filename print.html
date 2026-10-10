@@ -247,7 +247,7 @@ and people are upset that you moved Christmas to February. Maybe we need to
 be a bit more thorough.</p>
 <p>In <code>Cargo.toml</code>, add</p>
 <pre><code class="language-toml">[dev-dependencies]
-proptest = &quot;1.11.0&quot;
+proptest = &quot;1.12.0&quot;
 </code></pre>
 <p>Now we can add some property tests to our date parser. But how do we test
 the date parser for arbitrary inputs, without making another date parser in
@@ -1954,7 +1954,7 @@ breaking changes than the main <code>proptest</code> crate.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="getting-started-1"><a class="header" href="#getting-started-1">Getting started</a></h1>
 <h2 id="cargo"><a class="header" href="#cargo">Cargo</a></h2>
 <p>To the <code>[dev-dependencies]</code> section of your <code>Cargo.toml</code>, add</p>
-<pre><code class="language-toml">proptest-derive = &quot;0.8.0&quot;
+<pre><code class="language-toml">proptest-derive = &quot;0.9.0&quot;
 </code></pre>
 <p>In a Rust 2015 crate, you must add</p>
 <pre><code>#[cfg(test)] extern crate proptest;
