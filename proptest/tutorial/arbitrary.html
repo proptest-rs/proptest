@@ -175,8 +175,92 @@ but you can of course implement it for your own types.</p>
 <p>In some cases, where it makes sense to define a canonical strategy, such as in
 the <a href="recursive.html">JSON AST example</a>, it is a good idea to implement
 <code>Arbitrary</code>.</p>
+<h2 id="deriving-arbitrary"><a class="header" href="#deriving-arbitrary">Deriving <code>Arbitrary</code></a></h2>
 <p>The experimental <a href="../../proptest-derive/index.html"><code>proptest-derive</code> crate</a> can
-be used to automate implementing <code>Arbitrary</code> in common cases.</p>
+be used to automate implementing <code>Arbitrary</code> in common cases. For example, imagine we have a struct that represents a point in a 2-D coordinate space:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>This struct has the property that any pair of valid <code>i32</code>s can make a valid <code>Point</code>, so that is perfect for using <code>#[derive(Arbitrary)]</code>. </p>
+<h2 id="manual-arbitrary-implementations"><a class="header" href="#manual-arbitrary-implementations">Manual <code>Arbitrary</code> implementations</a></h2>
+<p>Sometimes, however, there are extra constraints that your type has, which the derive macro can’t understand. In these cases, you’ll need to implement <code>Arbitrary</code> for your type manually.</p>
+<p>For example, consider this struct which represents a range (note, the derive API is can actually represent this case, it’s just an example):</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug)]
+struct Range {
+    lower: i32,
+    upper: i32,
+}
+
+impl Range {
+    pub fn new(lower: i32, upper: i32) -&gt; Option&lt;Self&gt; {
+        if lower &lt;= upper {
+            Some(Self { lower, upper })
+        } else {
+            None
+        }
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>This struct has an invariant: <code>lower &lt;= upper</code>. However, if we derive an <code>Arbitrary</code> implementation naively, it might generate <code>Range { lower: 1, upper: 0 }</code>.</p>
+<p>Instead, we can write a manual implementation:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl Arbitrary for Range {
+    type Parameters = ();
+    type Strategy = FilterMap&lt;StrategyFor&lt;(i32, i32)&gt;, fn((i32, i32)) -&gt; Option&lt;Self&gt;&gt;;
+  
+    fn arbitrary_with(_parameters: Self::Parameters) -&gt; Self::Strategy {
+        any::&lt;(i32, i32)&gt;()  // generate 2 arbitrary i32s
+            .prop_map(|(a, b)| {
+                let (lower, upper) = if a &lt; b {
+                    (a, b)
+                } else {
+                    (b, a)
+                };
+                Range::new(lower, upper).unwrap()
+            })
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Here, there are three items we need to define:</p>
+<ul>
+<li><code>type Parameters</code> - the type of any parameters to <code>arbitrary_with</code>. Here (and in many cases), we don’t need this, so <code>()</code> is used.</li>
+<li><code>type Strategy</code> - the type of the strategy produced</li>
+<li><code>fn arbitrary_with</code> - the code that creates the canonical <code>Strategy</code> for this type</li>
+</ul>
+<p>It’s important to consider what type you want to use for <code>Strategy</code>. Here, we explicitly write the type out. This uses static dispatch, which is often faster and easier to optimize, but has a few downsides:</p>
+<ul>
+<li>you need to write out the type of the strategy. Even for this small function, it’s a pretty lengthy function signature. In the worst case, it’s impossible, since some types are unnameable (e.g. closures which capture their environment)</li>
+<li>it makes the implementation of <code>arbitrary_with</code> a part of your public API signature (if you expose <code>Arbitrary</code> impls in general from your crate). This means that changes to the implementation may require a breaking change.</li>
+</ul>
+<p>There are a couple of ways around this:</p>
+<ul>
+<li>heap-allocate the strategy by: 
+<ul>
+<li>returning <code>BoxedStrategy&lt;T&gt;</code></li>
+<li>calling <code>.boxed()</code> on the strategy before returning it</li>
+</ul>
+</li>
+<li>use the nightly-only <code>#![feature(type_alias_impl_trait)]</code>:</li>
+</ul>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>type RangeStrategy = impl Strategy&lt;Value = Range&gt;;
+
+impl Arbitrary for Range {
+    type Parameters = ();
+    type Strategy = RangeStrategy;
+    // ...
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Using <code>BoxedStrategy</code> will incur some performance penalty relating to a heap allocation as well as dynamic dispatch, but it works on stable (as of November 2022).</p>
 
                     </main>
 

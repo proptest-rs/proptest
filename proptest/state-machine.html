@@ -209,7 +209,7 @@
 <li>
 <p>To generate transitions:</p>
 <pre><code class="language-rust ignore">fn transitions(state: &amp;Self::State) -&gt; BoxedStrategy&lt;Self::Transition&gt;</code></pre>
-<p>Most of the time, you’ll use <code>prop_oneof!</code> here. If a transition takes some input parameters, you can generate those with a <code>Strategy</code> and <code>.prop_map</code> it to the <code>Transition</code> variant. In more complex state machines, the set of valid transitions may depend on the current state. To that end, you can use the <code>state</code> argument, possibly combined with <code>prop::sample::select</code> function that allows you to create a strategy that selects a random value from an array or an array-like collection (be careful not to call <code>select</code> on an empty array as that will make it fail in a somewhat obscure way). For example, if you want to remove one of the existing keys from a hash map, you can select one of the keys from the current state and map it into a transition. Note that when you do something like this, you’ll also need to override the <code>fn preconditions</code>, which are explained in more detail below.</p>
+<p>Most of the time, you’ll use <code>prop_oneof!</code> here. If a transition takes some input parameters, you can generate those with a <code>Strategy</code> and <code>.prop_map</code> it to the <code>Transition</code> variant. In more complex state machines, the set of valid transitions may depend on the current state. To that end, you can use the <code>state</code> argument, possibly combined with <code>proptest::sample::select</code> function that allows you to create a strategy that selects a random value from an array or an array-like collection (be careful not to call <code>select</code> on an empty array as that will make it fail in a somewhat obscure way). For example, if you want to remove one of the existing keys from a hash map, you can select one of the keys from the current state and map it into a transition. Note that when you do something like this, you’ll also need to override the <code>fn preconditions</code>, which are explained in more detail below.</p>
 </li>
 <li>
 <p>To apply the given transition on the reference state:</p>
@@ -253,7 +253,7 @@
 </li>
 </ul>
 <p>To add some teardown logic to run at the end of each test case, you can override the <code>teardown</code> function, which by default simply drops the state:</p>
-<pre><code class="language-rust ignore">fn teardown(state: Self::SystemUnderTest)</code></pre>
+<pre><code class="language-rust ignore">fn teardown(state: Self::SystemUnderTest, ref_state: Self::Reference::State)</code></pre>
 <h3 id="make-the-state-machine-test-runnable"><a class="header" href="#make-the-state-machine-test-runnable">Make the state machine test runnable</a></h3>
 <p>Finally, to run the <code>StateMachineTest</code>, you can use the <code>prop_state_machine!</code> macro. For example:</p>
 <pre><code class="language-rust ignore">prop_state_machine! {

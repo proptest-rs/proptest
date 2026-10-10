@@ -179,7 +179,7 @@ default-features = false
 # alloc: Use the `alloc` crate directly. Proptest has a hard requirement on
 # memory allocation, so either this or `std` is needed.
 # unstable: Enable use of nightly-only compiler features.
-features = [&quot;alloc&quot;, &quot;unstable&quot;]
+features = [&quot;no_std&quot;, &quot;alloc&quot;, &quot;unstable&quot;]
 </code></pre>
 <p>Some APIs are not available in the <code>no_std</code> build. This includes functionality
 which necessarily needs <code>std</code> such as failure persistence and forking, as well
