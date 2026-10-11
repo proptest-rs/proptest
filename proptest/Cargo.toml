@@ -1,6 +1,6 @@
 [package]
 name = "proptest"
-version = "1.11.0"
+version = "1.12.0"
 authors = ["Jason Lingle"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -76,7 +76,7 @@ bit-set = { workspace = true, optional = true }
 bit-vec = { workspace = true, optional = true }
 rand = { workspace = true, features = ["alloc"] }
 rand_xorshift = { workspace = true }
-rand_chacha = { workspace = true }
+chacha20 = { workspace = true }
 rusty-fork = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 x86 = { workspace = true, optional = true }

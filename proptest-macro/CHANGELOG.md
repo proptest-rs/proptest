@@ -1,12 +1,21 @@
 ## Unreleased
 
+## 0.6.0
+
 ### Breaking Changes
 
 - The minimum supported Rust version has been increased to 1.88.0.
 
 ### New Features
 
-- Added support for `proptest_path = ::path::to::proptest` on `#[property_test]`, allowing the macro to target a re-exported `proptest` crate.
+- Added support for `proptest_path = ::path::to::proptest` on
+  `#[property_test]`, allowing the macro to target a re-exported `proptest` crate.
+  ([\#635](https://github.com/proptest-rs/proptest/pull/635))
+
+### Other Notes
+
+- Updated `syn` from 2 to 3.
+  ([\#661](https://github.com/proptest-rs/proptest/pull/661))
 
 ## 0.5.0
 
