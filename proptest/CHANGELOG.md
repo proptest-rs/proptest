@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Bug Fixes
+
+- `FileFailurePersistence::SourceParallel` now stops searching for `lib.rs` or
+  `main.rs` at the package root. Integration tests no longer print a warning,
+  and no longer persist failures outside the package when a parent directory
+  contains a `lib.rs` or `main.rs`.
+  ([\#233](https://github.com/proptest-rs/proptest/issues/233))
+
 ## 1.12.0
 
 ### Breaking Changes
