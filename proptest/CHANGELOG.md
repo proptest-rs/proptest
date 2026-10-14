@@ -45,6 +45,10 @@
 - Fixed float strategy compilation on newer nightly Rust.
   ([\#645](https://github.com/proptest-rs/proptest/pull/645))
 
+### New Additions
+
+- Added the `max_run_time` config option (and the `PROPTEST_MAX_RUN_TIME` environment variable) to bound a run by wall-clock time in milliseconds instead of a fixed case count. ([\#655](https://github.com/proptest-rs/proptest/issues/655))
+
 ### Other Notes
 
 - Replaced `rand_chacha` with `chacha20::ChaCha20Rng`, preserving seed formats

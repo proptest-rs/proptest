@@ -1,5 +1,5 @@
 //-
-// Copyright 2017, 2018, 2019 The proptest developers
+// Copyright 2017, 2018, 2019, 2026 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -30,6 +30,7 @@ pub fn contextualize_config(mut result: Config) -> Config {
     const MAX_FLAT_MAP_REGENS: &str = "PROPTEST_MAX_FLAT_MAP_REGENS";
     const MAX_SHRINK_TIME: &str = "PROPTEST_MAX_SHRINK_TIME";
     const MAX_SHRINK_ITERS: &str = "PROPTEST_MAX_SHRINK_ITERS";
+    const MAX_RUN_TIME: &str = "PROPTEST_MAX_RUN_TIME";
     const MAX_DEFAULT_SIZE_RANGE: &str = "PROPTEST_MAX_DEFAULT_SIZE_RANGE";
     #[cfg(feature = "fork")]
     const FORK: &str = "PROPTEST_FORK";
@@ -120,6 +121,13 @@ pub fn contextualize_config(mut result: Config) -> Config {
                 "u32",
                 MAX_SHRINK_ITERS,
             );
+        } else if var == MAX_RUN_TIME {
+            parse_or_warn(
+                &value,
+                &mut result.max_run_time,
+                "u32",
+                MAX_RUN_TIME,
+            );
         } else if var == MAX_DEFAULT_SIZE_RANGE {
             parse_or_warn(
                 &value,
@@ -169,6 +177,8 @@ fn default_default_config() -> Config {
         timeout: 0,
         #[cfg(feature = "std")]
         max_shrink_time: 0,
+        #[cfg(feature = "std")]
+        max_run_time: 0,
         max_shrink_iters: u32::MAX,
         max_default_size_range: 100,
         result_cache: noop_result_cache,
@@ -350,6 +360,30 @@ pub struct Config {
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub max_shrink_time: u32,
+
+    /// If non-zero, stop generating and running new test cases once this many
+    /// milliseconds have elapsed since the run started, and treat the test as
+    /// passed.
+    ///
+    /// This is useful when you want to bound a test by wall-clock time rather
+    /// than by a fixed number of cases, for example running a shorter budget
+    /// locally and a longer one in CI. The `cases` limit still applies, so a
+    /// run stops at whichever of the two is reached first. The time is only
+    /// checked between cases, so a single long-running case can overshoot the
+    /// budget.
+    ///
+    /// This does not include time spent shrinking a discovered failure; see
+    /// `max_shrink_time` for that.
+    ///
+    /// This configuration is only available when the `std` feature is enabled
+    /// (which it is by default).
+    ///
+    /// The default is `0` (i.e., no limit), which can be overridden by setting
+    /// the `PROPTEST_MAX_RUN_TIME` environment variable. (The variable is only
+    /// considered when the `std` feature is enabled, which it is by default.)
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+    pub max_run_time: u32,
 
     /// Give up on shrinking if more than this number of iterations of the test
     /// code are run.
