@@ -1,5 +1,5 @@
 //-
-// Copyright 2023 The proptest developers
+// Copyright 2023, 2026 The proptest developers
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -230,7 +230,7 @@ impl<
         }
 
         // The maximum index into the vectors and bit sets
-        let max_ix = max_size - 1;
+        let max_ix = max_size.saturating_sub(1);
 
         Ok(SequentialValueTree {
             initial_state,
@@ -244,8 +244,13 @@ impl<
             shrinkable_transitions,
             max_ix,
             // On a failure, we start by shrinking transitions from the back
-            // which is less likely to invalidate pre-conditions
-            shrink: Shrink::DeleteTransition(max_ix),
+            // which is less likely to invalidate pre-conditions. With no
+            // transitions, there is only the initial state to shrink.
+            shrink: if max_size == 0 {
+                Shrink::InitialState
+            } else {
+                Shrink::DeleteTransition(max_ix)
+            },
             last_shrink: None,
             seen_transitions_counter: Some(Default::default()),
         })
@@ -1068,6 +1073,51 @@ mod test {
                 }
             }
         }
+
+        /// A failure on an empty sequence of transitions is shrunk via the
+        /// initial state.
+        #[test]
+        fn test_returns_simplest_failure_with_no_transitions() {
+            let mut runner = TestRunner::deterministic();
+            let result = runner.run(
+                &FailIfLessThan::sequential_strategy(0..1_usize),
+                |(FailIfLessThan(limit), transitions, _seen_counter)| {
+                    assert!(transitions.is_empty());
+                    prop_assert!(limit < MIN_LIMIT);
+                    Ok(())
+                },
+            );
+            match result {
+                Err(TestError::Fail(
+                    _,
+                    (FailIfLessThan(limit), transitions, _seen_counter),
+                )) => {
+                    assert!(transitions.is_empty());
+                    assert_eq!(limit, MIN_LIMIT);
+                }
+                other => panic!("expected a failure, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_sequential_value_tree_with_no_transitions() {
+        let sequential =
+            <HeapStateMachine as ReferenceStateMachine>::sequential_strategy(
+                0..1,
+            );
+        let mut runner = TestRunner::deterministic();
+        let mut value_tree = sequential.new_tree(&mut runner).unwrap();
+
+        let (_, transitions, _) = value_tree.current();
+        assert!(transitions.is_empty());
+        assert!(matches!(value_tree.shrink, InitialState));
+
+        // The initial state (`Just(vec![])`) is not shrinkable and there are
+        // no transitions to delete or shrink
+        assert!(!value_tree.simplify());
+        let (_, transitions, _) = value_tree.current();
+        assert!(transitions.is_empty());
     }
 
     #[test]

@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Bug Fixes
+
+- Fixed a panic (or, in release builds, an allocation failure while shrinking)
+  when a sequential size range samples zero transitions, e.g. `0..10`.
+  ([\#671](https://github.com/proptest-rs/proptest/issues/671))
+
 ## 0.9.0
 
 ### Breaking Changes
