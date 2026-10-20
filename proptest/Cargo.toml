@@ -65,6 +65,9 @@ bit-set = ["dep:bit-set", "dep:bit-vec"]
 # In particular, hides all intermediate panics flowing into stderr during shrink phase
 handle-panics = ["std"]
 
+# Stores the runners held by value trees on the heap to keep nested value trees small
+boxed-runner = []
+
 [dependencies]
 bitflags = { workspace = true }
 core_detect = { workspace = true }

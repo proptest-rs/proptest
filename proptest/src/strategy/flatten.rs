@@ -7,6 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[cfg(feature = "boxed-runner")]
+use crate::std_facade::Box;
 use crate::std_facade::{fmt, Arc};
 use core::mem;
 
@@ -63,6 +65,9 @@ where
     // This does unfortunately depart from the direct interpretation of
     // simplify/complicate as binary search, but is still easier to think about
     // than other implementations of higher-order strategies.
+    #[cfg(feature = "boxed-runner")]
+    runner: Box<TestRunner>,
+    #[cfg(not(feature = "boxed-runner"))]
     runner: TestRunner,
     complicate_regen_remaining: u32,
 }
@@ -113,6 +118,9 @@ where
             meta: Fuse::new(meta),
             current: Fuse::new(current),
             final_complication: None,
+            #[cfg(feature = "boxed-runner")]
+            runner: Box::new(runner.partial_clone()),
+            #[cfg(not(feature = "boxed-runner"))]
             runner: runner.partial_clone(),
             complicate_regen_remaining: 0,
         })

@@ -7,6 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[cfg(feature = "boxed-runner")]
+use crate::std_facade::Box;
 use crate::std_facade::{fmt, Arc};
 use core::mem;
 
@@ -26,6 +28,9 @@ enum LazyValueTreeState<S: Strategy> {
     Initialized(S::Tree),
     Uninitialized {
         strategy: Arc<S>,
+        #[cfg(feature = "boxed-runner")]
+        runner: Box<TestRunner>,
+        #[cfg(not(feature = "boxed-runner"))]
         runner: TestRunner,
     },
     Failed,
@@ -35,6 +40,9 @@ impl<S: Strategy> LazyValueTree<S> {
     /// Create a new value tree where initial generation is deferred until
     /// `maybe_init` is called.
     pub(crate) fn new(strategy: Arc<S>, runner: &mut TestRunner) -> Self {
+        #[cfg(feature = "boxed-runner")]
+        let runner = Box::new(runner.partial_clone());
+        #[cfg(not(feature = "boxed-runner"))]
         let runner = runner.partial_clone();
         Self {
             state: LazyValueTreeState::Uninitialized { strategy, runner },
