@@ -1,5 +1,20 @@
 ## Unreleased
 
+### New Additions
+
+- Added `Config::observer`, an optional `TestCaseObserver` that
+  `TestRunner::run` calls when a run starts (with its `Config`), before and
+  after every test case (with a `TestCaseOutcome`: whether the input was new
+  or a persisted failure, whether the result came from the test body, a child
+  process or the result cache, whether the test case passed, was rejected or
+  failed, and how long it took), and when the run ends (with a
+  `RunOutcome`). Shrinking is not reported, and with `fork` or `timeout` only
+  the parent process reports. It lets tools that report on a run (statistics,
+  coverage, visualisation) work with `proptest!`, `#[property_test]` and
+  `prop_state_machine!` alike. Requires `std`; the default `None` changes
+  nothing.
+  ([\#678](https://github.com/proptest-rs/proptest/pull/678))
+
 ## 1.12.0
 
 ### Breaking Changes

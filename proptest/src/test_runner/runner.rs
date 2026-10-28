@@ -29,6 +29,10 @@ use crate::strategy::*;
 use crate::test_runner::config::*;
 use crate::test_runner::errors::*;
 use crate::test_runner::failure_persistence::PersistedSeed;
+#[cfg(feature = "std")]
+use crate::test_runner::observer::{
+    ResultSource, RunOutcome, TestCaseInput, TestCaseOutcome, TestCaseVerdict,
+};
 use crate::test_runner::reason::*;
 #[cfg(feature = "fork")]
 use crate::test_runner::replay;
@@ -304,6 +308,166 @@ where
 
 type TestRunResult<S> = Result<(), TestError<<S as Strategy>::Value>>;
 
+/// Tells the configured observer, if any, that a run is starting.
+///
+/// In a child process started by `fork` or `timeout`, turns the observer off
+/// instead: the parent process reports every test case, from the results the
+/// children record.
+#[cfg(feature = "std")]
+fn observe_run_start(config: &mut Config) {
+    #[cfg(feature = "fork")]
+    if config.observer.is_some() && env::var_os(ENV_FORK_FILE).is_some() {
+        config.observer = None;
+    }
+    if let Some(observer) = config.observer.as_ref() {
+        observer.run_started(config);
+    }
+}
+
+/// Without `std` there is no observer.
+#[cfg(not(feature = "std"))]
+fn observe_run_start(_: &mut Config) {}
+
+/// Tells the configured observer, if any, how the run ended.
+#[cfg(feature = "std")]
+fn observe_run_finish<T>(config: &Config, result: &Result<(), TestError<T>>) {
+    if let Some(observer) = config.observer.as_ref() {
+        observer.run_finished(match result {
+            Ok(()) => RunOutcome::Passed,
+            Err(TestError::Fail(..)) => RunOutcome::Failed,
+            Err(TestError::Abort(..)) => RunOutcome::Aborted,
+        });
+    }
+}
+
+/// Without `std` there is no observer.
+#[cfg(not(feature = "std"))]
+fn observe_run_finish<T>(_: &Config, _: &Result<(), TestError<T>>) {}
+
+/// Whether the observer was told that a test case started, and when, where
+/// proptest reads the clock: like the runner's own timers, not on wasm32,
+/// where `Instant::now` panics.
+#[cfg(feature = "std")]
+type CaseStart = Option<Option<std::time::Instant>>;
+
+/// Without `std` there is no observer.
+#[cfg(not(feature = "std"))]
+type CaseStart = Option<()>;
+
+/// Tells the configured observer, if any, that a test case is about to run.
+#[cfg(feature = "std")]
+fn observe_case_start(config: &Config) -> CaseStart {
+    let observer = config.observer.as_ref()?;
+    observer.case_started();
+    #[cfg(not(target_arch = "wasm32"))]
+    return Some(Some(std::time::Instant::now()));
+    #[cfg(target_arch = "wasm32")]
+    return Some(None);
+}
+
+/// Without `std` there is no observer.
+#[cfg(not(feature = "std"))]
+fn observe_case_start(_: &Config) -> CaseStart {
+    None
+}
+
+/// Tells the configured observer, if any, what happened to the test case
+/// that `observe_case_start` reported.
+#[cfg(feature = "std")]
+fn observe_case_finish<T>(
+    config: &Config,
+    started: CaseStart,
+    result: &Result<TestCaseOk, TestError<T>>,
+    is_from_persisted_seed: bool,
+    cache_hit: bool,
+) {
+    let (Some(observer), Some(started)) = (config.observer.as_ref(), started)
+    else {
+        return;
+    };
+    let input = if is_from_persisted_seed {
+        TestCaseInput::Persisted
+    } else {
+        TestCaseInput::Generated
+    };
+    // With `fork`, this is the parent process, since the observer is off in
+    // child processes, and every result is replayed from a child process.
+    let result_from = if config.fork() {
+        ResultSource::ChildProcess
+    } else if cache_hit {
+        ResultSource::ResultCache
+    } else {
+        ResultSource::TestBody
+    };
+    let verdict = match result {
+        Ok(TestCaseOk::Reject) => TestCaseVerdict::Reject,
+        Ok(_) => TestCaseVerdict::Pass,
+        Err(TestError::Fail(..)) => TestCaseVerdict::Fail,
+        // `run_one_with_replay` aborts only when a rejection is one too many.
+        Err(TestError::Abort(..)) => TestCaseVerdict::Reject,
+    };
+    let duration = match result_from {
+        ResultSource::TestBody => started.map(|started| started.elapsed()),
+        _ => None,
+    };
+    observer.case_finished(TestCaseOutcome {
+        input,
+        result_from,
+        verdict,
+        duration,
+    });
+}
+
+/// Without `std` there is no observer.
+#[cfg(not(feature = "std"))]
+fn observe_case_finish<T>(
+    _: &Config,
+    _: CaseStart,
+    _: &Result<TestCaseOk, TestError<T>>,
+    _: bool,
+    _: bool,
+) {
+}
+
+/// Passes every call on to a result cache, and notes whether the first
+/// lookup, the one for the test case itself rather than for shrinking it,
+/// found a result.
+struct NoteCacheHit<'a> {
+    cache: &'a mut dyn ResultCache,
+    first_lookup_hit: core::cell::Cell<Option<bool>>,
+}
+
+impl<'a> NoteCacheHit<'a> {
+    fn new(cache: &'a mut dyn ResultCache) -> Self {
+        NoteCacheHit {
+            cache,
+            first_lookup_hit: core::cell::Cell::new(None),
+        }
+    }
+
+    fn first_lookup_hit(&self) -> bool {
+        self.first_lookup_hit.get().unwrap_or(false)
+    }
+}
+
+impl ResultCache for NoteCacheHit<'_> {
+    fn key(&self, key: &ResultCacheKey) -> u64 {
+        self.cache.key(key)
+    }
+
+    fn put(&mut self, key: u64, result: &TestCaseResult) {
+        self.cache.put(key, result)
+    }
+
+    fn get(&self, key: u64) -> Option<&TestCaseResult> {
+        let result = self.cache.get(key);
+        if self.first_lookup_hit.get().is_none() {
+            self.first_lookup_hit.set(Some(result.is_some()));
+        }
+        result
+    }
+}
+
 impl TestRunner {
     /// Create a fresh `TestRunner` with the given configuration.
     ///
@@ -412,11 +576,14 @@ impl TestRunner {
         strategy: &S,
         test: impl Fn(S::Value) -> TestCaseResult,
     ) -> TestRunResult<S> {
-        if self.config.fork() {
+        observe_run_start(&mut self.config);
+        let result = if self.config.fork() {
             self.run_in_fork(strategy, test)
         } else {
             self.run_in_process(strategy, test)
-        }
+        };
+        observe_run_finish(&self.config, &result);
+        result
     }
 
     #[cfg(not(feature = "fork"))]
@@ -674,16 +841,29 @@ impl TestRunner {
         let case = unwrap_or!(strategy.new_tree(self), msg =>
                 return Err(TestError::Abort(msg)));
 
-        // We only count new cases to our set of successful runs against
-        // `PROPTEST_CASES` config.
-        let ok_type = self.run_one_with_replay(
+        // The observer, if any, sees the test case but not the shrinking of a
+        // failure, which happens inside `run_one_with_replay`.
+        let started = observe_case_start(&self.config);
+        let mut result_cache = NoteCacheHit::new(result_cache);
+        let result = self.run_one_with_replay(
             case,
             f,
             replay_from_fork,
-            result_cache,
+            &mut result_cache,
             fork_output,
             is_from_persisted_seed,
-        )?;
+        );
+        observe_case_finish(
+            &self.config,
+            started,
+            &result,
+            is_from_persisted_seed,
+            result_cache.first_lookup_hit(),
+        );
+
+        // We only count new cases to our set of successful runs against
+        // `PROPTEST_CASES` config.
+        let ok_type = result?;
         match ok_type {
             TestCaseOk::NewCaseSuccess | TestCaseOk::ReplayFromForkSuccess => {
                 self.successes += 1
@@ -705,6 +885,8 @@ impl TestRunner {
     /// terminate the run if it runs for longer than `timeout`. However, if the
     /// test function returns but took longer than `timeout`, the test case
     /// will fail.
+    ///
+    /// The observer in [`Config::observer`] is not told about this test case.
     pub fn run_one<V: ValueTree>(
         &mut self,
         case: V,
@@ -1082,6 +1264,567 @@ mod test {
     use super::*;
     use crate::strategy::Strategy;
     use crate::test_runner::{FileFailurePersistence, RngAlgorithm, TestRng};
+
+    #[cfg(feature = "std")]
+    mod observer {
+        use super::*;
+        use crate::test_runner::{
+            FailurePersistence, MapFailurePersistence, ResultSource,
+            RunOutcome, Seed, TestCaseInput, TestCaseObserver, TestCaseOutcome,
+            TestCaseVerdict,
+        };
+        use std::sync::Mutex;
+
+        /// One call to the observer.
+        #[derive(Clone, Copy, Debug, PartialEq)]
+        enum Event {
+            RunStarted(Option<&'static str>),
+            CaseStarted,
+            CaseFinished(TestCaseOutcome),
+            RunFinished(RunOutcome),
+        }
+
+        /// One run as the observer saw it: the test name, the outcome of
+        /// each test case, and how the run ended.
+        type Run = (Option<&'static str>, Vec<TestCaseOutcome>, RunOutcome);
+
+        /// Records every call, and fails the test if it is called in a child
+        /// process that `fork` started.
+        #[derive(Debug, Default)]
+        struct Recorder(Mutex<Vec<Event>>);
+
+        impl Recorder {
+            fn push(&self, event: Event) {
+                #[cfg(feature = "fork")]
+                assert!(
+                    env::var_os(ENV_FORK_FILE).is_none(),
+                    "observer called in a child process"
+                );
+                self.0.lock().unwrap().push(event);
+            }
+
+            /// Checks that the calls come in the documented order, and that
+            /// a duration is given exactly when the test body ran in this
+            /// process; returns the runs.
+            fn runs(&self) -> Vec<Run> {
+                let events = self.0.lock().unwrap().clone();
+                let mut runs = vec![];
+                let mut events = events.into_iter();
+                while let Some(event) = events.next() {
+                    let Event::RunStarted(name) = event else {
+                        panic!("expected the start of a run, got {:?}", event);
+                    };
+                    let mut outcomes = vec![];
+                    loop {
+                        match events.next() {
+                            Some(Event::CaseStarted) => {
+                                let Some(Event::CaseFinished(outcome)) =
+                                    events.next()
+                                else {
+                                    panic!("a test case never finished");
+                                };
+                                assert_eq!(
+                                    outcome.duration.is_some(),
+                                    outcome.result_from
+                                        == ResultSource::TestBody,
+                                    "{:?}",
+                                    outcome
+                                );
+                                outcomes.push(outcome);
+                            }
+                            Some(Event::RunFinished(how)) => {
+                                runs.push((name, outcomes, how));
+                                break;
+                            }
+                            other => panic!(
+                                "expected a test case or the run's end: {:?}",
+                                other
+                            ),
+                        }
+                    }
+                }
+                runs
+            }
+
+            /// The one run: what happened to each test case (without the
+            /// durations), and how the run ended.
+            fn run(&self) -> (Vec<Kind>, RunOutcome) {
+                let runs = self.runs();
+                assert_eq!(runs.len(), 1, "{:?}", runs);
+                let (_, outcomes, how) = runs.into_iter().next().unwrap();
+                (outcomes.iter().map(kind).collect(), how)
+            }
+        }
+
+        impl TestCaseObserver for Recorder {
+            fn run_started(&self, config: &Config) {
+                self.push(Event::RunStarted(config.test_name));
+            }
+
+            fn case_started(&self) {
+                self.push(Event::CaseStarted);
+            }
+
+            fn case_finished(&self, outcome: TestCaseOutcome) {
+                self.push(Event::CaseFinished(outcome));
+            }
+
+            fn run_finished(&self, outcome: RunOutcome) {
+                self.push(Event::RunFinished(outcome));
+            }
+        }
+
+        /// What happened to a test case, without its duration.
+        type Kind = (TestCaseInput, ResultSource, TestCaseVerdict);
+
+        fn kind(outcome: &TestCaseOutcome) -> Kind {
+            (outcome.input, outcome.result_from, outcome.verdict)
+        }
+
+        fn config_with(recorder: &Arc<Recorder>) -> Config {
+            Config {
+                cases: 30,
+                failure_persistence: None,
+                rng_seed: RngSeed::Fixed(1),
+                observer: Some(recorder.clone()),
+                ..Config::default()
+            }
+        }
+
+        /// A configuration with `persisted` persisted failures for the test
+        /// `name`.
+        fn with_persisted(
+            config: Config,
+            name: &'static str,
+            persisted: u8,
+        ) -> Config {
+            let mut persistence = MapFailurePersistence::default();
+            for i in 0..persisted {
+                persistence.save_persisted_failure2(
+                    Some(name),
+                    PersistedSeed(Seed::from_bytes(
+                        RngAlgorithm::ChaCha,
+                        &[i; 32],
+                    )),
+                    &(),
+                );
+            }
+            Config {
+                failure_persistence: Some(Box::new(persistence)),
+                source_file: Some(name),
+                rng_algorithm: RngAlgorithm::ChaCha,
+                ..config
+            }
+        }
+
+        /// Gives the inputs 0, 0, 1, 2, ..., one per test case, so that
+        /// with the result cache the second test case is a cache hit.
+        #[derive(Debug, Default)]
+        struct RepeatFirst(AtomicUsize);
+
+        impl Strategy for RepeatFirst {
+            type Tree = Just<usize>;
+            type Value = usize;
+
+            fn new_tree(&self, _: &mut TestRunner) -> NewTree<Self> {
+                let n = self.0.fetch_add(1, SeqCst);
+                Ok(Just(n.saturating_sub(1)))
+            }
+        }
+
+        fn pass() -> TestCaseResult {
+            Ok(())
+        }
+
+        fn reject() -> TestCaseResult {
+            Err(TestCaseError::reject("rejected"))
+        }
+
+        fn fail() -> TestCaseResult {
+            Err(TestCaseError::fail("failed"))
+        }
+
+        #[test]
+        fn sees_every_test_case_in_order() {
+            let recorder = Arc::new(Recorder::default());
+            let calls = Cell::new(0);
+            TestRunner::new(config_with(&recorder))
+                .run(&(0u32..100), |x| {
+                    calls.set(calls.get() + 1);
+                    prop_assume!(x % 3 != 0);
+                    Ok(())
+                })
+                .unwrap();
+
+            let (kinds, how) = recorder.run();
+            let count = |verdict| {
+                let k =
+                    (TestCaseInput::Generated, ResultSource::TestBody, verdict);
+                kinds.iter().filter(|&&x| x == k).count()
+            };
+            assert_eq!(kinds.len(), calls.get());
+            assert_eq!(count(TestCaseVerdict::Pass), 30);
+            assert_eq!(count(TestCaseVerdict::Reject), calls.get() - 30);
+            assert!(count(TestCaseVerdict::Reject) > 0);
+            assert_eq!(how, RunOutcome::Passed);
+        }
+
+        #[test]
+        fn does_not_see_shrinking() {
+            let recorder = Arc::new(Recorder::default());
+            let calls = Cell::new(0);
+            let result = TestRunner::new(config_with(&recorder)).run(
+                &(0u32..1000),
+                |x| {
+                    calls.set(calls.get() + 1);
+                    prop_assert!(x < 500);
+                    Ok(())
+                },
+            );
+            assert!(matches!(result, Err(TestError::Fail(..))));
+
+            // One failure, reported last; the shrinking calls before it run
+            // the test body but are not reported.
+            let (kinds, how) = recorder.run();
+            let fail = (
+                TestCaseInput::Generated,
+                ResultSource::TestBody,
+                TestCaseVerdict::Fail,
+            );
+            assert_eq!(kinds.iter().filter(|&&k| k == fail).count(), 1);
+            assert_eq!(kinds.last(), Some(&fail));
+            assert!(calls.get() > kinds.len());
+            assert_eq!(how, RunOutcome::Failed);
+        }
+
+        /// Every way a test case can end without `fork`: its input is new or
+        /// a persisted failure, its result comes from the test body or the
+        /// result cache, and it passes, is rejected or fails.
+        #[test]
+        fn reports_every_kind_of_test_case() {
+            use self::ResultSource::{ResultCache as C, TestBody as B};
+            use self::RunOutcome::*;
+            use self::TestCaseInput::{Generated as G, Persisted as P};
+            use self::TestCaseVerdict::{Fail as F, Pass as S, Reject as R};
+
+            // (persisted failures, result cache on, result of every test
+            //  case, what the observer must be told, how the run ends)
+            type Row = (
+                u8,
+                bool,
+                fn() -> TestCaseResult,
+                &'static [Kind],
+                RunOutcome,
+            );
+            #[rustfmt::skip]
+            let table: &[Row] = &[
+                (0, false, pass, &[(G, B, S), (G, B, S)], Passed),
+                (1, false, pass, &[(P, B, S), (G, B, S), (G, B, S)], Passed),
+                // The inputs are 0, 0, 1, ...; a cache hit does not count
+                // towards `cases`.
+                (0, true, pass, &[(G, B, S), (G, C, S), (G, B, S)], Passed),
+                (2, true, pass,
+                 &[(P, B, S), (P, C, S), (G, B, S), (G, B, S)], Passed),
+                // The third rejection is one too many.
+                (0, false, reject, &[(G, B, R), (G, B, R), (G, B, R)], Aborted),
+                (1, false, reject, &[(P, B, R), (G, B, R), (G, B, R)], Aborted),
+                (3, false, reject, &[(P, B, R), (P, B, R), (P, B, R)], Aborted),
+                (0, true, reject, &[(G, B, R), (G, C, R), (G, B, R)], Aborted),
+                (2, true, reject, &[(P, B, R), (P, C, R), (G, B, R)], Aborted),
+                (3, true, reject, &[(P, B, R), (P, C, R), (P, B, R)], Aborted),
+                // A failure ends the run, so a failure cannot come from the
+                // cache.
+                (0, false, fail, &[(G, B, F)], Failed),
+                (1, false, fail, &[(P, B, F)], Failed),
+            ];
+            for &(persisted, cache, result, expected, how) in table {
+                let recorder = Arc::new(Recorder::default());
+                let config = Config {
+                    cases: 2,
+                    max_global_rejects: 2,
+                    result_cache: if cache {
+                        basic_result_cache
+                    } else {
+                        noop_result_cache
+                    },
+                    ..config_with(&recorder)
+                };
+                let config =
+                    with_persisted(config, "observer_every_kind", persisted);
+                let _ = TestRunner::new(config)
+                    .run(&RepeatFirst::default(), |_| result());
+                assert_eq!(
+                    recorder.run(),
+                    (expected.to_vec(), how),
+                    "{} persisted, cache {}, {:?}",
+                    persisted,
+                    cache,
+                    result()
+                );
+            }
+        }
+
+        /// A failure is reported with the source of its own result, even if
+        /// shrinking it then finds a result in the cache.
+        #[test]
+        fn a_cache_hit_while_shrinking_is_not_the_test_cases_own() {
+            let recorder = Arc::new(Recorder::default());
+            // Input 0 passes and is cached; input 1 fails, and shrinking it
+            // tries 0, which the cache answers.
+            let _ = TestRunner::new(Config {
+                result_cache: basic_result_cache,
+                ..config_with(&recorder)
+            })
+            .run(&Count::default(), |x| {
+                prop_assert!(x == 0);
+                Ok(())
+            });
+            assert_eq!(
+                recorder.run(),
+                (
+                    vec![
+                        (
+                            TestCaseInput::Generated,
+                            ResultSource::TestBody,
+                            TestCaseVerdict::Pass
+                        ),
+                        (
+                            TestCaseInput::Generated,
+                            ResultSource::TestBody,
+                            TestCaseVerdict::Fail
+                        ),
+                    ],
+                    RunOutcome::Failed
+                )
+            );
+        }
+
+        /// Runs `test` with `fork` after `persisted` persisted failures, and
+        /// returns what the observer in this, the parent, process was told.
+        #[cfg(feature = "fork")]
+        fn observe_in_fork(
+            name: &'static str,
+            persisted: u8,
+            test: impl Fn(u32) -> TestCaseResult,
+        ) -> (Vec<Kind>, RunOutcome) {
+            let recorder = Arc::new(Recorder::default());
+            let config = Config {
+                fork: true,
+                test_name: Some(name),
+                cases: 2,
+                max_global_rejects: 2,
+                ..config_with(&recorder)
+            };
+            let _ = TestRunner::new(with_persisted(config, name, persisted))
+                .run(&(0u32..1000), test);
+            recorder.run()
+        }
+
+        /// One test per row, since `fork` runs the test again in a child
+        /// process, by name: (persisted failures, result of every test case,
+        /// what the observer must be told, how the run ends).
+        #[cfg(feature = "fork")]
+        macro_rules! fork_rows {
+            ($($name:ident: ($persisted:expr, $result:expr, $expected:expr,
+                             $how:expr);)*) => {$(
+                #[test]
+                fn $name() {
+                    use self::ResultSource::ChildProcess as C;
+                    use self::RunOutcome::*;
+                    use self::TestCaseInput::{Generated as G, Persisted as P};
+                    use self::TestCaseVerdict::{Fail as F, Pass as S};
+                    use self::TestCaseVerdict::Reject as R;
+                    let _ = (G, P, F, S, R, C, Passed);
+                    let name = concat!(module_path!(), "::", stringify!($name));
+                    assert_eq!(
+                        observe_in_fork(name, $persisted, |_| $result()),
+                        ($expected.to_vec(), $how)
+                    );
+                }
+            )*};
+        }
+
+        #[cfg(feature = "fork")]
+        fork_rows! {
+            fork_new_pass: (0, pass, [(G, C, S), (G, C, S)], Passed);
+            // The parent process counts the persisted failure's replay towards
+            // `cases`, unlike the child (existing runner behaviour), so only
+            // one new test case follows it.
+            fork_persisted_pass: (1, pass, [(P, C, S), (G, C, S)], Passed);
+            fork_new_reject:
+                (0, reject, [(G, C, R), (G, C, R), (G, C, R)], Aborted);
+            fork_persisted_reject:
+                (1, reject, [(P, C, R), (G, C, R), (G, C, R)], Aborted);
+            fork_new_fail: (0, fail, [(G, C, F)], Failed);
+            fork_persisted_fail: (1, fail, [(P, C, F)], Failed);
+        }
+
+        /// Gives the inputs 0, 1, 2, ..., one per test case, each shrinking
+        /// towards 0.
+        #[derive(Debug, Default)]
+        struct Count(AtomicUsize);
+
+        impl Strategy for Count {
+            type Tree = crate::num::u32::BinarySearch;
+            type Value = u32;
+
+            fn new_tree(&self, _: &mut TestRunner) -> NewTree<Self> {
+                let n = self.0.fetch_add(1, SeqCst) as u32;
+                Ok(crate::num::u32::BinarySearch::new(n))
+            }
+        }
+
+        /// A child process that crashes neither reports anything itself nor
+        /// leaves a test case unfinished. The next child process replays the
+        /// test cases before the crash, and the parent reports them once, then
+        /// the crash as a failure.
+        #[cfg(feature = "fork")]
+        #[test]
+        fn fork_child_process_crashes() {
+            let recorder = Arc::new(Recorder::default());
+            let name = concat!(module_path!(), "::fork_child_process_crashes");
+            let result = TestRunner::new(Config {
+                fork: true,
+                test_name: Some(name),
+                ..config_with(&recorder)
+            })
+            .run(&Count::default(), |x| {
+                if x == 3 {
+                    std::process::abort();
+                }
+                Ok(())
+            });
+            assert!(matches!(result, Err(TestError::Fail(..))));
+
+            let child = |verdict| {
+                (
+                    TestCaseInput::Generated,
+                    ResultSource::ChildProcess,
+                    verdict,
+                )
+            };
+            assert_eq!(
+                recorder.run(),
+                (
+                    vec![
+                        child(TestCaseVerdict::Pass),
+                        child(TestCaseVerdict::Pass),
+                        child(TestCaseVerdict::Pass),
+                        child(TestCaseVerdict::Fail),
+                    ],
+                    RunOutcome::Failed
+                )
+            );
+        }
+
+        #[test]
+        fn reports_no_test_case_when_no_input_can_be_generated() {
+            #[derive(Debug)]
+            struct NoInput;
+
+            impl Strategy for NoInput {
+                type Tree = Just<u32>;
+                type Value = u32;
+
+                fn new_tree(&self, _: &mut TestRunner) -> NewTree<Self> {
+                    Err("no input".into())
+                }
+            }
+
+            let recorder = Arc::new(Recorder::default());
+            let result = TestRunner::new(config_with(&recorder))
+                .run(&NoInput, |_| Ok(()));
+            assert!(matches!(result, Err(TestError::Abort(..))));
+            assert_eq!(recorder.run(), (vec![], RunOutcome::Aborted));
+        }
+
+        #[test]
+        fn sees_the_start_and_end_of_each_run() {
+            let recorder = Arc::new(Recorder::default());
+            let config = Config {
+                test_name: Some("observer::a_test"),
+                ..config_with(&recorder)
+            };
+            // Two runs, each with its own runner, reported to one observer:
+            // one passes, one fails.
+            TestRunner::new(config.clone())
+                .run(&(0u32..1000), |_| Ok(()))
+                .unwrap();
+            let result = TestRunner::new(config).run(&(0u32..1000), |x| {
+                prop_assert!(x < 500);
+                Ok(())
+            });
+            assert!(result.is_err());
+
+            let runs = recorder.runs();
+            assert_eq!(runs.len(), 2);
+            assert_eq!(runs[0].0, Some("observer::a_test"));
+            assert_eq!(runs[0].1.len(), 30);
+            assert_eq!(runs[0].2, RunOutcome::Passed);
+            assert_eq!(runs[1].0, Some("observer::a_test"));
+            assert_eq!(runs[1].2, RunOutcome::Failed);
+        }
+
+        #[test]
+        fn run_one_reports_nothing() {
+            let recorder = Arc::new(Recorder::default());
+            TestRunner::new(config_with(&recorder))
+                .run_one(Just(0u32), |_| Ok(()))
+                .unwrap();
+            assert!(recorder.runs().is_empty());
+        }
+
+        #[test]
+        fn an_observer_that_implements_nothing_changes_nothing() {
+            #[derive(Debug)]
+            struct Silent;
+
+            impl TestCaseObserver for Silent {}
+
+            let config = Config {
+                cases: 30,
+                failure_persistence: None,
+                rng_seed: RngSeed::Fixed(1),
+                ..Config::default()
+            };
+            let test = |x: u32| {
+                prop_assume!(x % 3 != 0);
+                prop_assert!(x < 900);
+                Ok(())
+            };
+            let run = |config| {
+                let mut runner = TestRunner::new(config);
+                let result = runner.run(&(0u32..1000), test);
+                (
+                    format!("{:?}", result),
+                    runner.successes,
+                    runner.global_rejects,
+                )
+            };
+            let without = run(config.clone());
+            let with = run(Config {
+                observer: Some(Arc::new(Silent)),
+                ..config
+            });
+            assert_eq!(with, without);
+            assert!(without.1 > 0 && without.2 > 0);
+        }
+
+        #[test]
+        fn configs_are_equal_only_with_the_same_observer() {
+            let recorder = Arc::new(Recorder::default());
+            let other = Arc::new(Recorder::default());
+            assert_eq!(config_with(&recorder), config_with(&recorder));
+            assert_ne!(config_with(&recorder), config_with(&other));
+            assert_ne!(
+                config_with(&recorder),
+                Config {
+                    observer: None,
+                    ..config_with(&recorder)
+                }
+            );
+        }
+    }
 
     #[test]
     fn gives_up_after_too_many_rejections() {

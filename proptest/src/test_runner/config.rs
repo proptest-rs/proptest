@@ -13,6 +13,8 @@ use core::{fmt, str, u32};
 use crate::test_runner::result_cache::{noop_result_cache, ResultCache};
 use crate::test_runner::rng::RngAlgorithm;
 use crate::test_runner::FailurePersistence;
+#[cfg(feature = "std")]
+use crate::{std_facade::Arc, test_runner::TestCaseObserver};
 
 /// Override the config fields from environment variables, if any are set.
 /// Without the `std` feature this function returns config unchanged.
@@ -161,6 +163,8 @@ fn default_default_config() -> Config {
         max_global_rejects: 1024,
         max_flat_map_regens: 1_000_000,
         failure_persistence: None,
+        #[cfg(feature = "std")]
+        observer: None,
         source_file: None,
         test_name: None,
         #[cfg(feature = "fork")]
@@ -273,6 +277,15 @@ pub struct Config {
     /// only considered when the `std` feature is enabled, which it is by
     /// default.)
     pub failure_persistence: Option<Box<dyn FailurePersistence>>,
+
+    /// An observer that `TestRunner::run` tells when a run starts and ends,
+    /// and before and after each test case it runs, with what happened to the
+    /// test case. See [`TestCaseObserver`].
+    ///
+    /// The default is `None`, which reports nothing and changes nothing.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+    pub observer: Option<Arc<dyn TestCaseObserver>>,
 
     /// File location of the current test, relevant for persistence
     /// and debugging.

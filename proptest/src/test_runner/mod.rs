@@ -15,6 +15,8 @@
 mod config;
 mod errors;
 mod failure_persistence;
+#[cfg(feature = "std")]
+mod observer;
 mod reason;
 #[cfg(feature = "fork")]
 mod replay;
@@ -26,6 +28,8 @@ mod scoped_panic_hook;
 pub use self::config::*;
 pub use self::errors::*;
 pub use self::failure_persistence::*;
+#[cfg(feature = "std")]
+pub use self::observer::*;
 pub use self::reason::*;
 pub use self::result_cache::*;
 pub use self::rng::*;
