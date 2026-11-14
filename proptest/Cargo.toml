@@ -88,3 +88,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dev-dependencies]
 regex = { workspace = true }
 trybuild = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ["cfg(target_has_reliable_f16)"]
