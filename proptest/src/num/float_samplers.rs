@@ -18,6 +18,7 @@
 //! returned.
 
 #[cfg(feature = "f16")]
+#[cfg_attr(feature = "f16", cfg(target_has_reliable_f16))]
 pub(crate) use self::f16::F16U;
 pub(crate) use self::f32::F32U;
 pub(crate) use self::f64::F64U;
@@ -495,6 +496,7 @@ macro_rules! float_sampler {
 }
 
 #[cfg(feature = "f16")]
+#[cfg_attr(feature = "f16", cfg(target_has_reliable_f16))]
 float_sampler!(f16, u16, F16U);
 float_sampler!(f32, u32, F32U);
 float_sampler!(f64, u64, F64U);

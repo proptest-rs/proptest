@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Bug Fixes
+
+- Check `cfg(target_has_reliable_f16)` when the `f16` feature is enabled so
+  targets without `f16` compiler intrinsics do not fail to link.
+  ([\#679](https://github.com/proptest-rs/proptest/issues/679))
+
 ## 1.12.0
 
 ### Breaking Changes

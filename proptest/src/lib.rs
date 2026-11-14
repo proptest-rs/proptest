@@ -26,7 +26,9 @@
     feature = "unstable",
     feature(allocator_api, try_trait_v2, coroutine_trait, never_type)
 )]
-#![cfg_attr(feature = "f16", feature(f16))]
+#![cfg_attr(feature = "f16", allow(internal_features))]
+#![cfg_attr(feature = "f16", feature(cfg_target_has_reliable_f16_f128))]
+#![cfg_attr(feature = "f16", cfg_attr(target_has_reliable_f16, feature(f16)))]
 #![cfg_attr(all(feature = "std", feature = "unstable"), feature(ip))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

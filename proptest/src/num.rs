@@ -523,6 +523,7 @@ where
 }
 
 #[cfg(feature = "f16")]
+#[cfg_attr(feature = "f16", cfg(target_has_reliable_f16))]
 impl FloatLayout for f16 {
     type Bits = u16;
 
@@ -988,6 +989,7 @@ macro_rules! float_bin_search {
 }
 
 #[cfg(feature = "f16")]
+#[cfg_attr(feature = "f16", cfg(target_has_reliable_f16))]
 float_bin_search!(f16, F16U);
 float_bin_search!(f32, F32U);
 float_bin_search!(f64, F64U);
@@ -1220,6 +1222,7 @@ mod test {
         contract_sanity!(usize);
         contract_sanity!(isize);
         #[cfg(feature = "f16")]
+        #[cfg_attr(feature = "f16", cfg(target_has_reliable_f16))]
         contract_sanity!(f16);
         contract_sanity!(f32);
         contract_sanity!(f64);
@@ -1476,6 +1479,7 @@ mod test {
         #![proptest_config(crate::test_runner::Config::with_cases(1024))]
 
         #[cfg(feature = "f16")]
+        #[cfg_attr(feature = "f16", cfg(target_has_reliable_f16))]
         #[test]
         fn f16_any_generates_desired_values(
             strategy in crate::bits::u32::ANY.prop_map(f16::Any::from_bits)
@@ -1484,6 +1488,7 @@ mod test {
         }
 
         #[cfg(feature = "f16")]
+        #[cfg_attr(feature = "f16", cfg(target_has_reliable_f16))]
         #[test]
         fn f16_any_sanity(
             strategy in crate::bits::u32::ANY.prop_map(f16::Any::from_bits)
@@ -1588,8 +1593,40 @@ mod test {
         panic_on_empty!(usize);
         panic_on_empty!(isize);
         #[cfg(feature = "f16")]
+        #[cfg_attr(feature = "f16", cfg(target_has_reliable_f16))]
         panic_on_empty!(f16);
         panic_on_empty!(f32);
         panic_on_empty!(f64);
+    }
+
+    #[cfg(feature = "f16")]
+    #[cfg_attr(feature = "f16", cfg(not(target_has_reliable_f16)))]
+    mod f16_disabled_without_target_has_reliable_f16 {
+        mod fallback {
+            pub mod f16 {
+                pub const PRESENT: bool = false;
+            }
+            pub type F16U = u16;
+        }
+        mod check_num {
+            use super::fallback::*;
+            use crate::num::*;
+            pub type UseNum = f32::Any;
+            pub const PRESENT: bool = f16::PRESENT;
+        }
+        mod check_samplers {
+            use super::fallback::*;
+            use crate::num::float_samplers::*;
+            pub type UseSamplers = (F32U, F16U);
+            pub const PRESENT: bool = f16::PRESENT;
+        }
+
+        #[test]
+        fn check() {
+            let _: *const check_num::UseNum = core::ptr::null();
+            let _: *const check_samplers::UseSamplers = core::ptr::null();
+            assert!(!check_num::PRESENT);
+            assert!(!check_samplers::PRESENT);
+        }
     }
 }
