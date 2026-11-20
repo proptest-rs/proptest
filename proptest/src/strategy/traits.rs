@@ -436,8 +436,8 @@ pub trait Strategy: fmt::Debug {
     ///   64, // Target around 64 total elements
     ///   16, // Each collection is up to 16 elements long
     ///   |element| prop_oneof![
-    ///     // NB `element` is an `Arc` and we'll need to reference it twice,
-    ///     // so we clone it the first time.
+    ///     // `element` is a BoxedStrategy, which internally uses an Arc. Clone
+    ///     // it so both branches can share the same recursive strategy.
     ///     prop::collection::vec(element.clone(), 0..16)
     ///       .prop_map(JsonNode::Array),
     ///     prop::collection::hash_map(".*", element, 0..16)
