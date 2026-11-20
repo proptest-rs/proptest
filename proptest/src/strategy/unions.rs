@@ -333,8 +333,8 @@ def_access_tuple!($ access_tupleA, 1 2 3 4 5 6 7 8 9);
 /// to resort to boxing and dynamic dispatch to handle heterogeneous
 /// strategies.
 ///
-/// The difference between this and `TupleUnion` is that with this, value trees
-/// for variants that aren't picked at first are generated lazily.
+/// Like `Union`, this generates value trees for variants that aren't picked at
+/// first lazily.
 #[must_use = "strategies do nothing unless used"]
 #[derive(Clone, Copy, Debug)]
 pub struct TupleUnion<T>(T);
