@@ -7,6 +7,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[cfg(feature = "std")]
+use crate::std_facade::BTreeSet;
 use crate::std_facade::{Arc, BTreeMap, Box, String, Vec};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
@@ -25,6 +27,8 @@ use std::fs;
 #[cfg(feature = "fork")]
 use tempfile;
 
+#[cfg(feature = "std")]
+use crate::statistics::{CoverageDecision, RunStatistics};
 use crate::strategy::*;
 use crate::test_runner::config::*;
 use crate::test_runner::errors::*;
@@ -37,6 +41,11 @@ use crate::test_runner::rng::TestRng;
 
 #[cfg(feature = "fork")]
 const ENV_FORK_FILE: &'static str = "_PROPTEST_FORKFILE";
+
+/// How many additional test cases to run between statistical coverage
+/// evaluations while still working toward `Config::cases`.
+#[cfg(feature = "std")]
+const COVERAGE_EVALUATION_INTERVAL: u32 = 100;
 
 const ALWAYS: u32 = 0;
 /// Verbose level 1 to show failures. In state machine tests this level is used
@@ -78,6 +87,9 @@ pub struct TestRunner {
 
     local_reject_detail: RejectionDetail,
     global_reject_detail: RejectionDetail,
+
+    #[cfg(feature = "std")]
+    statistics: RunStatistics,
 }
 
 impl fmt::Debug for TestRunner {
@@ -351,6 +363,8 @@ impl TestRunner {
             flat_map_regens: Arc::new(AtomicUsize::new(0)),
             local_reject_detail: BTreeMap::new(),
             global_reject_detail: BTreeMap::new(),
+            #[cfg(feature = "std")]
+            statistics: RunStatistics::default(),
         }
     }
 
@@ -367,6 +381,8 @@ impl TestRunner {
             flat_map_regens: Arc::clone(&self.flat_map_regens),
             local_reject_detail: BTreeMap::new(),
             global_reject_detail: BTreeMap::new(),
+            #[cfg(feature = "std")]
+            statistics: RunStatistics::default(),
         }
     }
 
@@ -384,6 +400,14 @@ impl TestRunner {
     /// Returns the configuration of this runner.
     pub fn config(&self) -> &Config {
         &self.config
+    }
+
+    /// Returns the statistics recorded via [`crate::statistics`] during this
+    /// runner's test runs so far.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+    pub fn statistics(&self) -> &RunStatistics {
+        &self.statistics
     }
 
     /// Dumps the bytes obtained from the RNG so far (only works if the RNG is
@@ -621,7 +645,20 @@ impl TestRunner {
         }
         self.rng = old_rng;
 
-        while self.successes < self.config.cases {
+        // With a coverage confidence configured, the loop must keep running
+        // past `cases` until every requirement is statistically decided.
+        #[cfg(feature = "std")]
+        let coverage_confidence = self.config.coverage_confidence;
+        #[cfg(feature = "std")]
+        let mut coverage_pending = coverage_confidence.is_some();
+        #[cfg(feature = "std")]
+        let mut confirmed_coverage_labels = BTreeSet::new();
+        #[cfg(feature = "std")]
+        let mut cases_at_last_coverage_check = 0u32;
+        #[cfg(not(feature = "std"))]
+        let coverage_pending = false;
+
+        while self.successes < self.config.cases || coverage_pending {
             // Generate a new seed and make an RNG from that so that we know
             // what seed to persist if this case fails.
             let seed = self.rng.gen_get_seed();
@@ -656,10 +693,98 @@ impl TestRunner {
                 fork_output.terminate();
                 return Err(e.into());
             }
+
+            #[cfg(feature = "std")]
+            if coverage_pending {
+                let confidence = coverage_confidence
+                    .expect("coverage_pending implies a confidence");
+                let total_cases = self.statistics.cases();
+                // Evaluating at intervals keeps the cost negligible while
+                // testing toward `cases`; once past it, every further case
+                // exists only to settle coverage, so evaluate each one.
+                let evaluation_due = total_cases
+                    >= cases_at_last_coverage_check
+                        + COVERAGE_EVALUATION_INTERVAL
+                    || self.successes >= self.config.cases;
+                if evaluation_due && total_cases > 0 {
+                    cases_at_last_coverage_check = total_cases;
+                    match self.statistics.decide_coverage(
+                        &confidence,
+                        &mut confirmed_coverage_labels,
+                    ) {
+                        CoverageDecision::AllConfirmed => {
+                            coverage_pending = false;
+                        }
+                        CoverageDecision::Refuted(unmet) => {
+                            fork_output.terminate();
+                            self.print_statistics_summary();
+                            return Err(TestError::Abort(
+                                format!(
+                                    "Coverage requirement statistically \
+                                     refuted after {} cases: {}",
+                                    total_cases, unmet
+                                )
+                                .into(),
+                            ));
+                        }
+                        CoverageDecision::Undecided => {
+                            if total_cases >= confidence.max_cases {
+                                fork_output.terminate();
+                                self.print_statistics_summary();
+                                return Err(TestError::Abort(
+                                    format!(
+                                        "Coverage still undecided after {} \
+                                         cases (CoverageConfidence::\
+                                         max_cases); some observed rate is \
+                                         too close to its requirement to \
+                                         confirm or refute it",
+                                        total_cases
+                                    )
+                                    .into(),
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         fork_output.terminate();
+
+        // Failures return early above, so by here every case passed. The
+        // summary is printed before the coverage check so that a coverage
+        // failure still shows the distribution it is complaining about.
+        #[cfg(feature = "std")]
+        {
+            self.print_statistics_summary();
+
+            // With a confidence configured, coverage was already decided
+            // statistically in the loop; the fixed-sample check would
+            // wrongly fail rates inside the tolerance band.
+            if coverage_confidence.is_none() {
+                let unmet_coverage = self.statistics.unmet_coverage();
+                if !unmet_coverage.is_empty() {
+                    let mut message =
+                        String::from("Coverage requirements not met:");
+                    for unmet in unmet_coverage {
+                        message.push_str(&format!("\n  {}", unmet));
+                    }
+                    return Err(TestError::Abort(message.into()));
+                }
+            }
+        }
+
         Ok(())
+    }
+
+    #[cfg(feature = "std")]
+    fn print_statistics_summary(&self) {
+        if !self.statistics.is_empty() {
+            let summary = format!("{}", self.statistics);
+            for line in summary.lines() {
+                eprintln!("proptest: {}", line);
+            }
+        }
     }
 
     fn gen_and_run_case<S: Strategy>(
@@ -734,6 +859,21 @@ impl TestRunner {
         fork_output: &mut ForkOutput,
         is_from_persisted_seed: bool,
     ) -> Result<TestCaseOk, TestError<V::Value>> {
+        // Record statistics only for this execution; the shrink loop below
+        // runs outside the recording scope so its re-runs don't skew them.
+        #[cfg(feature = "std")]
+        let (result, case_statistics) = crate::statistics::record_case(|| {
+            call_test(
+                self,
+                case.current(),
+                &test,
+                replay_from_fork,
+                result_cache,
+                fork_output,
+                is_from_persisted_seed,
+            )
+        });
+        #[cfg(not(feature = "std"))]
         let result = call_test(
             self,
             case.current(),
@@ -745,7 +885,19 @@ impl TestRunner {
         );
 
         match result {
-            Ok(success_type) => Ok(success_type),
+            Ok(success_type) => {
+                // Cache hits and fork replays never ran the test, so merging
+                // their empty records would dilute the percentages.
+                #[cfg(feature = "std")]
+                if matches!(
+                    success_type,
+                    TestCaseOk::NewCaseSuccess
+                        | TestCaseOk::PersistedCaseSuccess
+                ) {
+                    self.statistics.merge_case(case_statistics);
+                }
+                Ok(success_type)
+            }
             Err(TestCaseError::Fail(why)) => {
                 let why = self
                     .shrink(

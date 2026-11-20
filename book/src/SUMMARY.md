@@ -19,6 +19,7 @@
     - [Defining a Canonical `Strategy` for a Type](proptest/tutorial/arbitrary.md)
     - [Configuring Proptest](proptest/tutorial/config.md)
   - [Failure Persistence](proptest/failure-persistence.md)
+  - [Test Case Statistics](proptest/statistics.md)
   - [Test Timeouts and Forking](proptest/forking.md)
   - [`no_std` Support](proptest/no-std.md)
   - [Web Assembly Support](proptest/wasm.md)

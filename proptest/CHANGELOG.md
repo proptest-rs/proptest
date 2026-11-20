@@ -13,6 +13,22 @@
   Code exchanging `BitSet` values with proptest must also use `bit-set` 0.11.
   ([\#662](https://github.com/proptest-rs/proptest/pull/662))
 
+### New Features
+
+- Added the `proptest::statistics` module with `label`, `classify`, `collect`
+  and `measure` functions (in the spirit of QuickCheck's and PropEr's
+  homonymous facilities) for reporting the distribution of generated test
+  inputs. A summary is printed to stderr after a successful run, and the
+  aggregated data is available via `TestRunner::statistics()`.
+- Added `statistics::cover`, which turns a label into an enforceable
+  requirement: the run fails if fewer than the given percentage of test
+  cases record it.
+- Added `Config::coverage_confidence` for statistically sound coverage
+  checking in the style of QuickCheck's `checkCoverage`: the runner keeps
+  generating test cases until every `cover` requirement is confirmed or
+  refuted with the configured confidence, so runs cannot fail by an unlucky
+  sample.
+
 ### Bug Fixes
 
 - Fixed a panic when generating arbitrary `Duration` values near the maximum.
