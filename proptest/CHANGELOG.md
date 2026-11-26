@@ -1,5 +1,12 @@
 ## Unreleased
 
+### Bug Fixes
+
+- Fixed a debug assertion that panicked, rarely, when sampling a float range
+  whose lower bound has the smaller magnitude (`0.2..3.0`): it compared the
+  first split's overshoot below `low` with the split's step, which is negative
+  there. ([\#683](https://github.com/proptest-rs/proptest/issues/683))
+
 ## 1.12.0
 
 ### Breaking Changes
