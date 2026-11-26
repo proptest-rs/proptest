@@ -132,24 +132,37 @@ macro_rules! float_sampler {
                     let last = intervals.get(0);
                     let result = *last.choose(rng).expect("Slice is not empty");
 
-                    // These results could happen because the first split might
-                    // overshoot one of the bounds. We could resample in this
-                    // case but for testing data this is not a problem.
-                    let clamped_result = if result < self.low {
-                        debug_assert!(self.low - result < initial.step);
-                        self.low
-                    } else if result > self.high{
-                        debug_assert!(result - self.high < initial.step);
-                        self.high
-                    } else {
-                        result
-                    };
+                    let clamped_result = self.clamp(result, initial.step);
 
                     if !self.inclusive && clamped_result == self.high  {
                         return $wrapper(next_down(self.high));
                     };
 
                     $wrapper(clamped_result)
+                }
+            }
+
+            impl FloatUniform {
+                // These results could happen because the first split might
+                // overshoot one of the bounds. We could resample in this
+                // case but for testing data this is not a problem.
+                //
+                // `step` is the first split's, and it is negative when the
+                // split walks down from `high` (`|low| < |high|`): the
+                // overshoot is bounded by its magnitude. The bound is not
+                // strict, because the subtraction rounds: for
+                // `-5.644756e-23..1.0816249e23` (`f32`) the overshoot is a
+                // hair under one step and computes as exactly one.
+                fn clamp(&self, result: $typ, step: $typ) -> $typ {
+                    if result < self.low {
+                        debug_assert!(self.low - result <= step.abs());
+                        self.low
+                    } else if result > self.high {
+                        debug_assert!(result - self.high <= step.abs());
+                        self.high
+                    } else {
+                        result
+                    }
                 }
             }
 
@@ -281,6 +294,21 @@ macro_rules! float_sampler {
                     for s in samples {
                         assert!(low <= s && s < high);
                     }
+                }
+
+                // `0.2..3.0` splits downward from `3.0` (a negative step), and
+                // its last interval ends below `0.2`. Sampling that endpoint is
+                // rare (about 7 in 10^9 samples for `f32`) and tripped the debug
+                // assertion, which compared the overshoot with the signed step.
+                #[test]
+                fn overshoot_below_low_with_a_negative_step_is_clamped() {
+                    let (low, high) = (0.2, 3.0);
+                    let uniform = FloatUniform::new($wrapper(low), $wrapper(high)).expect("not uniform");
+                    let intervals = split_interval([low, high]);
+                    assert!(intervals.step < 0.);
+                    let below = intervals.get(intervals.count - 1)[0];
+                    assert!(below < low);
+                    assert_eq!(uniform.clamp(below, intervals.step), low);
                 }
 
                 #[test]
@@ -461,6 +489,18 @@ macro_rules! float_sampler {
                         prop_assert!(
                             low == low_interval[0] && high_interval[0] < high && high <= high_interval[1] ||
                             low_interval[0] <= low && low < low_interval[1] && high == high_interval[1]);
+                    }
+
+                    #[test]
+                    fn first_split_overshoot_is_clamped_into_the_range((low, high) in bounds()) {
+                        let uniform = FloatUniform::new_inclusive($wrapper(low), $wrapper(high)).expect("not uniform");
+                        let intervals = split_interval([low, high]);
+                        for i in [0, intervals.count - 1] {
+                            for x in intervals.get(i) {
+                                let clamped = uniform.clamp(x, intervals.step);
+                                prop_assert!(low <= clamped && clamped <= high);
+                            }
+                        }
                     }
 
                     #[test]
